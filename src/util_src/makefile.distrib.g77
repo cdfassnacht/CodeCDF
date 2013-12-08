@@ -1,0 +1,83 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the libplotutil.a makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the plotting interface library and for
+#              fitsplt and specplot themselves.
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu).  Based on Martin Shepherd's
+#  difmap makefiles.
+#-----------------------------------------------------------------------
+# Compile time flags.
+
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the general utilities library is to be specified
+
+LIBUTIL = $(LIBDIR)/libutil.a
+
+#
+# List all the objects that are to be placed in the library
+#
+CDFUTIL_O = catlib.o coords.o dataio.o structdef.o cosmo.o
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+#-----------------------------------------------------------------------
+# Default to making libutil.a and libutil.h
+
+default: $(LIBUTIL) install_header
+
+#-----------------------------------------------------------------------
+# The following rules make the general utilities library
+#-----------------------------------------------------------------------
+
+install_header: $(INCDIR)/coords.h $(INCDIR)/dataio.h $(INCDIR)/structdef.h $(INCDIR)/cosmo.h $(INCDIR)/catlib.h
+
+$(INCDIR)/coords.h: coords.h
+	cp coords.h $(INCDIR)/coords.h
+	chmod ugo+r $(INCDIR)/coords.h
+
+$(INCDIR)/catlib.h: catlib.h
+	cp catlib.h $(INCDIR)/catlib.h
+	chmod ugo+r $(INCDIR)/catlib.h
+
+$(INCDIR)/dataio.h: dataio.h
+	cp dataio.h $(INCDIR)/dataio.h
+	chmod ugo+r $(INCDIR)/dataio.h
+
+$(INCDIR)/structdef.h: structdef.h
+	cp structdef.h $(INCDIR)/structdef.h
+	chmod ugo+r $(INCDIR)/structdef.h
+
+$(INCDIR)/cosmo.h: cosmo.h
+	cp cosmo.h $(INCDIR)/cosmo.h
+	chmod ugo+r $(INCDIR)/cosmo.h
+
+$(LIBUTIL): $(CDFUTIL_O)
+	ar ru $(LIBUTIL) $(CDFUTIL_O)
+	ranlib $(LIBUTIL)
+
+structdef.o: $(INCDIR)/structdef.h
+
+coords.o: $(INCDIR)/coords.h $(INCDIR)/structdef.h
+
+catlib.o: $(INCDIR)/catlib.h $(INCDIR)/dataio.h
+
+dataio.o: $(INCDIR)/dataio.h
+
+cosmo.o: $(INCDIR)/cosmo.h
+

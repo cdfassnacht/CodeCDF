@@ -1,0 +1,83 @@
+#
+# ***** NB: Now in Linux mode *****
+#
+# ANSI-C compiler.
+
+CC = gcc
+
+# ANSI-C run-time library.
+
+CCLIB = `gcc -print-libgcc-file-name`
+
+# FORTRAN compiler.
+
+FC = f77
+#FC = g77
+
+# C and FORTRAN compilation flags.
+
+CFLAGS = -g -Wall
+FFLAGS = -O
+
+# Directory for includes.
+
+INCDIR = $(HOME)/include
+
+#
+# OS-dependent directories
+#
+# Directory for libraries.
+
+LINUXLIB = $(HOME)/lib/Linux
+SOLLIB = $(HOME)/lib/Solaris
+CITLIB = $(HOME)/lib
+LIBDIR = $(OSLIB)
+
+# Destination for executables
+
+LINUXBIN = $(HOME)/bin/Linux
+SOLBIN = $(HOME)/bin/Solaris
+CITBIN = $(HOME)/bin
+BINDIR = $(OSBIN)
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: $(CDFUTIL)
+
+#-----------------------------------------------------------------------
+# The following rules make the general utilities library
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+CDFUTIL_O = catlib.o coords.o dataio.o structdef.o cosmo.o
+
+$(CDFUTIL): $(CDFUTIL_O)
+	ar ru $(CDFUTIL) $(CDFUTIL_O)
+	ranlib $(CDFUTIL)
+
+catlib.o: $(INCDIR)/catlib.h
+
+structdef.o: $(INCDIR)/structdef.h
+
+coords.o: $(INCDIR)/coords.h $(INCDIR)/structdef.h
+
+dataio.o: $(INCDIR)/dataio.h
+
+cosmo.o: $(INCDIR)/cosmo.h
+
