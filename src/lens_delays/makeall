@@ -1,0 +1,15 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Create and install the lensmon programs and their libraries.
+#-----------------------------------------------------------------------
+
+echo ' '; echo 'Compiling the local nr library liblocnr.a'; echo ' '
+(cd locnr; make)
+
+echo ' '; echo 'Compiling the general utility library libutil.a'; echo ' '
+(cd $CDFUTIL; make)
+
+echo ' '; echo 'Compiling the light-curve library liblcfn.a'
+echo ' and the programs themselves'; echo ' '
+(cd src; make)
+
