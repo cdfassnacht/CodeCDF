@@ -4,9 +4,10 @@
 # python extensions
 *.py[cod]
 
-# C extensions
+# C extensions and associated files
 *.so
 *.o
+makefile
 
 # Packages
 *.egg
