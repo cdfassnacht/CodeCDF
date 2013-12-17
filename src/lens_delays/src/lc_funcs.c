@@ -282,26 +282,21 @@ Fluxrec *del_fluxrec(Fluxrec *fluxrec)
  * Loads the light curve into an array of Fluxrec arrays.
  *
  * Inputs: int argc            number of command-line arguments
- *         char *argv          command-line arguments
+ *         char **argv         command-line arguments
  *         int ncurves         number of light curves (may disappear later)
+ *         int *npoints        container for npoints array that gets filled
+ *                              by this function
  *
  * Output: none
  *
  */
 
-Fluxrec **load_light_curves(int argc, char **argv, int ncurves)
+Fluxrec **load_light_curves(int argc, char **argv, int ncurves, int *npoints)
 {
   int i;                 /* Looping variable */
   int no_error=1;        /* Flag set to 0 on error */
-  int *npoints;          /* Number of points in each light curve */
   char infile[MAXC];     /* Container for input file names */
   Fluxrec **lc={NULL};   /* Array of light curves */
-
-  printf("Number of command line arguments: %d\n",argc);
-  for(i=1; i<=ncurves; i++) {
-    printf("%s\n",argv[i]);
-  }
-  printf("\n");
 
   /*
    * Allocate first level of pointers to light curves and initialize
@@ -318,23 +313,15 @@ Fluxrec **load_light_curves(int argc, char **argv, int ncurves)
     lc[i] = NULL;
 
   /*
-   * Allocate memory for arrays for number of points and index.
-   */
-
-  if(!(npoints = new_intarray(ncurves,1)))
-    no_error = 0;
-#if 0
-  if(!(index = new_intarray(ncurves,1)))
-    no_error = 0;
-#endif
-
-  /*
    * Read input light curves and set up default index
    */
 
+  printf("\n");
   for(i=0; i<ncurves; i++) {
     /* index[i] = i; */
     strcpy(infile,argv[i+1]);
+    printf("Loading lightcurve(s) from %s\n",infile);
+    printf("--------------------------------------------------\n");
     if(!(lc[i] = read_fluxrec(infile,'#',&npoints[i])))
       no_error = 0;
   }
@@ -622,7 +609,7 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
   FILE *ifp=NULL;        /* Input file pointer */
 
   /*
-   * Open output file
+   * Open input file
    */
 
   if(!(ifp = open_readfile(inname))) {
@@ -687,7 +674,7 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
     fclose(ifp);
 
   if(no_error) {
-    printf("\nread_fluxrec: %s has %d columns and %d lines\n\n",inname,
+    printf("read_fluxrec: %s has %d columns and %d lines\n\n",inname,
 	   ncols,*nlines);
     return newflux;
   }

@@ -33,10 +33,12 @@
 int main(int argc, char *argv[])
 {
   int i;                        /* Looping variable */
+  int junki;
   int no_error=1;               /* Flag set to 0 on error */
   int ncurves=2;                /* Number of input light curves */
-  int *npoints;                 /* Number of points in each light curve */
+  int *npoints=NULL;            /* Number of points in each light curve */
   int *index;                   /* Default index for dispersion method */
+  char tmpname[MAXC];
   char setupfile[MAXC];         /* Name of setup file */
   Fluxrec **lc={NULL};          /* Array of light curves */
   Setup *setup=NULL;            /* Container for setup information */
@@ -56,13 +58,31 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  /*
+   * Allocate memory for arrays for number of points and index.
+   */
+
+  if(!(npoints = new_intarray(ncurves,1)))
+    no_error = 0;
+#if 0
+  if(!(index = new_intarray(ncurves,1)))
+    no_error = 0;
+#endif
 
   /*
    * Load the light curves
    */
 
-  lc = load_light_curves(argc,argv,ncurves);
+  lc = load_light_curves(argc,argv,ncurves,npoints);
 
+  /*
+   * Temporary check - print out input light curves
+   */
+
+  for(i=0; i<ncurves; i++) {
+    sprintf(tmpname,"foo_%d.txt",i+1);
+    junki = write_fluxrec(lc[i],npoints[i],tmpname,0,0.1);
+  }
 #if 0
 
   /*
