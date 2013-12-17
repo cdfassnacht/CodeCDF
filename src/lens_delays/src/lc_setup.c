@@ -76,6 +76,10 @@ Setup *new_setup(int size)
   newsetup->dispchoice = UNSET;
   newsetup->d2delta = -1.0;
   newsetup->dosmooth = SMUNSET;
+  newsetup->infile1 = NULL;
+  newsetup->infile2 = NULL;
+  newsetup->infile3 = NULL;
+  newsetup->infile4 = NULL;
   newsetup->smtype = -1;
   newsetup->smwidth = 0.0;
   newsetup->ninterp = 0;
@@ -127,6 +131,46 @@ Setup *del_setup(Setup *setup)
     free(setup);
 
   return NULL;
+}
+
+/*.......................................................................
+ *
+ * Function setup_from_command_line
+ *
+ * Uses the command-line arguments to create a new setup container and
+ * to fill in some of its initial values.  This function expects the 
+ * command line to contain at least two arguments.  Possible command-line
+ * invocations are, remembering that the setup file is optional:
+ *
+ *   tdelays -[flags] input_file (setup_file)
+ *   tdelays -[flags] input_file1 input_file2 (setup_file)
+ *
+ * Inputs: char **argv         command-line arguments
+ *         int argc            number of command-line arguments
+ *
+ * Output: Setup *setup        new setup container
+ */
+
+Setup *setup_from_command_line(char *argv[], int narg)
+{
+  Setup *newsetup=NULL;     /* New setup container to be filled */
+
+  /* Create the new setup container  */
+  if(!(newsetup = new_setup(1))) {
+    fprintf(stderr,"ERROR: setup_from_command_line\n");
+    return NULL;
+  }
+
+  /*
+   * Use the command-line arguments to fill this
+   * For now, just a hard-wired assumption about the input file format
+   */
+
+  newsetup->ncurves = 2;
+  newsetup->infile[0] = argv[1];
+  newsetup->infile[1] = argv[2];
+
+  return newsetup;
 }
 
 /*.......................................................................
@@ -927,7 +971,7 @@ void setup_delays_summary(Setup *setup)
   if(setup->infile1)
     printf("Input file 1: %s\n",setup->infile1);
   if(setup->infile2)
-    printf("Input file 1: %s\n",setup->infile2);
+    printf("Input file 2: %s\n",setup->infile2);
   printf("\nAnalysis method             Type (optional) Size (optional)\n");
   printf("--------------------------- --------------- ---------------\n");
   if(setup->dochi)

@@ -59,6 +59,16 @@ int main(int argc, char *argv[])
   }
 
   /*
+   * Check the command line arguments and, if the format is OK, create and 
+   *  do the initial population of the setup container
+   */
+
+  if(!(setup = setup_from_command_line(argv,argc))) {
+    fprintf(stderr,"ERROR\n");
+    return 1;
+  }
+
+  /*
    * Allocate memory for arrays for number of points and index.
    */
 
@@ -73,7 +83,7 @@ int main(int argc, char *argv[])
    * Load the light curves
    */
 
-  lc = load_light_curves(argc,argv,ncurves,npoints);
+  lc = load_light_curves(setup,npoints);
 
   /*
    * Temporary check - print out input light curves

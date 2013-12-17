@@ -127,7 +127,8 @@ typedef struct {
   int docurvefit;       /* Flag set to YES for curve fitting analysis */
   int dispchoice;       /* Choice of dispersion analysis method */
   float d2delta;        /* delta parameter for D^2_2 dispersion method */
-  char *infile1;        /* Name of first input file */
+  char *infile[4];      /* Names input files */
+  char *infile1;        /* Name of second input file */
   char *infile2;        /* Name of second input file */
   char *infile3;        /* Name of third input file */
   char *infile4;        /* Name of fourth input file */
@@ -166,6 +167,7 @@ typedef struct {
 
 Setup *new_setup(int size);
 Setup *del_setup(Setup *setup);
+Setup *setup_from_command_line(char *argv[], int narg);
 int setup_file(Setup *setup, char *inname);
 int read_setup_line(char *line, char *keyword);
 int setup_interp(Setup *setup);

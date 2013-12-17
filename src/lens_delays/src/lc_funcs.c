@@ -281,9 +281,7 @@ Fluxrec *del_fluxrec(Fluxrec *fluxrec)
  *
  * Loads the light curve into an array of Fluxrec arrays.
  *
- * Inputs: int argc            number of command-line arguments
- *         char **argv         command-line arguments
- *         int ncurves         number of light curves (may disappear later)
+ * Inputs: Setup *setup        contains info needed for loading the files
  *         int *npoints        container for npoints array that gets filled
  *                              by this function
  *
@@ -291,7 +289,7 @@ Fluxrec *del_fluxrec(Fluxrec *fluxrec)
  *
  */
 
-Fluxrec **load_light_curves(int argc, char **argv, int ncurves, int *npoints)
+Fluxrec **load_light_curves(Setup *setup, int *npoints)
 {
   int i;                 /* Looping variable */
   int no_error=1;        /* Flag set to 0 on error */
@@ -303,26 +301,24 @@ Fluxrec **load_light_curves(int argc, char **argv, int ncurves, int *npoints)
    *  light curve containers.
    */
 
-  lc = (Fluxrec **) malloc(sizeof(Fluxrec *) * ncurves);
+  lc = (Fluxrec **) malloc(sizeof(Fluxrec *) * setup->ncurves);
   if(!lc) {
     fprintf(stderr,"ERROR:  Insufficient memory for light curve array.\n");
     lc = NULL;
     return lc;
   }
-  for(i=0; i<ncurves; i++)
-    lc[i] = NULL;
 
   /*
    * Read input light curves and set up default index
    */
 
   printf("\n");
-  for(i=0; i<ncurves; i++) {
+  for(i=0; i<setup->ncurves; i++) {
+    lc[i] = NULL;
     /* index[i] = i; */
-    strcpy(infile,argv[i+1]);
-    printf("Loading lightcurve(s) from %s\n",infile);
+    printf("Loading lightcurve(s) from %s\n",setup->infile[i]);
     printf("--------------------------------------------------\n");
-    if(!(lc[i] = read_fluxrec(infile,'#',&npoints[i])))
+    if(!(lc[i] = read_fluxrec(setup->infile[i],'#',&npoints[i])))
       no_error = 0;
   }
 
