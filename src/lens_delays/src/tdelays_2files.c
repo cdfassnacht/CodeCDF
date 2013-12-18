@@ -99,8 +99,8 @@ int main(int argc, char *argv[])
       no_error = 0;
     else {
       setup->ncurves = ncurves;
-      setup->infile1 = argv[1];
-      setup->infile2 = argv[2];
+      setup->infile[0] = argv[1];
+      setup->infile[1] = argv[2];
     }
   }
 
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
     else if(setup->outfile) {
       printf("\n");
       ofp = open_appendfile(setup->outfile,1);
-      fprintf(ofp,"%s %s %6.2f %6.4f %f\n",setup->infile1,setup->infile2,
+      fprintf(ofp,"%s %s %6.2f %6.4f %f\n",setup->infile[0],setup->infile[1],
 	     bestdisp.tau,bestdisp.mu,bestdisp.disp);
       fclose(ofp);
     }

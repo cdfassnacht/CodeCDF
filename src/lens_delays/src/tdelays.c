@@ -26,6 +26,14 @@
 
 /*.......................................................................
  *
+ * Function declarations
+ *
+ */
+
+void tdelays_help();
+
+/*.......................................................................
+ *
  * Main program
  *
  */
@@ -34,6 +42,7 @@ int main(int argc, char *argv[])
 {
   int i;                        /* Looping variable */
   int junki;
+  int fresult;                  /* Result of running a function */
   int no_error=1;               /* Flag set to 0 on error */
   int ncurves=2;                /* Number of input light curves */
   int *npoints=NULL;            /* Number of points in each light curve */
@@ -50,11 +59,7 @@ int main(int argc, char *argv[])
    */
 
   if(argc < 3) {
-    fprintf(stderr,"\nUsage: tdelays ***TO BE DETERMINED*** ");
-    fprintf(stderr,"([setup_file]),\n");
-    fprintf(stderr,"Each of the input files contains one lightcurve in ");
-    fprintf(stderr,"the following format:\n");
-    fprintf(stderr,"  day  flux  flux_error\n\n");
+    tdelays_help();
     return 1;
   }
 
@@ -64,7 +69,7 @@ int main(int argc, char *argv[])
    */
 
   if(!(setup = setup_from_command_line(argv,argc))) {
-    fprintf(stderr,"ERROR\n");
+    tdelays_help();
     return 1;
   }
 
@@ -90,10 +95,17 @@ int main(int argc, char *argv[])
    */
 
   for(i=0; i<ncurves; i++) {
-    sprintf(tmpname,"foo_%d.txt",i+1);
+    sprintf(tmpname,"goo_%d.txt",i+1);
     junki = write_fluxrec(lc[i],npoints[i],tmpname,0,0.1);
   }
-#if 0
+
+  /*
+   * Get the rest of the setup container parameters
+   */
+
+  fresult = get_setup_params(setup,lc);
+  if(fresult == ERROR)
+    no_error = 0;
 
   /*
    * Clean up and return
@@ -107,7 +119,6 @@ int main(int argc, char *argv[])
   }
   if(lc)
     free(lc);
-#endif
 
   if(no_error) {
     printf("\nFinished with tdelays.c\n");
@@ -117,4 +128,29 @@ int main(int argc, char *argv[])
     fprintf(stderr,"ERROR: Exiting program tdelays.c\n");
     return 1;
   }
+}
+
+/*.......................................................................
+ *
+ * Function tdelays_help
+ *
+ * Gives information on how to run this program
+ *
+ */
+
+void tdelays_help()
+{
+  fprintf(stderr,"\n");
+  fprintf(stderr,"tdelays.c - Calculates time delays between light curves\n\n");
+  fprintf(stderr,"Usage: tdelays flags input_file1 (setup_file)\n");
+  fprintf(stderr,"           --- or ----\n");
+  fprintf(stderr,"Usage: tdelays flags input_file1 input_file2 (setup_file)\n");
+  fprintf(stderr,"\nThe setup file is optional.  ");
+  fprintf(stderr,"The input file format is:\n");
+  fprintf(stderr,"  day flux1 err1 flux2 err2 (for 1 input file)\n");
+  fprintf(stderr,"  day flux err              (for 2 input files)\n\n");
+  fprintf(stderr,"Flag  Description\n");
+  fprintf(stderr,"----  ----------------\n");
+  fprintf(stderr," -1   One input file\n");
+  fprintf(stderr," -2   Two input files\n\n");
 }

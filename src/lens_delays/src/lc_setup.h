@@ -101,6 +101,17 @@ enum {
 
 /*.......................................................................
  *
+ * Verbosity enumeration
+ */
+
+enum {
+  NONE,
+  BESTFIT,
+  GRID
+};
+
+/*.......................................................................
+ *
  * Yes/no enumeration
  *
  */
@@ -119,6 +130,10 @@ enum {
 
 typedef struct {
   int ncurves;          /* Number of curves being compared */
+  int nfiles;           /* Number of input files */
+  char *infile[4];      /* Names of the input light curve files */
+  char *setupfile;      /* Name of the optional setup file */
+  char *outfile;        /* Name of output file (used for simulations) */
   int dochi;            /* Flag set to YES for chisq analysis */
   int doxcorr;          /* Flag set to YES for cross-corr analysis */
   int doacorr;          /* Flag set to YES for auto-corr analysis */
@@ -127,12 +142,6 @@ typedef struct {
   int docurvefit;       /* Flag set to YES for curve fitting analysis */
   int dispchoice;       /* Choice of dispersion analysis method */
   float d2delta;        /* delta parameter for D^2_2 dispersion method */
-  char *infile[4];      /* Names input files */
-  char *infile1;        /* Name of second input file */
-  char *infile2;        /* Name of second input file */
-  char *infile3;        /* Name of third input file */
-  char *infile4;        /* Name of fourth input file */
-  char *outfile;        /* Name of output file (used for simulations) */
   char achifile[MAXC];  /* File for B-A chisq minimization output */
   char cchifile[MAXC];  /* File for B-C chisq minimization output */
   char dchifile[MAXC];  /* File for B-D chisq minimization output */
@@ -168,6 +177,7 @@ typedef struct {
 Setup *new_setup(int size);
 Setup *del_setup(Setup *setup);
 Setup *setup_from_command_line(char *argv[], int narg);
+int get_setup_params(Setup *setup, Fluxrec **lc);
 int setup_file(Setup *setup, char *inname);
 int read_setup_line(char *line, char *keyword);
 int setup_interp(Setup *setup);

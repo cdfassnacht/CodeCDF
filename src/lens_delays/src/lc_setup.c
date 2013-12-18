@@ -67,6 +67,8 @@ Setup *new_setup(int size)
    * Initialize the setup parameters
    */
 
+  newsetup->outfile = NULL;
+  newsetup->setupfile = NULL;
   newsetup->dochi = UNSET;
   newsetup->doxcorr = UNSET;
   newsetup->doacorr = NO;
@@ -76,10 +78,6 @@ Setup *new_setup(int size)
   newsetup->dispchoice = UNSET;
   newsetup->d2delta = -1.0;
   newsetup->dosmooth = SMUNSET;
-  newsetup->infile1 = NULL;
-  newsetup->infile2 = NULL;
-  newsetup->infile3 = NULL;
-  newsetup->infile4 = NULL;
   newsetup->smtype = -1;
   newsetup->smwidth = 0.0;
   newsetup->ninterp = 0;
@@ -102,7 +100,6 @@ Setup *new_setup(int size)
   newsetup->tau0[3] = 0.0;
   newsetup->dtau = 0.0;
   newsetup->ntau = 0;
-  newsetup->outfile = NULL;
   sprintf(newsetup->achifile,"chiba.dat");
   sprintf(newsetup->cchifile,"chibc.dat");
   sprintf(newsetup->dchifile,"chibd.dat");
@@ -156,6 +153,7 @@ Setup *setup_from_command_line(char *argv[], int narg)
   Setup *newsetup=NULL;     /* New setup container to be filled */
 
   /* Create the new setup container  */
+
   if(!(newsetup = new_setup(1))) {
     fprintf(stderr,"ERROR: setup_from_command_line\n");
     return NULL;
@@ -167,10 +165,89 @@ Setup *setup_from_command_line(char *argv[], int narg)
    */
 
   newsetup->ncurves = 2;
+  newsetup->nfiles = 2;
   newsetup->infile[0] = argv[1];
   newsetup->infile[1] = argv[2];
 
+  /*
+   * Check for an optional setup file (more hard-wiring)
+   */
+
+  if(narg==4) {
+    newsetup->setupfile = argv[3];
+  }
+
   return newsetup;
+}
+
+/*.......................................................................
+ *
+ * Function get_setup_params
+ *
+ * Uses information from (1) the optional setup file, (2) the light curves
+ * themselves, and (3)the user in an interactives sense to fill in the
+ * rest of the setup container.
+ *
+ * Inputs: Setup *setup        setup container to be filled
+ *         Fluxrec **lc        lightcurves
+ *
+ */
+
+int get_setup_params(Setup *setup, Fluxrec **lc)
+{
+  int no_error=1;  /* Flag set to 0 on error */
+
+  /*
+   * Choose the method for calculating the time delay.
+   *
+   * For now, hard-wire for dispersion method only, unless override comes
+   *  from optional setup file.
+   */
+
+  setup->dochi = NO;
+  setup->doxcorr = NO;
+  setup->doacorr = NO;
+  setup->dodisp = YES;
+  setup->dodcf = NO;
+  setup->docurvefit = NO;
+
+  /*
+   * Put setup parameters into setup structure from setup file
+   */
+
+  if(setup->setupfile) {
+    if(setup_file(setup,setup->setupfile))
+      no_error = 0;
+  }
+
+  /*
+   * Fill in parts of the setup structure that weren't filled in
+   *  from setup file.
+   */
+
+  if(no_error)
+    if(setup_delays(setup))
+      no_error = 0;
+
+  /*
+   * Summarize setup parameters
+   */
+
+  if(no_error)
+    setup_delays_summary(setup);
+
+  /*
+   * Find the initial guesses for the flux ratios of the light
+   *  curves and the delays between them.  Put these values into the 
+   *  Setup container.
+   */
+#if 0
+  if(no_error) {
+    set_tau_grid(lc,npoints,index,setup);
+    set_mu_grid(lc,npoints,setup);
+  }
+#endif
+  return 0;
 }
 
 /*.......................................................................
@@ -814,7 +891,8 @@ int setup_delays(Setup *setup)
     setup->dispchoice = D21;
     printf("\nChoose dispersion analysis method\n");
     printf("%d. Pelt et al. D^2_1 method\n",D21);
-    printf("%d. Pelt et al. D^2_1 method (> 2 light curves)\n",D21M);
+    printf("%d. NOT CURRENTLY FUNCTIONAL\n",D21M);
+    /* printf("%d. Pelt et al. D^2_1 method (> 2 light curves)\n",D21M); */
     printf("%d. Pelt et al. D^2_2 method\n",D22);
     printf("%d. Lovell et al. D^2_2 method\n",DLOVELL);
     printf("------------------------------------------------------\n");
@@ -967,21 +1045,37 @@ void setup_interp_summary(Setup *setup)
 
 void setup_delays_summary(Setup *setup)
 {
+  int count=1;   /* Number of analysis techniques used */
+
   printf("\n------------------------------------------------------------\n");
-  if(setup->infile1)
-    printf("Input file 1: %s\n",setup->infile1);
-  if(setup->infile2)
-    printf("Input file 2: %s\n",setup->infile2);
-  printf("\nAnalysis method             Type (optional) Size (optional)\n");
-  printf("--------------------------- --------------- ---------------\n");
-  if(setup->dochi)
-    printf(" Chisq minimization\n");
-  if(setup->doxcorr)
-    printf(" Cross-correlation analysis\n");
-  if(setup->doacorr)
-    printf(" Auto-correlation analysis\n");
+  printf("Summary of setup information\n");
+  printf("============================\n");
+  printf("Input file(s)\n");
+  if(setup->infile[0])
+    printf(" 1: %s\n",setup->infile[0]);
+  if(setup->infile[1])
+    printf(" 2: %s\n",setup->infile[1]);
+  printf("Delay-finding technique(s)\n");
+#if 0
+  printf("--------------------------\n");
+  printf(" Technique                  Type (optional) Size (optional)\n");
+  printf(" -------------------------- --------------- ---------------\n");
+#endif
+  if(setup->dochi) {
+    printf(" %d. Chisq minimization\n",count);
+    count++;
+  }
+  if(setup->doxcorr) {
+    printf(" %d. Cross-correlation analysis\n",count);
+    count++;
+  }
+  if(setup->doacorr) {
+    printf(" %d. Auto-correlation analysis\n",count);
+    count++;
+  }
   if(setup->dodisp) {
-    printf(" Dispersion analysis:");
+    printf(" %d. Dispersion analysis ",count);
+    count++;
     switch(setup->dispchoice) {
     case D21:
       printf("       Pelt D^2_1\n");
