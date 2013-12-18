@@ -142,9 +142,9 @@ void tdelays_help()
 {
   fprintf(stderr,"\n");
   fprintf(stderr,"tdelays.c - Calculates time delays between light curves\n\n");
-  fprintf(stderr,"Usage: tdelays flags input_file1 (setup_file)\n");
-  fprintf(stderr,"           --- or ----\n");
-  fprintf(stderr,"Usage: tdelays flags input_file1 input_file2 (setup_file)\n");
+  fprintf(stderr,"Usage:\n");
+  fprintf(stderr,"  tdelays flags input_file1 (setup_file)\n");
+  fprintf(stderr,"  tdelays flags input_file1 input_file2 (setup_file)\n");
   fprintf(stderr,"\nThe setup file is optional.  ");
   fprintf(stderr,"The input file format is:\n");
   fprintf(stderr,"  day flux1 err1 flux2 err2 (for 1 input file)\n");

@@ -67,6 +67,7 @@ Setup *new_setup(int size)
    * Initialize the setup parameters
    */
 
+  newsetup->nfiles = -1;
   newsetup->outfile = NULL;
   newsetup->setupfile = NULL;
   newsetup->dochi = UNSET;
@@ -139,8 +140,8 @@ Setup *del_setup(Setup *setup)
  * command line to contain at least two arguments.  Possible command-line
  * invocations are, remembering that the setup file is optional:
  *
- *   tdelays -[flags] input_file (setup_file)
- *   tdelays -[flags] input_file1 input_file2 (setup_file)
+ *   tdelays flags input_file (setup_file)
+ *   tdelays flags input_file1 input_file2 (setup_file)
  *
  * Inputs: char **argv         command-line arguments
  *         int argc            number of command-line arguments
@@ -160,21 +161,31 @@ Setup *setup_from_command_line(char *argv[], int narg)
   }
 
   /*
+   * Parse the flags
+   */
+
+  if(strcmp(argv[1],"-1") == 0)
+    newsetup->nfiles = 1;
+  else if(strcmp(argv[1],"-2") == 0)
+    newsetup->nfiles = 2;
+  else {
+    fprintf(stderr,"\n *** ERROR: setup_from_command_line: ");
+    fprintf(stderr,"flag not recognized. ***\n");
+    return del_setup(newsetup);
+  }
+
+  /*
    * Use the command-line arguments to fill this
    * For now, just a hard-wired assumption about the input file format
    */
 
   newsetup->ncurves = 2;
-  newsetup->nfiles = 2;
-  newsetup->infile[0] = argv[1];
-  newsetup->infile[1] = argv[2];
 
-  /*
-   * Check for an optional setup file (more hard-wiring)
-   */
-
-  if(narg==4) {
-    newsetup->setupfile = argv[3];
+  if(newsetup->nfiles == 2) {
+    newsetup->infile[0] = argv[2];
+    newsetup->infile[1] = argv[3];
+    if(narg==5)
+      newsetup->setupfile = argv[4];
   }
 
   return newsetup;
