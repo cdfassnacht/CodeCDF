@@ -288,14 +288,14 @@ Fluxrec *del_fluxrec(Fluxrec *fluxrec)
  * Loads the light curve into an array of Fluxrec arrays.
  *
  * Inputs: Setup *setup        contains info needed for loading the files
- *         int *npoints        container for npoints array that gets filled
- *                              by this function
+ *         int *fresult        status of function: SUCCESS or ERROR (set by
+ *                              the function)
  *
  * Output: none
  *
  */
 
-Fluxrec **load_light_curves(Setup *setup, int *npoints)
+Fluxrec **load_light_curves(Setup *setup, int *fresult)
 {
   int i;                 /* Looping variable */
   int no_error=1;        /* Flag set to 0 on error */
@@ -310,6 +310,7 @@ Fluxrec **load_light_curves(Setup *setup, int *npoints)
   lc = (Fluxrec **) malloc(sizeof(Fluxrec *) * setup->ncurves);
   if(!lc) {
     fprintf(stderr,"ERROR:  Insufficient memory for light curve array.\n");
+    *fresult = ERROR;
     lc = NULL;
     return lc;
   }
@@ -324,7 +325,7 @@ Fluxrec **load_light_curves(Setup *setup, int *npoints)
     /* index[i] = i; */
     printf("Loading lightcurve(s) from %s\n",setup->infile[i]);
     printf("--------------------------------------------------\n");
-    if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',&npoints[i])))
+    if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',&setup->npoints[i])))
       no_error = 0;
   }
 
@@ -334,30 +335,6 @@ Fluxrec **load_light_curves(Setup *setup, int *npoints)
 
   return lc;
 
-}
-
-/*.......................................................................
- * 
- * Function print_log
- *
- * Prints a string into the chisq and cross-correlation logfiles, if
- *  they exist.
- *
- * Inputs: FILE *chifp         chisq file pointer
- *         FILE *xcfp          cross-correlation file pointer
- *         char *logstring     string to be printed
- *
- * Output: none
- *
- */
-
-void print_log(FILE *chifp, FILE *xcfp, char *logstring)
-{
-  if(chifp)
-    fprintf(chifp,logstring);
-
-  if(xcfp)
-    fprintf(xcfp,logstring);
 }
 
 /*.......................................................................
@@ -625,7 +602,8 @@ Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines)
    */
 
   if((*nlines = n_lines(ifp,comment)) == 0) {
-    fprintf(stderr,"ERROR: read_fluxrec_1curve.  No valid data in input file.\n");
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.  No valid data in input file.");
+    fprintf(stderr,"\n");
     no_error = 0;
   }
   else
@@ -2650,6 +2628,30 @@ int fit_1608(Fluxrec *flux[], int npoints, int nbad[], float dt)
     fprintf(stderr,"ERROR: fit_1608.\n");
     return 1;
   }
+}
+
+/*.......................................................................
+ * 
+ * Function print_log
+ *
+ * Prints a string into the chisq and cross-correlation logfiles, if
+ *  they exist.
+ *
+ * Inputs: FILE *chifp         chisq file pointer
+ *         FILE *xcfp          cross-correlation file pointer
+ *         char *logstring     string to be printed
+ *
+ * Output: none
+ *
+ */
+
+void print_log(FILE *chifp, FILE *xcfp, char *logstring)
+{
+  if(chifp)
+    fprintf(chifp,logstring);
+
+  if(xcfp)
+    fprintf(xcfp,logstring);
 }
 
 /*.......................................................................

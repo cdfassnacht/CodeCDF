@@ -41,11 +41,8 @@ void tdelays_help();
 int main(int argc, char *argv[])
 {
   int i;                        /* Looping variable */
-  int junki;
   int fresult;                  /* Result of running a function */
   int no_error=1;               /* Flag set to 0 on error */
-  int ncurves=2;                /* Number of input light curves */
-  int *npoints=NULL;            /* Number of points in each light curve */
   int *index;                   /* Default index for dispersion method */
   char tmpname[MAXC];
   char setupfile[MAXC];         /* Name of setup file */
@@ -77,10 +74,8 @@ int main(int argc, char *argv[])
    * Allocate memory for arrays for number of points and index.
    */
 
-  if(!(npoints = new_intarray(ncurves,1)))
-    no_error = 0;
 #if 0
-  if(!(index = new_intarray(ncurves,1)))
+  if(!(index = new_intarray(setup->ncurves,1)))
     no_error = 0;
 #endif
 
@@ -88,15 +83,15 @@ int main(int argc, char *argv[])
    * Load the light curves
    */
 
-  lc = load_light_curves(setup,npoints);
+  lc = load_light_curves(setup,&fresult);
 
   /*
    * Temporary check - print out input light curves
    */
 
-  for(i=0; i<ncurves; i++) {
+  for(i=0; i<setup->ncurves; i++) {
     sprintf(tmpname,"goo_%d.txt",i+1);
-    junki = write_fluxrec(lc[i],npoints[i],tmpname,0,0.1);
+    fresult = write_fluxrec(lc[i],setup->npoints[i],tmpname,0,0.1);
   }
 
   /*
@@ -114,7 +109,7 @@ int main(int argc, char *argv[])
   if(no_error)
     printf("\nCleaning up\n");
 
-  for(i=0; i<ncurves; i++) {
+  for(i=0; i<setup->ncurves; i++) {
     lc[i] = del_fluxrec(lc[i]);
   }
   if(lc)

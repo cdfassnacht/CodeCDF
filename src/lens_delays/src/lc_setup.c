@@ -1065,6 +1065,7 @@ void setup_interp_summary(Setup *setup)
 
 void setup_delays_summary(Setup *setup)
 {
+  int i;         /* Looping variable */
   int count=1;   /* Number of analysis techniques used */
 
   printf("\n------------------------------------------------------------\n");
@@ -1075,6 +1076,11 @@ void setup_delays_summary(Setup *setup)
     printf(" 1: %s\n",setup->infile[0]);
   if(setup->infile[1])
     printf(" 2: %s\n",setup->infile[1]);
+  printf("Number of input light curves: %d\n",setup->ncurves);
+  printf("Number of points in input curves: ");
+  for(i=0; i<setup->ncurves; i++)
+    printf("%d ",setup->npoints[i]);
+  printf("\n");
   printf("Delay-finding technique(s)\n");
 #if 0
   printf("--------------------------\n");

@@ -50,7 +50,7 @@ Prange *new_prange(int size);
 Prange *del_prange(Prange *prange);
 Fluxrec *new_fluxrec(int size);
 Fluxrec *del_fluxrec(Fluxrec *fluxrec);
-Fluxrec **load_light_curves(Setup *setup, int *npoints);
+Fluxrec **load_light_curves(Setup *setup, int *fresult);
 Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines);
 int write_fluxrec(Fluxrec *fluxrec, int npoints, char *outfile,
 		  int no_dup_days, float dtol);

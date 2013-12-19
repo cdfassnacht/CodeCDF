@@ -132,8 +132,17 @@ typedef struct {
   int ncurves;          /* Number of curves being compared */
   int nfiles;           /* Number of input files */
   char *infile[4];      /* Names of the input light curve files */
+  int npoints[4];       /* Number of points in each input light curve */
   char *setupfile;      /* Name of the optional setup file */
   char *outfile;        /* Name of output file (used for simulations) */
+  int tauset;           /* Flag set to YES if tau0 was set in input file */
+  int ntau;             /* Number of delay steps on either side of tau0 */
+  double tau0[4];       /* Initial guess for delays */
+  double dtau;          /* Stepsize to use in grid search for delays */
+  int dooverlap;        /* Set to YES for using ratios from overlap region */
+  int nmu;              /* Number of mag steps on either side of mu0 */
+  double mu0[4];        /* Initial guesses for magnifications */
+  double dmu;           /* Stepsize for magnification */
   int dochi;            /* Flag set to YES for chisq analysis */
   int doxcorr;          /* Flag set to YES for cross-corr analysis */
   int doacorr;          /* Flag set to YES for auto-corr analysis */
@@ -147,14 +156,6 @@ typedef struct {
   char dchifile[MAXC];  /* File for B-D chisq minimization output */
   char chilog[MAXC];    /* Name of chisq log file */
   char xclog[MAXC];     /* Name of cross-correlation log file */
-  int dooverlap;        /* Set to YES for using ratios from overlap region */
-  double mu0[4];        /* Initial guesses for magnifications */
-  int nmu;              /* Number of mag steps on either side of mu0 */
-  double dmu;           /* Stepsize for magnification */
-  int tauset;           /* Flag set to YES if tau0 was set in input file */
-  double tau0[4];       /* Initial guess for delays */
-  double dtau;          /* Stepsize to use in grid search for delays */
-  int ntau;             /* Number of delay steps on either side of tau0 */
   int dosmooth;         /* Type of smoothing or interp. (see enum above) */
   int smtype;           /* Type of smoothing function (see enum above) */
   float smwidth;        /* Width of smoothing window in days */

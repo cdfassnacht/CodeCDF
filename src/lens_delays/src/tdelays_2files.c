@@ -35,7 +35,6 @@ int main(int argc, char *argv[])
   int i;                        /* Looping variable */
   int no_error=1;               /* Flag set to 0 on error */
   int ncurves=2;                /* Number of input light curves */
-  int *npoints;                 /* Number of points in each light curve */
   int *index;                   /* Default index for dispersion method */
   char infile[MAXC];            /* Container for input file names */
   char setupfile[MAXC];         /* Name of setup file */
@@ -74,21 +73,8 @@ int main(int argc, char *argv[])
    * Allocate memory for arrays for number of points and index.
    */
 
-  if(!(npoints = new_intarray(ncurves,1)))
-    no_error = 0;
   if(!(index = new_intarray(ncurves,1)))
     no_error = 0;
-
-  /*
-   * Read input light curves and set up default index
-   */
-
-  for(i=0; i<ncurves; i++) {
-    index[i] = i;
-    strcpy(infile,argv[i+1]);
-    if(!(lc[i] = read_fluxrec_1curve(infile,'#',&npoints[i])))
-      no_error = 0;
-  }
 
   /*
    * Initialize the Setup container
@@ -102,6 +88,17 @@ int main(int argc, char *argv[])
       setup->infile[0] = argv[1];
       setup->infile[1] = argv[2];
     }
+  }
+
+  /*
+   * Read input light curves and set up default index
+   */
+
+  for(i=0; i<ncurves; i++) {
+    index[i] = i;
+    strcpy(infile,argv[i+1]);
+    if(!(lc[i] = read_fluxrec_1curve(infile,'#',&setup->npoints[i])))
+      no_error = 0;
   }
 
   /*
@@ -151,8 +148,8 @@ int main(int argc, char *argv[])
    */
 
   if(no_error) {
-    set_tau_grid(lc,npoints,index,setup);
-    set_mu_grid(lc,npoints,setup);
+    set_tau_grid(lc,setup->npoints,index,setup);
+    set_mu_grid(lc,setup->npoints,setup);
   }
 #if 0
   /*
@@ -192,7 +189,7 @@ int main(int argc, char *argv[])
    */
 
   if(setup->dodisp && no_error)
-    if(disp_setup(lc,2,npoints,index,setup,&bestdisp,"disp.out",1))
+    if(disp_setup(lc,2,setup->npoints,index,setup,&bestdisp,"disp.out",1))
       no_error = 0;
     else if(setup->outfile) {
       printf("\n");
@@ -215,7 +212,6 @@ int main(int argc, char *argv[])
   if(lc)
     free(lc);
   setup = del_setup(setup);
-  npoints = del_intarray(npoints);
   index = del_intarray(index);
 
 #if 0
