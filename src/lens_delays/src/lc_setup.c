@@ -250,6 +250,17 @@ int get_setup_params(Setup *setup, Fluxrec **lc)
       no_error = 0;
 
   /*
+   * Find the initial guesses for the flux ratios of the light
+   *  curves and the delays between them.  Put these values into the 
+   *  Setup container.
+   */
+#if 0
+  if(no_error) {
+    set_tau_grid(lc,npoints,index,setup);
+    set_mu_grid(lc,npoints,setup);
+  }
+#endif
+  /*
    * Summarize light curve properties
    */
 
@@ -263,17 +274,6 @@ int get_setup_params(Setup *setup, Fluxrec **lc)
   if(no_error)
     setup_delays_summary(setup);
 
-  /*
-   * Find the initial guesses for the flux ratios of the light
-   *  curves and the delays between them.  Put these values into the 
-   *  Setup container.
-   */
-#if 0
-  if(no_error) {
-    set_tau_grid(lc,npoints,index,setup);
-    set_mu_grid(lc,npoints,setup);
-  }
-#endif
   return 0;
 }
 
@@ -1130,25 +1130,24 @@ void setup_delays_summary(Setup *setup)
     count++;
   }
   if(setup->dodisp) {
-    printf(" %d. Dispersion analysis ",count);
+    printf(" %d. Dispersion analysis: ",count);
     count++;
     switch(setup->dispchoice) {
     case D21:
-      printf("       Pelt D^2_1\n");
+      printf("Pelt D^2_1  (no smoothing)\n");
       break;
     case D21M:
       printf("       Pelt D^2_1 (>2 curves)\n");
       break;
     case D22:
-      printf("       Pelt D^2_2");
-      printf("       delta: %-6.2f\n",setup->d2delta);
+      printf("Pelt D^2_2,  delta=%-6.2f\n",setup->d2delta);
       break;
     case DLOVELL:
       printf("       Lovell D^2_2");
       printf("       delta: %-6.2f\n",setup->d2delta);
       break;
     default:
-      printf("       Pelt D^2_1\n");
+      printf("Pelt D^2_1  (no smoothing)\n");
     }
   }
   if(setup->dodcf)
@@ -1159,6 +1158,14 @@ void setup_delays_summary(Setup *setup)
     printf("\n Chisq Logfile:       %s\n",setup->chilog);
   if(setup->doxcorr)
     printf(" Cross-corr logfile:  %s\n",setup->xclog);
+  printf("Grid parameters:\n");
+  printf(" Curve that is held fixed: 1\n");
+  printf(" Curve  tau0  ntau dtau     mu0  nmu  dmu\n");
+  printf(" ----- ------ ---- -----  ------ --- ------\n");
+  for(i=1; i<setup->ncurves; i++)
+    printf("   %d   %+6.1f %4d  %4.1f  %6.4f %3d %6.4f\n",
+	   i+1,setup->tau0[i],setup->ntau,setup->dtau,setup->mu0[i],
+	   setup->nmu,setup->dmu);
   printf("------------------------------------------------------------\n");
 }
 
