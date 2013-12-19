@@ -311,7 +311,8 @@ Fluxrec **load_light_curves(Setup *setup, int *fresult)
   if(!lc) {
     fprintf(stderr,"ERROR:  Insufficient memory for light curve array.\n");
     *fresult = ERROR;
-    lc = NULL;
+    for(i=0; i<setup->ncurves; i++)
+      lc[i] = NULL;
     return lc;
   }
 
@@ -320,21 +321,365 @@ Fluxrec **load_light_curves(Setup *setup, int *fresult)
    */
 
   printf("\n");
-  for(i=0; i<setup->ncurves; i++) {
-    lc[i] = NULL;
-    /* index[i] = i; */
+  switch(setup->nfiles) {
+  case 1:
     printf("Loading lightcurve(s) from %s\n",setup->infile[i]);
     printf("--------------------------------------------------\n");
-    if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',&setup->npoints[i])))
+    *fresult=read_fluxrec_2curves(lc,setup->infile[0],'#',&setup->npoints[0]);
+    if(*fresult == ERROR)
       no_error = 0;
+    setup->npoints[1] = setup->npoints[0];
+    break;
+  case 2:
+    for(i=0; i<setup->ncurves; i++) {
+      lc[i] = NULL;
+      /* index[i] = i; */
+      printf("Loading lightcurve(s) from %s\n",setup->infile[i]);
+      printf("--------------------------------------------------\n");
+      if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',
+				       &setup->npoints[i]))) {
+	no_error = 0;
+	lc[i] = NULL;
+      }
+    }
+    break;
+  default:
+    fprintf(stderr,"ERROR: load_light_curves: Unexpected number of input files");
+    fprintf(stderr,"\n");
+    *fresult = ERROR;
+    for(i=0; i<setup->ncurves; i++)
+      lc[i] = NULL;
+    return lc;
   }
 
   /*
    * Return array of Fluxrec arrays
    */
 
-  return lc;
+  if(no_error)
+    return lc;
+  else {
+    *fresult = ERROR;
+    for(i=0; i<setup->ncurves; i++)
+      lc[i] = NULL;
+    return lc;
+  }
+}
 
+/*.......................................................................,
+ *
+ * Function read_fluxrec_1curve
+ *
+ * Reads an input file that has just one light curve in it, contained in
+ *  2, 3, or 4 columns.  The function puts the results into a Fluxrec array,
+ *  which has its memory allocation performed in the function.
+ *
+ * Input file format:
+ *  day flux [err] [match]
+ *
+ * Inputs: char *inname        name of input file
+ *         char comment        comment character
+ *         int *nlines         number of lines in input file -- set by
+ *                              this function.
+ *         
+ * Output: Fluxrec *newflux    filled array
+ */
+
+Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines)
+{
+  int no_error=1;        /* Flag set to 0 on error */
+  int ncols;             /* Number of columns in input file */
+  char line[MAXC];       /* General input string */
+  Fluxrec *newflux=NULL; /* Filled fluxrec array */
+  Fluxrec *fptr;         /* Pointer to navigate fluxrec */
+  FILE *ifp=NULL;        /* Input file pointer */
+
+  /*
+   * Open input file
+   */
+
+  if(!(ifp = open_readfile(inname))) {
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.  Cannot open %s.\n",inname);
+    return NULL;
+  }
+
+  /*
+   * Get number of lines in input file
+   */
+
+  if((*nlines = n_lines(ifp,comment)) == 0) {
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.  No valid data in input file.");
+    fprintf(stderr,"\n");
+    no_error = 0;
+  }
+  else
+    rewind(ifp);
+
+  /*
+   * Allocate memory for fluxrec
+   */
+
+  if(no_error)
+    if(!(newflux = new_fluxrec(*nlines)))
+      no_error = 0;
+
+  /*
+   * Read in data
+   */
+
+  if(no_error) {
+    fptr = newflux;
+    while(fgets(line,MAXC,ifp) != NULL) {
+      if(line[0] != comment && no_error) {
+	ncols = sscanf(line,"%f %f %f %d",&fptr->day,&fptr->flux,&fptr->err,
+		       &fptr->match);
+	switch(ncols) {
+	case 4:
+	  break;
+	case 3:
+	  fptr->match = 0;
+	  break;
+	case 2:
+	  fptr->err = 0.0;
+	  fptr->match = 0;
+	  break;
+	default:
+	  fprintf(stderr,"ERROR: read_fluxrec_1curve. Bad input file format.\n");
+	  no_error = 0;
+	}
+	fptr++;
+#if 0
+	if(sscanf(line,"%f %f %f %d",&fptr->day,&fptr->flux,&fptr->err,
+		       &fptr->match) == 4) {
+	  ncols = 4;
+	  fptr++;
+	}
+	else if(sscanf(line,"%f %f %f",&fptr->day,&fptr->flux,&fptr->err) 
+		== 3) {
+	  ncols = 3;
+	  fptr++;
+	}
+	else if(sscanf(line,"%f %f",&fptr->day,&fptr->flux) == 2) {
+	  ncols = 2;
+	  fptr++;
+	}
+	else {
+	  fprintf(stderr,"ERROR: read_fluxrec_1curve. Bad input file format.\n");
+	  no_error = 0;
+	}
+#endif
+      }
+    }
+  }
+
+  /*
+   * Clean up and exit
+   */
+
+  if(ifp)
+    fclose(ifp);
+
+  if(no_error) {
+    printf("read_fluxrec_1curve: %s has %d columns and %d lines\n\n",inname,
+	   ncols,*nlines);
+    return newflux;
+  }
+  else {
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.\n");
+    return del_fluxrec(newflux);
+  }
+}
+
+/*.......................................................................,
+ *
+ * Function read_fluxrec_2curves
+ *
+ * Reads an input file that has two light curves in it.
+ * The function saves the results in the passed Fluxrec array.
+ *
+ * Input file format:
+ *  day flux1 err1 flux2 err2
+ *
+ * Inputs: Fluxrec **lc        empty array of Fluxrec arrays (filled by this fn)
+ *         char *inname        name of input file
+ *         char comment        comment character
+ *         int *nlines         number of lines in input file -- set by
+ *                              this function.
+ *         
+ * Output: int (SUCCESS or ERROR)
+ */
+
+int read_fluxrec_2curves(Fluxrec **lc, char *inname, char comment, 
+			 int *nlines)
+{
+  int i;                 /* Looping variable */
+  int no_error=1;        /* Flag set to 0 on error */
+  int ncols;             /* Number of columns in input file */
+  char line[MAXC];       /* General input string */
+  Fluxrec *newflux=NULL; /* Filled fluxrec array */
+  Fluxrec *fptr1,*fptr2; /* Pointers to navigate arrays in lc */
+  FILE *ifp=NULL;        /* Input file pointer */
+
+  /*
+   * Open input file
+   */
+
+  if(!(ifp = open_readfile(inname))) {
+    fprintf(stderr,"ERROR: read_fluxrec_2curves.  Cannot open %s.\n",inname);
+    return ERROR;
+  }
+
+  /*
+   * Get number of lines in input file
+   */
+
+  if((*nlines = n_lines(ifp,comment)) == 0) {
+    fprintf(stderr,"ERROR: read_fluxrec_2curves.  No valid data in input file.");
+    fprintf(stderr,"\n");
+    no_error = 0;
+  }
+  else
+    rewind(ifp);
+
+  /*
+   * Allocate memory for fluxrec arrays
+   */
+
+  if(no_error)
+    for(i=0; i<2; i++) 
+      if(!(lc[i] = new_fluxrec(*nlines)))
+	no_error = 0;
+
+  /*
+   * Read in data
+   */
+
+  if(no_error) {
+    fptr1 = lc[0];
+    fptr2 = lc[1];
+    while(fgets(line,MAXC,ifp) != NULL) {
+      if(line[0] != comment && no_error) {
+	if((ncols = sscanf(line,"%f %f %f %f %f",&fptr1->day,&fptr1->flux,
+			   &fptr1->err,&fptr2->flux,&fptr2->err)) == 5) {
+	  fptr2->day = fptr1->day;
+	  fptr1++;
+	  fptr2++;
+	}
+	else {
+	  fprintf(stderr,
+		  "ERROR: read_fluxrec_2curves. Bad input file format.\n");
+	  no_error = 0;
+	}
+      }
+    }
+  }
+
+  /*
+   * Clean up and exit
+   */
+
+  if(ifp)
+    fclose(ifp);
+
+  if(no_error) {
+    printf("read_fluxrec_2curves: %s has %d columns and %d lines\n\n",inname,
+	   ncols,*nlines);
+    return SUCCESS;
+  }
+  else {
+    fprintf(stderr,"ERROR: read_fluxrec_2curves.\n");
+    return ERROR;
+  }
+}
+
+/*.......................................................................
+ *
+ * Function write_fluxrec
+ *
+ * Writes out a fluxrec array.  If requested, the function will check for
+ *  duplicate days and only print out unique days.
+ *
+ * Inputs: Fluxrec *fluxrec    fluxrec array
+ *         int npoints         number of points in array
+ *         char *outfile       output file name
+ *         int no_dup_days     flag set to 1 to reject duplicate days
+ *         float dtol          minimum separation between days for those
+ *                              days to be considered unique.
+ *
+ * Output: int 0 or 1          0 ==> success, 1 ==> error
+ *
+ */
+
+int write_fluxrec(Fluxrec *fluxrec, int npoints, char *outfile,
+		  int no_dup_days, float dtol)
+{
+  int i;           /* Looping variable */
+  int ndelete=0;   /* Number of duplicate days deleted */
+  Fluxrec *fptr;   /* Pointer to navigate fluxrec */
+  Fluxrec *fhold;  /* Another pointer to navigate fluxrec */
+  FILE *ofp=NULL;  /* Output file pointer */
+
+  /*
+   * Open output file
+   */
+
+
+  if(!(ofp = open_writefile(outfile))) {
+    fprintf(stderr,"ERROR: write_fluxrec.\n");
+    return 1;
+  }
+
+  /*
+   * Initialize
+   */
+
+  fhold = fluxrec;
+
+  /*
+   * If the no_dup_days flag is set then only print out unique days.  
+   */
+
+  if(no_dup_days) {
+    for(i=0,fptr=fluxrec; i<npoints; i++,fptr++) {
+
+      /*
+       * Test whether or not the day at the current point in the array is 
+       *  the same as the previous day by comparing fptr->day to fhold->day.
+       *
+       * Of course if this is the first day (i==0) then no checking is done.
+       */
+
+      if(i>0 && (fptr->day - fhold->day) < dtol) {
+	ndelete++;
+      }
+      else {
+	fprintf(ofp,"%7.2f %10.4f %8.5f %d\n",fptr->day,fptr->flux,fptr->err,
+		fptr->match);
+	fhold = fptr;
+      }
+    }
+    printf("write_fluxrec: %d duplicate days were discarded from %s.\n",
+	   ndelete,outfile);
+  }
+
+  /*
+   * If no_dup_days is not set, just print out all the days.
+   */
+
+  else {
+    for(i=0,fptr=fluxrec; i<npoints; i++,fptr++)
+      fprintf(ofp,"%7.2f %10.4f %8.5f %d\n",fptr->day,fptr->flux,fptr->err,
+	      fptr->match);
+  }
+
+  /*
+   * Clean up and exit
+   */
+
+  if(ofp)
+    fclose(ofp);
+
+  return 0;
 }
 
 /*.......................................................................
@@ -563,198 +908,6 @@ int write_1608(Fluxrec *flux[], int npoints, char *filename, int verbose)
 }
 
 
-/*.......................................................................,
- *
- * Function read_fluxrec_1curve
- *
- * Reads an input file that has just one light curve in it, contained in
- *  2, 3, or 4 columns.  The function puts the results into a Fluxrec array,
- *  which has its memory allocation performed in the function.
- *
- * Inputs: char *inname        name of input file
- *         char comment        comment character
- *         int *nlines         number of lines in input file -- set by
- *                              this function.
- *         
- * Output: Fluxrec *newflux    filled array
- */
-
-Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines)
-{
-  int no_error=1;        /* Flag set to 0 on error */
-  int ncols;             /* Number of columns in input file */
-  char line[MAXC];       /* General input string */
-  Fluxrec *newflux=NULL; /* Filled fluxrec array */
-  Fluxrec *fptr;         /* Pointer to navigate fluxrec */
-  FILE *ifp=NULL;        /* Input file pointer */
-
-  /*
-   * Open input file
-   */
-
-  if(!(ifp = open_readfile(inname))) {
-    fprintf(stderr,"ERROR: read_fluxrec_1curve.  Cannot open %s.\n",inname);
-    return NULL;
-  }
-
-  /*
-   * Get number of lines in input file
-   */
-
-  if((*nlines = n_lines(ifp,comment)) == 0) {
-    fprintf(stderr,"ERROR: read_fluxrec_1curve.  No valid data in input file.");
-    fprintf(stderr,"\n");
-    no_error = 0;
-  }
-  else
-    rewind(ifp);
-
-  /*
-   * Allocate memory for fluxrec
-   */
-
-  if(no_error)
-    if(!(newflux = new_fluxrec(*nlines)))
-      no_error = 0;
-
-  /*
-   * Read in data
-   */
-
-  if(no_error) {
-    fptr = newflux;
-    while(fgets(line,MAXC,ifp) != NULL) {
-      if(line[0] != comment && no_error) {
-	if(sscanf(line,"%f %f %f %d",&fptr->day,&fptr->flux,&fptr->err,
-		       &fptr->match) == 4) {
-	  ncols = 4;
-	  fptr++;
-	}
-	else if(sscanf(line,"%f %f %f",&fptr->day,&fptr->flux,&fptr->err) 
-		== 3) {
-	  ncols = 3;
-	  fptr++;
-	}
-	else if(sscanf(line,"%f %f",&fptr->day,&fptr->flux) == 2) {
-	  ncols = 2;
-	  fptr++;
-	}
-	else {
-	  fprintf(stderr,"ERROR: read_fluxrec_1curve. Bad input file format.\n");
-	  no_error = 0;
-	}
-      }
-    }
-  }
-
-  /*
-   * Clean up and exit
-   */
-
-  if(ifp)
-    fclose(ifp);
-
-  if(no_error) {
-    printf("read_fluxrec_1curve: %s has %d columns and %d lines\n\n",inname,
-	   ncols,*nlines);
-    return newflux;
-  }
-  else {
-    fprintf(stderr,"ERROR: read_fluxrec_1curve.\n");
-    return del_fluxrec(newflux);
-  }
-}
-
-/*.......................................................................
- *
- * Function write_fluxrec
- *
- * Writes out a fluxrec array.  If requested, the function will check for
- *  duplicate days and only print out unique days.
- *
- * Inputs: Fluxrec *fluxrec    fluxrec array
- *         int npoints         number of points in array
- *         char *outfile       output file name
- *         int no_dup_days     flag set to 1 to reject duplicate days
- *         float dtol          minimum separation between days for those
- *                              days to be considered unique.
- *
- * Output: int 0 or 1          0 ==> success, 1 ==> error
- *
- */
-
-int write_fluxrec(Fluxrec *fluxrec, int npoints, char *outfile,
-		  int no_dup_days, float dtol)
-{
-  int i;           /* Looping variable */
-  int ndelete=0;   /* Number of duplicate days deleted */
-  Fluxrec *fptr;   /* Pointer to navigate fluxrec */
-  Fluxrec *fhold;  /* Another pointer to navigate fluxrec */
-  FILE *ofp=NULL;  /* Output file pointer */
-
-  /*
-   * Open output file
-   */
-
-
-  if(!(ofp = open_writefile(outfile))) {
-    fprintf(stderr,"ERROR: write_fluxrec.\n");
-    return 1;
-  }
-
-  /*
-   * Initialize
-   */
-
-  fhold = fluxrec;
-
-  /*
-   * If the no_dup_days flag is set then only print out unique days.  
-   */
-
-  if(no_dup_days) {
-    for(i=0,fptr=fluxrec; i<npoints; i++,fptr++) {
-
-      /*
-       * Test whether or not the day at the current point in the array is 
-       *  the same as the previous day by comparing fptr->day to fhold->day.
-       *
-       * Of course if this is the first day (i==0) then no checking is done.
-       */
-
-      if(i>0 && (fptr->day - fhold->day) < dtol) {
-	ndelete++;
-      }
-      else {
-	fprintf(ofp,"%7.2f %10.4f %8.5f %d\n",fptr->day,fptr->flux,fptr->err,
-		fptr->match);
-	fhold = fptr;
-      }
-    }
-    printf("write_fluxrec: %d duplicate days were discarded from %s.\n",
-	   ndelete,outfile);
-  }
-
-  /*
-   * If no_dup_days is not set, just print out all the days.
-   */
-
-  else {
-    for(i=0,fptr=fluxrec; i<npoints; i++,fptr++)
-      fprintf(ofp,"%7.2f %10.4f %8.5f %d\n",fptr->day,fptr->flux,fptr->err,
-	      fptr->match);
-  }
-
-  /*
-   * Clean up and exit
-   */
-
-  if(ofp)
-    fclose(ofp);
-
-  return 0;
-}
-
 /*.......................................................................
  *
  * Function read_bad_ext
@@ -838,6 +991,30 @@ int read_bad_ext(char *inname, char comment, Fluxrec *bada, Fluxrec *badb,
     fprintf(stderr,"ERROR: read_bad_ext.\n");
     return 1;
   }
+}
+
+/*.......................................................................
+ * 
+ * Function print_log
+ *
+ * Prints a string into the chisq and cross-correlation logfiles, if
+ *  they exist.
+ *
+ * Inputs: FILE *chifp         chisq file pointer
+ *         FILE *xcfp          cross-correlation file pointer
+ *         char *logstring     string to be printed
+ *
+ * Output: none
+ *
+ */
+
+void print_log(FILE *chifp, FILE *xcfp, char *logstring)
+{
+  if(chifp)
+    fprintf(chifp,logstring);
+
+  if(xcfp)
+    fprintf(xcfp,logstring);
 }
 
 /*.......................................................................
@@ -2628,30 +2805,6 @@ int fit_1608(Fluxrec *flux[], int npoints, int nbad[], float dt)
     fprintf(stderr,"ERROR: fit_1608.\n");
     return 1;
   }
-}
-
-/*.......................................................................
- * 
- * Function print_log
- *
- * Prints a string into the chisq and cross-correlation logfiles, if
- *  they exist.
- *
- * Inputs: FILE *chifp         chisq file pointer
- *         FILE *xcfp          cross-correlation file pointer
- *         char *logstring     string to be printed
- *
- * Output: none
- *
- */
-
-void print_log(FILE *chifp, FILE *xcfp, char *logstring)
-{
-  if(chifp)
-    fprintf(chifp,logstring);
-
-  if(xcfp)
-    fprintf(xcfp,logstring);
 }
 
 /*.......................................................................

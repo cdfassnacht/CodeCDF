@@ -84,21 +84,25 @@ int main(int argc, char *argv[])
    */
 
   lc = load_light_curves(setup,&fresult);
+  if(fresult == ERROR)
+    no_error = 0;
 
   /*
    * Temporary check - print out input light curves
    */
 
-  for(i=0; i<setup->ncurves; i++) {
-    sprintf(tmpname,"goo_%d.txt",i+1);
-    fresult = write_fluxrec(lc[i],setup->npoints[i],tmpname,0,0.1);
-  }
+  if(no_error)
+    for(i=0; i<setup->ncurves; i++) {
+      sprintf(tmpname,"goo_%d.txt",i+1);
+      fresult = write_fluxrec(lc[i],setup->npoints[i],tmpname,0,0.1);
+    }
 
   /*
    * Get the rest of the setup container parameters
    */
 
-  fresult = get_setup_params(setup,lc);
+  if(no_error)
+    fresult = get_setup_params(setup,lc);
   if(fresult == ERROR)
     no_error = 0;
 
@@ -110,8 +114,10 @@ int main(int argc, char *argv[])
     printf("\nCleaning up\n");
 
   for(i=0; i<setup->ncurves; i++) {
-    lc[i] = del_fluxrec(lc[i]);
+    if(lc[i])
+      lc[i] = del_fluxrec(lc[i]);
   }
+
   if(lc)
     free(lc);
 

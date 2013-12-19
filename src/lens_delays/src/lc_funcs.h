@@ -52,16 +52,18 @@ Fluxrec *new_fluxrec(int size);
 Fluxrec *del_fluxrec(Fluxrec *fluxrec);
 Fluxrec **load_light_curves(Setup *setup, int *fresult);
 Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines);
+int read_fluxrec_2curves(Fluxrec **lc, char *inname, char comment, 
+			 int *nlines);
 int write_fluxrec(Fluxrec *fluxrec, int npoints, char *outfile,
 		  int no_dup_days, float dtol);
 
-void print_log(FILE *chifp, FILE *xcfp, char *logstring);
 int read_data(Fluxrec *fl34, Fluxrec *fl35, Fluxrec *fl08[], 
 	      int nlines, FILE *lfp, FILE *cfp);
 int read_1608(Fluxrec *fl08[], int nlines, FILE *lfp, char *filename);
 int write_1608(Fluxrec *flux[], int npoints, char *filename, int verbose);
 int read_bad_ext(char *inname, char comment, Fluxrec *bada, Fluxrec *badb,
 		 Fluxrec *badc, Fluxrec *badd);
+void print_log(FILE *chifp, FILE *xcfp, char *logstring);
 int flag_bad(Fluxrec *fl34, Fluxrec *fl35, Fluxrec *fl08[], int nlines,
 	     int *flagbad, char *badfilename, int *nbad);
 float *make_flat(Fluxrec *fl34, Fluxrec *fl35, int nlines, int meanchoice);
