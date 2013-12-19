@@ -4,30 +4,34 @@
  * A library of functions to perform operations on the Setup structure
  *  used by the light-curve processing programs.
  *
- * 13Jun99 CDF,  Split out from lc_funcs.c
- * v16Sep99 CDF, Made separate interactive setup functions and summary
- *                functions for the separate programs (interpolation
- *                and delay-finding) by splitting up setup_interactive
- *                and setup_summary.
- *               Also split off all of the interactive functions in
+ * 13Jun1999 CDF,  Split out from lc_funcs.c
+ * v16Sep1999 CDF, Made separate interactive setup functions and summary
+ *                  functions for the separate programs (interpolation
+ *                  and delay-finding) by splitting up setup_interactive
+ *                  and setup_summary.
+ *                 Also split off all of the interactive functions in
  *                setup_interp to get_* to make things easier to read.
- * v12Sep00 CDF, Got rid of the SMTHENINT and SMIPINT options since these
- *                can now be emulated by running interp.c twice -- the
- *                first time w/SMONLY or SMINPLACE and the second time
- *                with INTONLY.
- * v13Sep00 CDF, Added the set_grid_params function, which sets the 
- *                parameters for the grid of points which have been 
- *                interpolated onto a regularly sampled grid.
- * v19Feb02 CDF, Changed setup_monte to also request time delay values
- *                if they haven't been set by setup_file.
- *               Changed setup_monte_summary to print out values contained
- *                in setup->tau0 rather than hardwired values (ALAG, etc.).
- * v04Sep02 CDF, Added a "tauset" variable to setup to indicate whether
- *                the tau0 values have been set in the input file and a
- *                "dtau" variable to set the stepsize used in the tau
+ * v12Sep2000 CDF, Got rid of the SMTHENINT and SMIPINT options since these
+ *                  can now be emulated by running interp.c twice -- the
+ *                  first time w/SMONLY or SMINPLACE and the second time
+ *                  with INTONLY.
+ * v13Sep2000 CDF, Added the set_grid_params function, which sets the 
+ *                  parameters for the grid of points which have been 
+ *                  interpolated onto a regularly sampled grid.
+ * v19Feb2002 CDF, Changed setup_monte to also request time delay values
+ *                  if they haven't been set by setup_file.
+ *                 Changed setup_monte_summary to print out values contained
+ *                  in setup->tau0 rather than hardwired values (ALAG, etc.).
+ * v04Sep2002 CDF, Added a "tauset" variable to setup to indicate whether
+ *                  the tau0 values have been set in the input file and a
+ *                  "dtau" variable to set the stepsize used in the tau
  *                grid search.
  * v18Aug2005 CDF, Added a dmu variable to setup in order to control
  *                  the stepsize in the magnification grid.
+ * v18Dec2013 CDF, Added parameters to the setup container
+ *                 Added a new setup_from_command_line function.
+ *                 Moved much of the filling of the setup container into the
+ *                  new get_setup_params function (still under construction)
  *
  */
 
@@ -181,6 +185,11 @@ Setup *setup_from_command_line(char *argv[], int narg)
 
   newsetup->ncurves = 2;
 
+  if(newsetup->nfiles == 1) {
+    newsetup->infile[0] = argv[2];
+    if(narg==4)
+      newsetup->setupfile = argv[3];
+  }
   if(newsetup->nfiles == 2) {
     newsetup->infile[0] = argv[2];
     newsetup->infile[1] = argv[3];

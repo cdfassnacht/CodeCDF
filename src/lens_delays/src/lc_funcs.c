@@ -3,153 +3,159 @@
  *
  * A library of functions to perform operations on 1608 light curves.
  *
- * 18Jun98 CDF,  Moved functions over from lcurve.c.  For history prior
- *                to this date, see lcurve.c
- *               Added functions read_fluxrec and flag_bad.  Modified
- *                many other functions to deal with flagged points on curves
- * v19Jun98 CDF, Make smooth_1608 return size of smoothed curves.
- *               Add array initialization to new_fluxrec.
- *               Add logfile option to do_chi and call_xcorr.
- *               Move optional interpolation from shift_chi to do_chi and
- *                make shift_chi return the best-fit value.
- * v22Jun98 CDF, Add proper normalization to cross_corr_fft.
- *               Added rand_curves to create light curves with the same
- *                flux distributions as the observed light curves, but with
- *                the time series randomized.
- *               Added the triangle function to do a triangle smooth on the
- *                light curves.
- * v23Jun98 CDF, Added setup functions setup_file, setup_interact, and
- *                read_setup_line, as well as new_setup and del_setup.
- *                These function allow input from setup files similar to
- *                those used in fitsplt.c/fitsim.c
- * v24Jun98 CDF, Added cross_corr_nr, which calls the Numerical Recipes
- *                version of cross-correlation.  This can provide a
- *                check for the Fourier transform method in cross_corr_fft
- *               Added norm_zero_mean, which normalizes a light curve and
- *                then subtracts 1 to create a zero-mean light curve.
- * v25Jun98 CDF, Add calculation of rms in cross-correlation curves to assess
- *                the significance of the peaks.
- *               Slight modifications to calc_mean and do_chi.
- *               Added varbox function to do variable-width boxcar smoothing.
- * v28Jun98 CDF, Moved setup_summary from lcurve.
- * v29Jun98 CDF, Added gaussian to do gaussian-weighted smoothing.  
- *               Modified setup_file and setup_interact to deal with 
- *                gaussian weighting.
- *               Changed uncertainties on boxcar-smoothed values to be
- *                max of weighted sum of variances and rms scatter about
- *                mean.
- * v04Jul98 CDF, Modification of output in call_xcorr
- *               Added make_monte to create fake light curves
- *                with sparse sampling from an idealized, regularly-
- *                sampled light curve.
- * v08Jul98 CDF, Changed output flux ratios in do_chi from B/[ACD] to
- *                [ACD]/B.
- *               Added the gaussian random displacements to the idealized
- *                light curve in make_monte.  Also delete bad days from
- *                output.
- *               Added interactive file request to read_fluxrec.
- * v09Jul98 CDF, Moved choice of linear interpolation out of do_chi and up
- *                into the calling function.  As a consequence, added a
- *                dosmooth flag to the Setup structure.
- *               Split logfile option into two -- a logfile for the chisq
- *                portion and a logfile for the cross-correlation portion.
- * v12Jul98 CDF, Added functions medsmooth and vartri to do median smoothing
- *                and variable-width triangle smoothing, respectively.
- *                Modified the setup container functions appropriately.
- * v13Jul98 CDF, Fixed a bug in setup_interact in which defaults weren't being
- *                handled properly.
- *               Added cross_corr_time to do a "by hand" cross-correlation
- *                without using FFTs.
- *               Added better output to do_chi.
- * v14Jul98 CDF, Add variance-weighting to all smoothing functions by adding
- *                the var_wmean function and having all the smoothing functions
- *                call it.
- * v16Jul98 CDF, Changed zero_pad to produce float arrays rather than
- *                Fluxrec arrays.  Modified do_corr, cross_corr_fft, 
- *                cross_corr_nr, and cross_corr_time accordingly.
- *               Added wt_hanning function to apply Hanning weighting to the
- *                zero-mean curves that are input to the cross_corr_fft function.
- * v19Jul98 CDF, Took out Hanning weighting in do_corr.
- *               Fixed bug in cross_corr_time.
- *               Made steps in flux density ratio into fractions of the initial
- *                guess rather than absolute steps (shift_chi).
- * v20Jul98 CDF, Added flexibility in the number of zeros used in zero_pad
- *                by putting in the ZEROFAC factor.
- * v21Jul98 CDF, Fixed bug in smooth_1608 in which the errors on the
- *                flat-fielded curves were not being calculated correctly.
- *                The function now calls flat_field, which correctly incorporates
- *                the fractional rms contribution to the flux density errors.
- *               Better logfile output from do_chi.
- * v22Jul98 CDF, Modified smooth_1608 to make printing to the output file
- *                optional. 
- * v04Aug98 CDF, Commented out "reverse" case in do_chi
- * v13Aug98 CDF, Added call_dcf and discrete_corr to calculate the
- *                discrete correlation function for the light curves.
- * v15Aug98 CDF, Added functions fit_poly and poly to fit a polynomial
- *                to a light curve.
- * v16Aug98 CDF, Added function chisq_fit to calculate a reduced chisq between
- *                a light curve and the polynomial fit.
- * v20Aug98 CDF, Added print_log to eliminate lines needed for adding to
- *                log files.
- *               Added a choice of smoothing onto a coarse grid and then
- *                interpolating onto a finer one.
- * v21Aug98 CDF, Modifications of flag_bad, interp_curve and smooth_1608.
- * v22Aug98 CDF, Completely re-wrote cross_corr_time, and as a result,
- *                split call_xcorr into call_xcorr_fft and call_xcorr_time.
- *               Added fit_parab function from modfuncs.c
- * v23Aug98 CDF, Modified shift_chi to fit a parabola to the lag-chisq curve
- *                at the location of the minimum value of chisq found on the
- *                gridded curve.  This function, performed in find_min_chisq,
- *                allows the determination of the "true" value of the minimum
- *                chisq.
- * v25Aug98 CDF, Changed rand_curves to only output 1608 curves since
- *                mkrand.c now flat-fields the curves before passing them
- *                to rand_curves.
- * v30Aug98 CDF, Re-wrote do_chi and shift_chi to handle input curves of
- *                different lengths and spacings.
- *               Moved flat-fielding from interp_curve to calling programs.
- *               Moved initialization of smoothed curves out of the smoothing
- *                functions (boxcar, triangle, etc.) and into csmooth, which
- *                calls them.  This is to prepare for being able to call the
- *                smoothing functions from a "smooth-in-place" function
- *                which will not output a regularly sampled grid.
- * v31Aug98 CDF, Modified smooth_1608 to handle in-place smoothing.
- * v01Sep98 CDF, Modified flag_bad to have an option to flag individual curves
- *                in addition to flagging all fluxes for a given day.
- * v07Sep98 CDF, Added corr_bevington to calculate correlation coefficients
- *                using the method described in Bevington and bevington_prob
- *                to calculate the probability that the value of a correlation
- *                coefficient could arise from two uncorrelated curves.
- * v11Sep98 CDF, Added gauss_noise to generate a time series of zero-mean
- *                Gaussian-distributed random noise.
- * v12Sep98 CDF, Modified cross_corr_time to estimate the number of 
- *                independent points in the overlap region rather than
- *                just taking all the points in the overlap region to
- *                calculate the Bevington probability.
- * v24Sep98 CDF, Modified shift_chi in a similar way to change the
- *                calculation of the reduced chisq.
- * v25Sep98 CDF, Split off smoothing/interpolation functions to lc_interp.c
- *               Split off correlation functions to correlate.c
- * v01Oct98 CDF, Split off Monte Carlo related functions to monte.c
- * v02Dec98 CDF, Added make_compos function to make a composite light
- *                curve from two to four input light curves.
- * v03Dec98 CDF, Modified setup functions to include choice of analysis
- *                method in the setup container.
- * v25Mar99 CDF, Changed fractional rms returned by ratio_err to be a factor
- *                of sqrt(2) less, after discussions with LVK.
- * v13Jun99 CDF, Moved Setup structure handing into new lc_setup.c library.
- *               Added choice of secondary flux curve calibration to make_flat.
- * v27Jul00 CDF, Moved all chisq calculation functions into new lc_chisq.c
- *                library.
- * v30Jul00 CDF, Added the set_mu0 function to set the initial guesses for
- *                the component relative magnifications.
- * v04Oct00 CDF, Added a new write_1608 function that writes out 1608
- *                light curves to a file in a format that can be read by the
- *                read_1608 function.
- * v09Oct00 CDF, Added new_prange and del_prange to dynamically allocate
- *                memory for Prange arrays.
- * v03Apr02 CDF, Added a new write_fluxrec function.
- * v02Sep02 CDF, Improved file I/O in read_fluxrec function.
+ * 18Jun1998 CDF,  Moved functions over from lcurve.c.  For history prior
+ *                  to this date, see lcurve.c
+ *                 Added functions read_fluxrec and flag_bad.  Modified
+ *                  many other functions to deal with flagged points on curves
+ * v19Jun1998 CDF, Make smooth_1608 return size of smoothed curves.
+ *                 Add array initialization to new_fluxrec.
+ *                 Add logfile option to do_chi and call_xcorr.
+ *                 Move optional interpolation from shift_chi to do_chi and
+ *                  make shift_chi return the best-fit value.
+ * v22Jun1998 CDF, Add proper normalization to cross_corr_fft.
+ *                 Added rand_curves to create light curves with the same
+ *                  flux distributions as the observed light curves, but with
+ *                  the time series randomized.
+ *                 Added the triangle function to do a triangle smooth on the
+ *                  light curves.
+ * v23Jun1998 CDF, Added setup functions setup_file, setup_interact, and
+ *                  read_setup_line, as well as new_setup and del_setup.
+ *                  These function allow input from setup files similar to
+ *                  those used in fitsplt.c/fitsim.c
+ * v24Jun1998 CDF, Added cross_corr_nr, which calls the Numerical Recipes
+ *                  version of cross-correlation.  This can provide a
+ *                  check for the Fourier transform method in cross_corr_fft
+ *                 Added norm_zero_mean, which normalizes a light curve and
+ *                  then subtracts 1 to create a zero-mean light curve.
+ * v25Jun1998 CDF, Add calculation of rms in cross-correlation curves to assess
+ *                  the significance of the peaks.
+ *                 Slight modifications to calc_mean and do_chi.
+ *                 Added varbox function to do variable-width boxcar smoothing.
+ * v28Jun1998 CDF, Moved setup_summary from lcurve.
+ * v29Jun1998 CDF, Added gaussian to do gaussian-weighted smoothing.  
+ *                 Modified setup_file and setup_interact to deal with 
+ *                  gaussian weighting.
+ *                 Changed uncertainties on boxcar-smoothed values to be
+ *                  max of weighted sum of variances and rms scatter about
+ *                  mean.
+ * v04Jul1998 CDF, Modification of output in call_xcorr
+ *                 Added make_monte to create fake light curves
+ *                  with sparse sampling from an idealized, regularly-
+ *                  sampled light curve.
+ * v08Jul1998 CDF, Changed output flux ratios in do_chi from B/[ACD] to
+ *                  [ACD]/B.
+ *                 Added the gaussian random displacements to the idealized
+ *                  light curve in make_monte.  Also delete bad days from
+ *                  output.
+ *                 Added interactive file request to read_fluxrec.
+ * v09Jul1998 CDF, Moved choice of linear interpolation out of do_chi and up
+ *                  into the calling function.  As a consequence, added a
+ *                  dosmooth flag to the Setup structure.
+ *                 Split logfile option into two -- a logfile for the chisq
+ *                  portion and a logfile for the cross-correlation portion.
+ * v12Jul1998 CDF, Added functions medsmooth and vartri to do median smoothing
+ *                  and variable-width triangle smoothing, respectively.
+ *                  Modified the setup container functions appropriately.
+ * v13Jul1998 CDF, Fixed a bug in setup_interact in which defaults weren't being
+ *                  handled properly.
+ *                 Added cross_corr_time to do a "by hand" cross-correlation
+ *                  without using FFTs.
+ *                 Added better output to do_chi.
+ * v14Jul1998 CDF, Add variance-weighting to all smoothing functions by adding
+ *                  the var_wmean function and having all the smoothing functions
+ *                  call it.
+ * v16Jul1998 CDF, Changed zero_pad to produce float arrays rather than
+ *                  Fluxrec arrays.  Modified do_corr, cross_corr_fft, 
+ *                  cross_corr_nr, and cross_corr_time accordingly.
+ *                 Added wt_hanning function to apply Hanning weighting to the
+ *                  zero-mean curves that are input to the cross_corr_fft 
+ *                  function.
+ * v19Jul1998 CDF, Took out Hanning weighting in do_corr.
+ *                 Fixed bug in cross_corr_time.
+ *                 Made steps in flux density ratio into fractions of the initial
+ *                  guess rather than absolute steps (shift_chi).
+ * v20Jul1998 CDF, Added flexibility in the number of zeros used in zero_pad
+ *                  by putting in the ZEROFAC factor.
+ * v21Jul1998 CDF, Fixed bug in smooth_1608 in which the errors on the
+ *                  flat-fielded curves were not being calculated correctly.
+ *                  The function now calls flat_field, which correctly 
+ *                  incorporates the fractional rms contribution to the flux 
+ *                  density errors.
+ *                 Better logfile output from do_chi.
+ * v22Jul1998 CDF, Modified smooth_1608 to make printing to the output file
+ *                  optional. 
+ * v04Aug1998 CDF, Commented out "reverse" case in do_chi
+ * v13Aug1998 CDF, Added call_dcf and discrete_corr to calculate the
+ *                  discrete correlation function for the light curves.
+ * v15Aug1998 CDF, Added functions fit_poly and poly to fit a polynomial
+ *                  to a light curve.
+ * v16Aug1998 CDF, Added function chisq_fit to calculate a reduced chisq between
+ *                  a light curve and the polynomial fit.
+ * v20Aug1998 CDF, Added print_log to eliminate lines needed for adding to
+ *                  log files.
+ *                 Added a choice of smoothing onto a coarse grid and then
+ *                  interpolating onto a finer one.
+ * v21Aug1998 CDF, Modifications of flag_bad, interp_curve and smooth_1608.
+ * v22Aug1998 CDF, Completely re-wrote cross_corr_time, and as a result,
+ *                  split call_xcorr into call_xcorr_fft and call_xcorr_time.
+ *                 Added fit_parab function from modfuncs.c
+ * v23Aug1998 CDF, Modified shift_chi to fit a parabola to the lag-chisq curve
+ *                  at the location of the minimum value of chisq found on the
+ *                  gridded curve.  This function, performed in find_min_chisq,
+ *                  allows the determination of the "true" value of the minimum
+ *                  chisq.
+ * v25Aug1998 CDF, Changed rand_curves to only output 1608 curves since
+ *                  mkrand.c now flat-fields the curves before passing them
+ *                  to rand_curves.
+ * v30Aug1998 CDF, Re-wrote do_chi and shift_chi to handle input curves of
+ *                  different lengths and spacings.
+ *                 Moved flat-fielding from interp_curve to calling programs.
+ *                 Moved initialization of smoothed curves out of the smoothing
+ *                  functions (boxcar, triangle, etc.) and into csmooth, which
+ *                  calls them.  This is to prepare for being able to call the
+ *                  smoothing functions from a "smooth-in-place" function
+ *                  which will not output a regularly sampled grid.
+ * v31Aug1998 CDF, Modified smooth_1608 to handle in-place smoothing.
+ * v01Sep1998 CDF, Modified flag_bad to have an option to flag individual curves
+ *                  in addition to flagging all fluxes for a given day.
+ * v07Sep1998 CDF, Added corr_bevington to calculate correlation coefficients
+ *                  using the method described in Bevington and bevington_prob
+ *                  to calculate the probability that the value of a correlation
+ *                  coefficient could arise from two uncorrelated curves.
+ * v11Sep1998 CDF, Added gauss_noise to generate a time series of zero-mean
+ *                  Gaussian-distributed random noise.
+ * v12Sep1998 CDF, Modified cross_corr_time to estimate the number of 
+ *                  independent points in the overlap region rather than
+ *                  just taking all the points in the overlap region to
+ *                  calculate the Bevington probability.
+ * v24Sep1998 CDF, Modified shift_chi in a similar way to change the
+ *                  calculation of the reduced chisq.
+ * v25Sep1998 CDF, Split off smoothing/interpolation functions to lc_interp.c
+ *                 Split off correlation functions to correlate.c
+ * v01Oct1998 CDF, Split off Monte Carlo related functions to monte.c
+ * v02Dec1998 CDF, Added make_compos function to make a composite light
+ *                  curve from two to four input light curves.
+ * v03Dec1998 CDF, Modified setup functions to include choice of analysis
+ *                  method in the setup container.
+ * v25Mar1999 CDF, Changed fractional rms returned by ratio_err to be a factor
+ *                  of sqrt(2) less, after discussions with LVK.
+ * v13Jun1999 CDF, Moved Setup structure handing into new lc_setup.c library.
+ *                 Added choice of secondary flux curve calibration to make_flat.
+ * v27Jul2000 CDF, Moved all chisq calculation functions into new lc_chisq.c
+ *                  library.
+ * v30Jul2000 CDF, Added the set_mu0 function to set the initial guesses for
+ *                  the component relative magnifications.
+ * v04Oct2000 CDF, Added a new write_1608 function that writes out 1608
+ *                  light curves to a file in a format that can be read by the
+ *                  read_1608 function.
+ * v09Oct2000 CDF, Added new_prange and del_prange to dynamically allocate
+ *                  memory for Prange arrays.
+ * v03Apr2002 CDF, Added a new write_fluxrec function.
+ * v02Sep2002 CDF, Improved file I/O in read_fluxrec function.
+ * v18Dec2013 CDF, Added new load_light_curve function (still under construction)
+ *                 Changed read_fluxrec to read_fluxrec_1curve in preparation
+ *                  for the improved load_light_curve function's general
+ *                  treatment of input files.
  */
 
 #include <stdio.h>
@@ -318,7 +324,7 @@ Fluxrec **load_light_curves(Setup *setup, int *npoints)
     /* index[i] = i; */
     printf("Loading lightcurve(s) from %s\n",setup->infile[i]);
     printf("--------------------------------------------------\n");
-    if(!(lc[i] = read_fluxrec(setup->infile[i],'#',&npoints[i])))
+    if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',&npoints[i])))
       no_error = 0;
   }
 
@@ -582,9 +588,10 @@ int write_1608(Fluxrec *flux[], int npoints, char *filename, int verbose)
 
 /*.......................................................................,
  *
- * Function read_fluxrec
+ * Function read_fluxrec_1curve
  *
- * Reads a 2 or 3 column input file and puts results into a Fluxrec array,
+ * Reads an input file that has just one light curve in it, contained in
+ *  2, 3, or 4 columns.  The function puts the results into a Fluxrec array,
  *  which has its memory allocation performed in the function.
  *
  * Inputs: char *inname        name of input file
@@ -595,7 +602,7 @@ int write_1608(Fluxrec *flux[], int npoints, char *filename, int verbose)
  * Output: Fluxrec *newflux    filled array
  */
 
-Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
+Fluxrec *read_fluxrec_1curve(char *inname, char comment, int *nlines)
 {
   int no_error=1;        /* Flag set to 0 on error */
   int ncols;             /* Number of columns in input file */
@@ -609,7 +616,7 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
    */
 
   if(!(ifp = open_readfile(inname))) {
-    fprintf(stderr,"ERROR: read_fluxrec.  Cannot open %s.\n",inname);
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.  Cannot open %s.\n",inname);
     return NULL;
   }
 
@@ -618,7 +625,7 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
    */
 
   if((*nlines = n_lines(ifp,comment)) == 0) {
-    fprintf(stderr,"ERROR: read_fluxrec.  No valid data in input file.\n");
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.  No valid data in input file.\n");
     no_error = 0;
   }
   else
@@ -655,7 +662,7 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
 	  fptr++;
 	}
 	else {
-	  fprintf(stderr,"ERROR: read_fluxrec. Bad input file format.\n");
+	  fprintf(stderr,"ERROR: read_fluxrec_1curve. Bad input file format.\n");
 	  no_error = 0;
 	}
       }
@@ -670,12 +677,12 @@ Fluxrec *read_fluxrec(char *inname, char comment, int *nlines)
     fclose(ifp);
 
   if(no_error) {
-    printf("read_fluxrec: %s has %d columns and %d lines\n\n",inname,
+    printf("read_fluxrec_1curve: %s has %d columns and %d lines\n\n",inname,
 	   ncols,*nlines);
     return newflux;
   }
   else {
-    fprintf(stderr,"ERROR: read_fluxrec.\n");
+    fprintf(stderr,"ERROR: read_fluxrec_1curve.\n");
     return del_fluxrec(newflux);
   }
 }
@@ -907,7 +914,7 @@ int flag_bad(Fluxrec *fl34, Fluxrec *fl35, Fluxrec *fl08[], int nlines,
    *  that this also sets nlbad.
    */
 
-  if(!(baddays = read_fluxrec(badfilename,'#',&nlbad))) {
+  if(!(baddays = read_fluxrec_1curve(badfilename,'#',&nlbad))) {
     fprintf(stderr,"ERROR: flag_bad\n");
     return 1;
   }

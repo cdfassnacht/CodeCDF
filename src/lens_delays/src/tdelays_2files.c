@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
   for(i=0; i<ncurves; i++) {
     index[i] = i;
     strcpy(infile,argv[i+1]);
-    if(!(lc[i] = read_fluxrec(infile,'#',&npoints[i])))
+    if(!(lc[i] = read_fluxrec_1curve(infile,'#',&npoints[i])))
       no_error = 0;
   }
 
