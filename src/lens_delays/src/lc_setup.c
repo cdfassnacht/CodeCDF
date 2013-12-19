@@ -1006,14 +1006,14 @@ void setup_lcurve_summary(Setup *setup)
     if(setup->infile[i])
       printf(" %d: %s\n",i+1,setup->infile[0]);
   printf("Number of input light curves: %d\n",setup->ncurves);
-  printf("Curve  Start    End    Midpt   Length  <dt> \n");
-  printf("-----  ------  ------  ------  ------  -----\n");
+  printf("Curve  Npoints Start    End    Midpt   Length  <dt> \n");
+  printf("-----  ------- ------  ------  ------  ------  -----\n");
   for(i=0; i<setup->ncurves; i++) {
     ttotal = setup->endday[i] - setup->startday[i];
     midpt = (setup->startday[i] + setup->endday[i])/2.0;
-    printf("%5d  %6.1f  %6.1f  %6.1f  %5.1f   %4.1f\n",
-	   i+1,setup->startday[i],setup->endday[i],midpt,ttotal,
-	   ttotal/setup->npoints[i]);
+    printf("%5d   %5d  %6.1f  %6.1f  %6.1f   %5.1f  %4.1f\n",
+	   i+1,setup->npoints[i],setup->startday[i],setup->endday[i],midpt,
+	   ttotal,ttotal/setup->npoints[i]);
   }
 }
 
