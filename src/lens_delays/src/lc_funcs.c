@@ -156,6 +156,8 @@
  *                 Changed read_fluxrec to read_fluxrec_1curve in preparation
  *                  for the improved load_light_curve function's general
  *                  treatment of input files.
+ *                 Created a new read_fluxrec_2curves to handle a single input
+ *                  file that contains two light curves.
  */
 
 #include <stdio.h>
@@ -350,6 +352,15 @@ Fluxrec **load_light_curves(Setup *setup, int *fresult)
     for(i=0; i<setup->ncurves; i++)
       lc[i] = NULL;
     return lc;
+  }
+
+  /*
+   * Save some more information about the light curves to the setup container
+   */
+
+  for(i=0; i<setup->ncurves; i++) {
+    setup->startday[i] = lc[i]->day;
+    setup->endday[i] = (lc[i]+setup->npoints[i]-1)->day;
   }
 
   /*

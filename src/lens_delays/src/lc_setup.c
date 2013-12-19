@@ -250,6 +250,13 @@ int get_setup_params(Setup *setup, Fluxrec **lc)
       no_error = 0;
 
   /*
+   * Summarize light curve properties
+   */
+
+  if(no_error)
+    setup_lcurve_summary(setup);
+
+  /*
    * Summarize setup parameters
    */
 
@@ -979,6 +986,39 @@ int setup_delays(Setup *setup)
 
 /*.......................................................................
  *
+ * Function setup_lcurve_summary
+ *
+ * Summarizes the information in the setup container relating to the
+ *  input light curves
+ */
+
+void setup_lcurve_summary(Setup *setup)
+{
+  int i;         /* Looping variable */
+  float midpt;   /* Midpoint in a light curve*/
+  float ttotal;  /* Total time in days covered by a light curve */
+
+  printf("\n------------------------------------------------------------\n");
+  printf("Summary of input light curves\n");
+  printf("=============================\n");
+  printf("Input file(s)\n");
+  for(i=0; i<setup->nfiles; i++)
+    if(setup->infile[i])
+      printf(" %d: %s\n",i+1,setup->infile[0]);
+  printf("Number of input light curves: %d\n",setup->ncurves);
+  printf("Curve  Start    End    Midpt   Length  <dt> \n");
+  printf("-----  ------  ------  ------  ------  -----\n");
+  for(i=0; i<setup->ncurves; i++) {
+    ttotal = setup->endday[i] - setup->startday[i];
+    midpt = (setup->startday[i] + setup->endday[i])/2.0;
+    printf("%5d  %6.1f  %6.1f  %6.1f  %5.1f   %4.1f\n",
+	   i+1,setup->startday[i],setup->endday[i],midpt,ttotal,
+	   ttotal/setup->npoints[i]);
+  }
+}
+
+/*.......................................................................
+ *
  * Function setup_interp_summary
  *
  * Summarizes the information in the setup container relating to the
@@ -1071,16 +1111,6 @@ void setup_delays_summary(Setup *setup)
   printf("\n------------------------------------------------------------\n");
   printf("Summary of setup information\n");
   printf("============================\n");
-  printf("Input file(s)\n");
-  if(setup->infile[0])
-    printf(" 1: %s\n",setup->infile[0]);
-  if(setup->infile[1])
-    printf(" 2: %s\n",setup->infile[1]);
-  printf("Number of input light curves: %d\n",setup->ncurves);
-  printf("Number of points in input curves: ");
-  for(i=0; i<setup->ncurves; i++)
-    printf("%d ",setup->npoints[i]);
-  printf("\n");
   printf("Delay-finding technique(s)\n");
 #if 0
   printf("--------------------------\n");

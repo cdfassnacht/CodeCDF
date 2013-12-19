@@ -105,9 +105,10 @@ enum {
  */
 
 enum {
-  NONE,
-  BESTFIT,
-  GRID
+  NONE,     /* No output written */
+  BESTFIT,  /* Just send best-fit values to output */
+  GRID,     /* Save full results grid and slice to output */
+  BOTH      /* Save both best-fit values (one file) and full grid (another) */
 };
 
 /*.......................................................................
@@ -132,7 +133,9 @@ typedef struct {
   int ncurves;          /* Number of curves being compared */
   int nfiles;           /* Number of input files */
   char *infile[4];      /* Names of the input light curve files */
-  int npoints[4];       /* Number of points in each input light curve */
+  int npoints[4];       /* Number of points in the input light curves */
+  float startday[4];    /* Starting days of the input light curves */
+  float endday[4];      /* Ending days of the input light curves */
   char *setupfile;      /* Name of the optional setup file */
   char *outfile;        /* Name of output file (used for simulations) */
   int tauset;           /* Flag set to YES if tau0 was set in input file */
@@ -183,6 +186,7 @@ int setup_file(Setup *setup, char *inname);
 int read_setup_line(char *line, char *keyword);
 int setup_interp(Setup *setup);
 int setup_delays(Setup *setup);
+void setup_lcurve_summary(Setup *setup);
 void setup_interp_summary(Setup *setup);
 void setup_delays_summary(Setup *setup);
 void get_meanchoice(Setup *setup);
