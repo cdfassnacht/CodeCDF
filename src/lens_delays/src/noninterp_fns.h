@@ -31,11 +31,10 @@ LCdisp *read_lcdisp(char *filename, Axisinfo *tau, Axisinfo *mu);
 int call_disp(Fluxrec *flux[], int npoints, Setup *setup,
 	      int doprint);
 int disp_setup(Fluxrec *flux[], int ncurves, int *npoints, 
-	       int *index, Setup *setup, LCdisp *bestdisp, char *outname, 
-	       int doprint);
+	       int *index, Setup *setup, LCdisp *bestdisp, char *outname);
 int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 		       Prange *tau0, Prange *mu0, Setup *setup, 
-		       LCdisp *bestdisp, char *outname, int doprint);
+		       LCdisp *bestdisp, char *outname);
 int four_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 		    Prange *tau0, Prange *mu0, Setup *setup, 
 		    LCdisp *bestdisp, char *outname, int doprint);

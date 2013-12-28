@@ -4,36 +4,37 @@
  * A library of functions to find time delays without interpolating
  *  the 1608 light curves.
  *
- * 30Nov98 CDF,  Created by moving some DCF functions from correlate.c
- * v02Dec98 CDF, Added call_disp, disp_setup, and disp_lovell to do
- *                dispersion analysis as described in the Lovell et al.
- *                1830 time delay paper.
- * v03Dec98 CDF, Added disp_d1 and disp_d2 to calculate D^2_1 and D^2_2
- *                functions as described in the Pelt et al. papers.
- * v04Dec98 CDF, Moved delta parameter for the D^2_2 analysis into the
- *                Setup structure.
- * v07Dec98 CDF, Rearranged things to make disp_d1 and disp_d2 more general.
- * v14Jan99 CDF, Moved a lot of the function of disp_setup into two_curve_disp,
- *                which gets called by disp_setup.  Then copied and modified
- *                two_curve_disp to become four_curve_disp to deal with the
- *                dispersion methods which treat all four light curves at once.
- * v09Oct00 CDF, Modified disp_setup and two_curve_disp to use Prange
- *                structures to define the search ranges rather than the
- *                previously used arrays.
- *               Added new_lcdisp, del_lcdisp, and read_lcdisp functions
- *                to handle the new LCdisp structure memory allocation and
- *                file input.  These are direct modifications of the similar
- *                function to handle the LCchisq structure in lc_chisq.c.
- * v10Oct00 CDF, Modified call_disp to pass a LCdisp structure array to
- *                disp_setup and hence to the dispersion-calculating 
- *                functions.  This allows the grid-points producing the
- *                lowest dispersion(s) to be passed back up to call_disp.
- *               Added printing out of each dispersion calculated.
- *               Added print_disp_slice to print out a (tau,disp) curve.
- * v19Apr01 CDF, Moved calculation of composite curve for D^2_1 and D^2_2
- *                methods from the disp_d1 and disp_d2 functions up into
- *                the calling functions (two_curve_disp or four_curve_disp).
- *                This makes the disp_d1 and disp_d2 functions more general.
+ * 30Nov1998 CDF,  Created by moving some DCF functions from correlate.c
+ * v02Dec1998 CDF, Added call_disp, disp_setup, and disp_lovell to do
+ *                  dispersion analysis as described in the Lovell et al.
+ *                  1830 time delay paper.
+ * v03Dec1998 CDF, Added disp_d1 and disp_d2 to calculate D^2_1 and D^2_2
+ *                  functions as described in the Pelt et al. papers.
+ * v04Dec1998 CDF, Moved delta parameter for the D^2_2 analysis into the
+ *                  Setup structure.
+ * v07Dec1998 CDF, Rearranged things to make disp_d1 and disp_d2 more general.
+ * v14Jan1999 CDF, Moved a lot of the function of disp_setup into two_curve_disp,
+ *                  which gets called by disp_setup.  Then copied and modified
+ *                  two_curve_disp to become four_curve_disp to deal with the
+ *                  dispersion methods which treat all four light curves at once.
+ * v09Oct2000 CDF, Modified disp_setup and two_curve_disp to use Prange
+ *                  structures to define the search ranges rather than the
+ *                  previously used arrays.
+ *                 Added new_lcdisp, del_lcdisp, and read_lcdisp functions
+ *                  to handle the new LCdisp structure memory allocation and
+ *                  file input.  These are direct modifications of the similar
+ *                  function to handle the LCchisq structure in lc_chisq.c.
+ * v10Oct2000 CDF, Modified call_disp to pass a LCdisp structure array to
+ *                  disp_setup and hence to the dispersion-calculating 
+ *                  functions.  This allows the grid-points producing the
+ *                  lowest dispersion(s) to be passed back up to call_disp.
+ *                 Added printing out of each dispersion calculated.
+ *                 Added print_disp_slice to print out a (tau,disp) curve.
+ * v19Apr2001 CDF, Moved calculation of composite curve for D^2_1 and D^2_2
+ *                  methods from the disp_d1 and disp_d2 functions up into
+ *                  the calling functions (two_curve_disp or four_curve_disp).
+ *                  This makes the disp_d1 and disp_d2 functions more general.
+ * v27Dec2013 CDF, Moved the doprint flag into the setup container
  *
  */
 
@@ -44,6 +45,7 @@
 #include "structdef.h"
 #include "dataio.h"
 #include "lc_funcs.h"
+#include "lc_setup.h"
 #include "noninterp_fns.h"
 
 #define DAYSTEP 0.5
@@ -310,8 +312,7 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup, int doprint)
 
     index[0] = 1;
     index[1] = 0;
-    if(disp_setup(flux,2,nptarr,index,setup,bestdisp,"dispba.dat",
-		  doprint))
+    if(disp_setup(flux,2,nptarr,index,setup,bestdisp,"dispba.dat"))
       no_error = 0;
 
     /*
@@ -320,8 +321,7 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup, int doprint)
 
     index[1] = 2;
     if(no_error)
-      if(disp_setup(flux,2,nptarr,index,setup,bestdisp+1,"dispbc.dat",
-		    doprint))
+      if(disp_setup(flux,2,nptarr,index,setup,bestdisp+1,"dispbc.dat"))
 	no_error = 0;
 
     /*
@@ -330,8 +330,7 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup, int doprint)
 
     index[1] = 3;
     if(no_error)
-      if(disp_setup(flux,2,nptarr,index,setup,bestdisp+2,"dispbd.dat",
-		    doprint))
+      if(disp_setup(flux,2,nptarr,index,setup,bestdisp+2,"dispbd.dat"))
 	no_error = 0;
 
 
@@ -361,9 +360,11 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup, int doprint)
     /*
      * Call disp_setup
      */
-    if(no_error)
-      if(disp_setup(flux,4,nptarr,index,setup,bestdisp,"dispall.dat",0))
+    if(no_error) {
+      setup->doprint = NONE;
+      if(disp_setup(flux,4,nptarr,index,setup,bestdisp,"dispall.dat"))
 	no_error = 0;
+    }
 
     break;
 
@@ -432,19 +433,20 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup, int doprint)
  *
  * Output: int (0 or 1)        0 ==> success, 1 ==> error
  *
- * v07Dec98 CDF, Moved conversion of tau and mu to arrays into this
- *                function in order to make disp_d1 and disp_d2 more general.
- * v09Oct00 CDF, Changed mu0 and tau0 arrays into Prange structures, which
- *                contain more info in a more compact form.
- * v10Oct00 CDF, Added a passed variable *bestdisp to bring the grid
- *                point(s) giving the lowest dispersion back to call_disp.
- * v31Aug02 CDF, Changed npoints to an array.  Got rid of nbad array
- *                passed parameter (no longer needed for make_compos).
+ * v07Dec1998 CDF, Moved conversion of tau and mu to arrays into this
+ *                  function in order to make disp_d1 and disp_d2 more general.
+ * v09Oct2000 CDF, Changed mu0 and tau0 arrays into Prange structures, which
+ *                  contain more info in a more compact form.
+ * v10Oct2000 CDF, Added a passed variable *bestdisp to bring the grid
+ *                  point(s) giving the lowest dispersion back to call_disp.
+ * v31Aug2002 CDF, Changed npoints to an array.  Got rid of nbad array
+ *                  passed parameter (no longer needed for make_compos).
+ * v27Dec2013 CDF, Got rid of the doprint flag and put it into the setup
+ *                  container
  */
 
 int disp_setup(Fluxrec *flux[], int ncurves, int *npoints, 
-	       int *index, Setup *setup, LCdisp *bestdisp, char *outname, 
-	       int doprint)
+	       int *index, Setup *setup, LCdisp *bestdisp, char *outname)
 {
   int i;                  /* Looping variables */
   int no_error=1;         /* Flag set to 0 on error */
@@ -538,7 +540,7 @@ int disp_setup(Fluxrec *flux[], int ncurves, int *npoints,
     switch(setup->dispchoice) {
     case D21: case D22: case DLOVELL:
       if(two_curve_disp(flux,npoints,index,tau0,mu0,setup,bestdisp,
-			outname,doprint))
+			outname))
 	no_error = 0;
       break;
     case D21M:
@@ -590,7 +592,6 @@ int disp_setup(Fluxrec *flux[], int ncurves, int *npoints,
  *         Prange *mu0         parameters for mu grid search
  *         Setup *setup        container for dispersion method info
  *         char *outname       name of output file
- *         int doprint         flag set to 0 for no output file
  *
  * Output: LCdisp *d2min       (mu,tau) pair(s) with lowest dispersion(s)
  *
@@ -614,7 +615,7 @@ int disp_setup(Fluxrec *flux[], int ncurves, int *npoints,
 
 int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 		   Prange *tau0, Prange *mu0, Setup *setup, 
-		   LCdisp *bestdisp, char *outname, int doprint)
+		   LCdisp *bestdisp, char *outname)
 {
   int i,j;                  /* Looping variables */
   int no_error=1;           /* Flag set to 0 on error */
@@ -652,7 +653,7 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
    * Open output file.
    */
 
-  if(doprint && no_error) {
+  if(setup->doprint && no_error) {
     printf(" ");
     if(!(ofp = open_writefile(outname))) {
       no_error = 0;
@@ -735,7 +736,7 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 	 * Print output if desired
 	 */
 
-	if(doprint)
+	if(setup->doprint)
 	  fprintf(ofp,"%7.2f %6.4f %7.4f\n",tau[index[1]],mu[index[1]],
 		  dptr->disp);
 
@@ -769,7 +770,7 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
    *  to the output file.
    */
 
-  if(no_error && doprint) {
+  if(no_error && setup->doprint) {
 
     /*
      * Set output filename

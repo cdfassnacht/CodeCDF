@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
    */
 
   if(setup->dodisp && no_error)
-    if(disp_setup(lc,2,setup->npoints,index,setup,&bestdisp,"disp.out",1))
+    if(disp_setup(lc,2,setup->npoints,index,setup,&bestdisp,"disp.out"))
       no_error = 0;
     else if(setup->outfile) {
       printf("\n");

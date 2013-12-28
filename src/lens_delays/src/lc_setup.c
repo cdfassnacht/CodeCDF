@@ -72,6 +72,7 @@ Setup *new_setup(int size)
    */
 
   newsetup->nfiles = -1;
+  newsetup->doprint = GRID;
   newsetup->outfile = NULL;
   newsetup->setupfile = NULL;
   newsetup->dochi = UNSET;
@@ -205,7 +206,7 @@ Setup *setup_from_command_line(char *argv[], int narg)
  * Function get_setup_params
  *
  * Uses information from (1) the optional setup file, (2) the light curves
- * themselves, and (3)the user in an interactives sense to fill in the
+ * themselves, and (3) the user in an interactive sense to fill in the
  * rest of the setup container.
  *
  * Inputs: Setup *setup        setup container to be filled
@@ -1005,7 +1006,7 @@ void setup_lcurve_summary(Setup *setup)
   for(i=0; i<setup->nfiles; i++)
     if(setup->infile[i])
       printf(" %d: %s\n",i+1,setup->infile[0]);
-  printf("Number of input light curves: %d\n",setup->ncurves);
+  printf("\nNumber of input light curves: %d\n",setup->ncurves);
   printf("Curve  Npoints Start    End    Midpt   Length  <dt> \n");
   printf("-----  ------- ------  ------  ------  ------  -----\n");
   for(i=0; i<setup->ncurves; i++) {

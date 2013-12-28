@@ -138,14 +138,15 @@ typedef struct {
   float endday[4];      /* Ending days of the input light curves */
   char *setupfile;      /* Name of the optional setup file */
   char *outfile;        /* Name of output file (used for simulations) */
+  int doprint;          /* Level of verbosity (see enumeration above) */
   int tauset;           /* Flag set to YES if tau0 was set in input file */
   int ntau;             /* Number of delay steps on either side of tau0 */
   double tau0[4];       /* Initial guess for delays */
   double dtau;          /* Stepsize to use in grid search for delays */
-  int dooverlap;        /* Set to YES for using ratios from overlap region */
   int nmu;              /* Number of mag steps on either side of mu0 */
   double mu0[4];        /* Initial guesses for magnifications */
   double dmu;           /* Stepsize for magnification */
+  int dooverlap;        /* Set to YES for using ratios from overlap region */
   int dochi;            /* Flag set to YES for chisq analysis */
   int doxcorr;          /* Flag set to YES for cross-corr analysis */
   int doacorr;          /* Flag set to YES for auto-corr analysis */
