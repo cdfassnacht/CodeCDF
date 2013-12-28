@@ -1949,7 +1949,7 @@ int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup)
  *
  * Sets the default values for the delays to be used in the grid search
  *  for the best-fit delays.  The values are only set if not already set
- *  by the input setup file.  The values are stored in setup->tu0.
+ *  by the input setup file.  The values are stored in setup->tau0.
  *
  * Inputs: Fluxrec *lc[]       input light curves
  *         int *npoints        number of points in each light curves
