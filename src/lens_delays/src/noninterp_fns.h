@@ -33,8 +33,11 @@ int call_disp(Fluxrec *flux[], int npoints, Setup *setup,
 int disp_setup(Fluxrec *flux[], int ncurves, int *npoints, 
 	       int *index, Setup *setup, LCdisp *bestdisp, char *outname);
 int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
-		       Prange *tau0, Prange *mu0, Setup *setup, 
-		       LCdisp *bestdisp, char *outname);
+		   Prange *tau0, Prange *mu0, Setup *setup, 
+		   LCdisp *bestdisp, char *outname);
+int two_curve_disp_orig(Fluxrec *flux[], int *npoints, int *index,
+			Prange *tau0, Prange *mu0, Setup *setup, 
+			LCdisp *bestdisp, char *outname);
 int four_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 		    Prange *tau0, Prange *mu0, Setup *setup, 
 		    LCdisp *bestdisp, char *outname, int doprint);

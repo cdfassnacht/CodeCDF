@@ -861,6 +861,292 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 
 /*.......................................................................
  *
+ * Function two_curve_disp_orig
+ *
+ * *** TEMPORARY ORIGINAL VERSION OF TWO_CURVE_DISP ***
+ *
+ * Sets things up for calling one of the dispersion routines for calculating
+ *  dispersions between two curves only (as opposed to multiple curves, 
+ *  which are treated in four_curve_disp).
+ *
+ * Inputs: Fluxrec *flux[]     input light curves
+ *         int *npoints        number of points in each light curve
+ *         int *index          array showing which curves are being compared
+ *         int ntau            maximum time delay (relative to initial guess) 
+ *                              considered
+ *         Prange *tau0        parameters for tau grid search
+ *         Prange *mu0         parameters for mu grid search
+ *         Setup *setup        container for dispersion method info
+ *         char *outname       name of output file
+ *
+ * Output: LCdisp *d2min       (mu,tau) pair(s) with lowest dispersion(s)
+ *
+ * v11Feb99 CDF, Moved saving of best-fit spectrum to outside of mu loop
+ *                to avoid unnecessary repetition.
+ * v09Oct00 CDF, Modified to take advantage of passing Prange structures
+ *                for mu0 and tau0 rather than float arrays.
+ * v10Oct00 CDF, Added a passed variable *bestdisp to bring the grid
+ *                point(s) giving the lowest dispersion back to disp_setup.
+ *               Moved printing of lowest-dispersion point into call_disp
+ *                function.
+ *               Moved printing of slice through plane to new 
+ *                print_disp_slice function.
+ * v19Apr01 CDF, Moved creation of composite curve up to this function
+ *                from the disp_d1 and disp_d2 functions.
+ *               Also moved printing of output info up from disp_d1 and
+ *                disp_d2 into this function.
+ * v31Aug02 CDF, Changed npoints to an array.  Got rid of nbad array
+ *                a passed parameter (no longer needed for make_compos).
+ */
+
+int two_curve_disp_orig(Fluxrec *flux[], int *npoints, int *index,
+			Prange *tau0, Prange *mu0, Setup *setup, 
+			LCdisp *bestdisp, char *outname)
+{
+  int i,j;                  /* Looping variables */
+  int no_error=1;           /* Flag set to 0 on error */
+  int ncurves=2;            /* Number of curves being combined */
+  int ncompos=0;            /* Number of points in the composite curve */
+  float tau[N08];           /* Time delays between the curves */
+  float mu[N08];            /* Flux density ratios between the curves */
+  char slicename[MAXC];     /* Name of dispersion spectrum file */
+  Fluxrec *compos=NULL;     /* Composite curve */
+  LCdisp d2minj;            /* Min value of D^2 in one loop */
+  LCdisp *d2min=NULL;       /* Absolute min value of D^2 */
+  LCdisp *d2arr=NULL;       /* Array containing dispersion values */
+  LCdisp *dptr;             /* Pointer to navigate d2arr */
+  FILE *ofp=NULL;           /* Output file pointer */
+
+  /*
+   * Initialize mu and tau arrays.
+   */
+
+  for(i=0; i<N08; i++) {
+      tau[i] = 0.0;
+      mu[i] = 1.0;
+  }
+
+  /*
+   * Allocate memory for minimum dispersion container.
+   */
+
+  if(!(d2min = new_lcdisp(ncurves-1))) {
+    fprintf(stderr,"ERROR: two_curve_disp.\n");
+    return 1;
+  }
+
+  /*
+   * Open output file.
+   */
+
+  if(setup->doprint && no_error) {
+    printf(" ");
+    if(!(ofp = open_writefile(outname))) {
+      no_error = 0;
+      fprintf(stderr,"ERROR: two_curve_disp\n");
+    }
+    else {
+      fprintf(ofp,"# Gridsize %d %d\n",2 * tau0->nval + 1,2 * mu0->nval + 1);
+      fprintf(ofp,"#\n");
+      fprintf(ofp,"# tau     mu     disp   \n");
+      fprintf(ofp,"#------ ------ ---------\n");
+    }
+  }
+
+  /*
+   * Allocate memory for a slice through the dispersion surface at a
+   *  constant value of mu
+   */
+
+  if(!(d2arr = new_lcdisp(2 * tau0->nval + 1)))
+    no_error = 0;
+
+  /*
+   * Outer loop on flux density ratio
+   */
+
+  if(no_error) {
+    for(i=-mu0->nval; i < mu0->nval+1; i++) {
+
+      /*
+       * Set mu for this iteration
+       */
+
+      mu[index[1]] = mu0->val0 * (1.0 + i*mu0->dval);
+
+      /*
+       * Inner loop on tau
+       */
+
+      for(j=tau0->minstep,dptr=d2arr; j < tau0->maxstep+1; j++,dptr++) {
+	tau[index[1]] = j * tau0->dval;
+	dptr->tau = tau[index[1]];
+	dptr->mu = mu[index[1]];
+
+	/*
+	 * For the D21 and D22 methods, create the composite curve (through 
+	 *  a call to make_compos) before calling the function that calculates
+	 *  the dispersion.
+	 */
+
+	switch(setup->dispchoice) {
+	case D21:
+	  if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				    &ncompos,0)))
+	    no_error = 0;
+	  dptr->disp = disp_d1(compos,ncompos,setup->d2delta);
+	  compos = del_fluxrec(compos);
+	  break;
+	case D22:
+	  if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				    &ncompos,0)))
+	    no_error = 0;
+	  dptr->disp = disp_d2(compos,ncompos,setup->d2delta);
+	  compos = del_fluxrec(compos);
+	  break;
+	case DLOVELL:
+	  dptr->disp = disp_lovell(flux[index[0]],flux[index[1]],npoints[0],
+				   tau[index[1]],mu[index[1]],setup->d2delta);
+	  break;
+	default:
+	  fprintf(stderr,"ERROR: two_curve_disp. Invalid dispersion method.\n");
+	  fprintf(stderr," Using D^2_1 method.\n");
+	  if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				    &ncompos,0)))
+	    no_error = 0;
+	  dptr->disp = disp_d1(compos,ncompos,setup->d2delta);
+	  compos = del_fluxrec(compos);
+	}
+
+	/*
+	 * Print output if desired
+	 */
+
+	if(setup->doprint)
+	  fprintf(ofp,"%7.2f %6.4f %7.4f\n",tau[index[1]],mu[index[1]],
+		  dptr->disp);
+
+	/*
+	 * Hold value giving minimum dispersion FOR THIS LOOP
+	 */
+
+	if(i == -mu0->nval && j == tau0->minstep)
+	  d2minj = *dptr;
+	else if(dptr->disp < d2minj.disp)
+	  d2minj = *dptr;
+      }
+
+      /*
+       * Save values giving ABSOLUTE minimum dispersion
+       */
+
+      if(i == -mu0->nval) {
+	*d2min = d2minj;
+      }
+      else if(d2minj.disp < d2min->disp) {
+	*d2min = d2minj;
+      }
+    }
+  }
+
+  /*
+   * Make another call to the dispersion-calculating function with
+   *  mu set to its best-fit value.  This will produce the dispersion
+   *  spectrum with the best-fitting parameters.  Print out the results
+   *  to the output file.
+   */
+
+  if(no_error && setup->doprint) {
+
+    /*
+     * Set output filename
+     */
+
+    sprintf(slicename,"%s_slice",outname);
+
+    /*
+     * Now loop through the delays with mu set to d2min->mu, calculating
+     *  the dispersion at each step.
+     */
+
+
+    for(j=tau0->minstep,dptr=d2arr; j < tau0->maxstep + 1; j++,dptr++) {
+      tau[index[1]] = j*tau0->dval;
+      mu[index[1]] = d2min->mu;
+
+      /*
+       * For the D21 and D22 methods, create the composite curve (through 
+       *  a call to make_compos) before calling the function that calculates
+       *  the dispersion.
+       */
+
+      switch(setup->dispchoice) {
+      case D21:
+	if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				  &ncompos,0)))
+	  no_error = 0;
+  	dptr->disp = disp_d1(compos,ncompos,setup->d2delta);
+	compos = del_fluxrec(compos);
+	break;
+      case D22:
+	if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				  &ncompos,0)))
+	  no_error = 0;
+	dptr->disp = disp_d2(compos,ncompos,setup->d2delta);
+	compos = del_fluxrec(compos);
+	break;
+      case DLOVELL:
+	dptr->disp = disp_lovell(flux[index[0]],flux[index[1]],npoints[0],
+				 tau[index[1]],mu[index[1]],setup->d2delta);
+	break;
+      default:
+	fprintf(stderr,"ERROR: two_curve_disp. Invalid dispersion method.\n");
+	fprintf(stderr," Using D^2_1 method.\n");
+	if(!(compos = make_compos(flux,ncurves,npoints,index,tau,mu,
+				  &ncompos,0)))
+	  no_error = 0;
+  	dptr->disp = disp_d1(compos,ncompos,setup->d2delta);
+	compos = del_fluxrec(compos);
+      }
+    }
+
+    /*
+     * Print values to output file
+     */
+
+    if(print_disp_slice(d2arr,2 * tau0->nval + 1,slicename))
+      no_error = 0;
+  }
+
+
+  /*
+   * Transfer lowest-dispersion information to bestdisp.
+   */
+
+  if(no_error) {
+    for(i=0,dptr=d2min; i<ncurves-1; i++,dptr++)
+      *(bestdisp+i) = *dptr;
+  }
+
+  /*
+   * Clean up and exit
+   */
+
+  d2min = del_lcdisp(d2min);
+  d2arr = del_lcdisp(d2arr);
+  if(ofp)
+    fclose(ofp);
+
+  if(no_error)
+    return 0;
+  else {
+    fprintf(stderr,"ERROR: two_curve_disp\n");
+    return 1;
+  }
+}
+
+/*.......................................................................
+ *
  * Function four_curve_disp
  *
  * Sets things up for calling one of the dispersion routines for calculating
