@@ -189,7 +189,7 @@ int read_setup_line(char *line, char *keyword);
 int setup_interp(Setup *setup);
 int setup_delays(Setup *setup);
 int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup);
-int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup);
+int set_tau_grid(Fluxrec *lc[], Setup *setup);
 void setup_lcurve_summary(Setup *setup);
 void setup_interp_summary(Setup *setup);
 void setup_delays_summary(Setup *setup);

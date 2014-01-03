@@ -71,15 +71,6 @@ int main(int argc, char *argv[])
   }
 
   /*
-   * Allocate memory for arrays for number of points and index.
-   */
-
-#if 0
-  if(!(index = new_intarray(setup->ncurves,1)))
-    no_error = 0;
-#endif
-
-  /*
    * Load the light curves
    */
 

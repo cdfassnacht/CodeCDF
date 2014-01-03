@@ -259,7 +259,7 @@ int get_setup_params(Setup *setup, Fluxrec **lc)
    */
 #if 0
   if(no_error) {
-    set_tau_grid(lc,npoints,index,setup);
+    set_tau_grid(lc,setup);
     set_mu_grid(lc,npoints,setup);
   }
 #endif
@@ -1094,15 +1094,13 @@ int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup)
  *  by the input setup file.  The values are stored in setup->tau0.
  *
  * Inputs: Fluxrec *lc[]       input light curves
- *         int *npoints        number of points in each light curves
- *         int *index          array showing which curves are being compared
- *         Setup *setup        setup information.  Note that 
+ *         Setup *setup        setup information.
  *
  * Output: int (0 or 1)        0 ==> success, 1 ==> error
  *
  */
 
-int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup)
+int set_tau_grid(Fluxrec *lc[], Setup *setup)
 {
   int i;                /* Looping variable */
   int no_error=1;       /* Flag set to 0 on error */
@@ -1121,12 +1119,12 @@ int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup)
   printf("\nset_tau_grid: Curve  Start    End    Midpt   Length  <dt> \n");
   printf("set_tau_grid: -----  ------  ------  ------  ------  -----\n");
   for(i=0; i<setup->ncurves; i++) {
-    startday = lc[index[i]]->day;
-    endday = (lc[index[i]]+npoints[index[i]]-1)->day;
+    startday = lc[setup->index[i]]->day;
+    endday = (lc[setup->index[i]]+setup->npoints[setup->index[i]]-1)->day;
     ttotal = endday - startday;
     printf("set_tau_grid: %5d  %6.1f  %6.1f  %6.1f  %5.1f   %4.1f\n",
 	   i+1,startday,endday,(startday+endday)/2.0,ttotal,
-	   ttotal/npoints[index[i]]);
+	   ttotal/setup->npoints[setup->index[i]]);
   }
 
   /*
@@ -1213,7 +1211,7 @@ int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup)
 
   if(no_error) {
     for(i=0,pptr=tau0; i<ncurves-1; i++,pptr++) {
-      pptr->val0 = setup->tau0[index[i+1]];
+      pptr->val0 = setup->tau0[setup->index[i+1]];
       pptr->nval = setup->ntau;
       pptr->dval = DAYSTEP;
       pptr->minstep = ((int) (pptr->val0/pptr->dval)) - pptr->nval;
@@ -1267,11 +1265,11 @@ int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup)
   printf("set_mu_grid: Calculating means for inner 50%% of light curves.\n");
   for(i=0; i<setup->ncurves; i++) {
     fptr = lc[i];
-    startindex = (int) floor(npoints[i] / 4);
-    endindex = (int) floor(3 * npoints[i] / 4);
+    startindex = (int) floor(setup->npoints[i] / 4);
+    endindex = (int) floor(3 * setup->npoints[i] / 4);
     startday = (fptr+startindex-1)->day;
     endday = (fptr+endindex-1)->day;
-    if(calc_mean_dt(lc[i],npoints[i],mean+i,&rms,startday,endday,0.0))
+    if(calc_mean_dt(lc[i],setup->npoints[i],mean+i,&rms,startday,endday,0.0))
       no_error = 0;
   }
 

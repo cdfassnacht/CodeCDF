@@ -68,14 +68,7 @@ int main(int argc, char *argv[])
   }
   for(i=0; i<ncurves; i++)
     lc[i] = NULL;
-#if 0
-  /*
-   * Allocate memory for arrays for number of points and index.
-   */
 
-  if(!(index = new_intarray(ncurves,1)))
-    no_error = 0;
-#endif
   /*
    * Initialize the Setup container
    */
@@ -135,22 +128,30 @@ int main(int argc, char *argv[])
       no_error = 0;
 
   /*
-   * Summarize setup parameters
-   */
-
-  if(no_error)
-    setup_delays_summary(setup);
-
-  /*
    * Find the initial guesses for the flux ratios of the light
    *  curves and the delays between them.  Put these values into the 
    *  Setup container.
    */
 
   if(no_error) {
-    set_tau_grid(lc,setup->npoints,setup->index,setup);
+    set_tau_grid(lc,setup);
     set_mu_grid(lc,setup->npoints,setup);
   }
+
+  /*
+   * Summarize light curve properties
+   */
+
+  if(no_error)
+    setup_lcurve_summary(setup);
+
+  /*
+   * Summarize setup parameters
+   */
+
+  if(no_error)
+    setup_delays_summary(setup);
+
 #if 0
   /*
    * Calculate chi-squared with shifts
@@ -214,7 +215,6 @@ int main(int argc, char *argv[])
   setup = del_setup(setup);
 
 #if 0
-  index = del_intarray(index);
   if(chilogfp)
     fclose(chilogfp);
   if(xclogfp)
