@@ -68,14 +68,14 @@ int main(int argc, char *argv[])
   }
   for(i=0; i<ncurves; i++)
     lc[i] = NULL;
-
+#if 0
   /*
    * Allocate memory for arrays for number of points and index.
    */
 
   if(!(index = new_intarray(ncurves,1)))
     no_error = 0;
-
+#endif
   /*
    * Initialize the Setup container
    */
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
    */
 
   for(i=0; i<ncurves; i++) {
-    index[i] = i;
+    setup->index[i] = i;
     strcpy(infile,argv[i+1]);
     if(!(lc[i] = read_fluxrec_1curve(infile,'#',&setup->npoints[i])))
       no_error = 0;
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
    */
 
   if(no_error) {
-    set_tau_grid(lc,setup->npoints,index,setup);
+    set_tau_grid(lc,setup->npoints,setup->index,setup);
     set_mu_grid(lc,setup->npoints,setup);
   }
 #if 0
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
    */
 
   if(setup->dodisp && no_error)
-    if(disp_setup(lc,2,setup->npoints,index,setup,&bestdisp,"disp.out"))
+    if(disp_setup(lc,2,setup->npoints,setup->index,setup,&bestdisp,"disp.out"))
       no_error = 0;
     else if(setup->outfile) {
       printf("\n");
@@ -212,9 +212,9 @@ int main(int argc, char *argv[])
   if(lc)
     free(lc);
   setup = del_setup(setup);
-  index = del_intarray(index);
 
 #if 0
+  index = del_intarray(index);
   if(chilogfp)
     fclose(chilogfp);
   if(xclogfp)

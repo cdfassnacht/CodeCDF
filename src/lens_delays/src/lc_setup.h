@@ -133,6 +133,7 @@ typedef struct {
   int ncurves;          /* Number of curves being compared */
   int nfiles;           /* Number of input files */
   char *infile[4];      /* Names of the input light curve files */
+  int index[4];         /* Index of each input light curve */
   int npoints[4];       /* Number of points in the input light curves */
   float startday[4];    /* Starting days of the input light curves */
   float endday[4];      /* Ending days of the input light curves */
@@ -187,6 +188,8 @@ int setup_file(Setup *setup, char *inname);
 int read_setup_line(char *line, char *keyword);
 int setup_interp(Setup *setup);
 int setup_delays(Setup *setup);
+int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup);
+int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup);
 void setup_lcurve_summary(Setup *setup);
 void setup_interp_summary(Setup *setup);
 void setup_delays_summary(Setup *setup);

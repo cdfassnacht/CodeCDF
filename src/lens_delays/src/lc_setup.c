@@ -32,6 +32,8 @@
  *                 Added a new setup_from_command_line function.
  *                 Moved much of the filling of the setup container into the
  *                  new get_setup_params function (still under construction)
+ * v03Jan2014 CDF, Moved set_tau_grid and set_mu_grid from lc_funcs.c into this
+ *                  library.
  *
  */
 
@@ -984,6 +986,312 @@ int setup_delays(Setup *setup)
 
   return 0;
 }
+
+/*.......................................................................
+ *
+ * Function set_mu_grid
+ *
+ * Calculates the default values of the flux ratios between the input
+ *  curves.  The function uses the innermost 50% of the points in each 
+ *  light curve to calculate the mean values.  After the mean values are 
+ *  calculated, the ratios of the mean values are placed in the setup 
+ *  container as initial guesses for the curve-fitting routines.  
+ *  These ratios are stored in setup->mu0.
+ *
+ * Inputs: Fluxrec *lc[]       input light curves
+ *         int *npoints        number of points in each light curves
+ *         Setup *setup        setup information.  Note that 
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup)
+{
+  int i;                /* Looping variable */
+  int no_error=1;       /* Flag set to 0 on error */
+  int startindex;       /* Array index corresponding to startday */
+  int endindex;         /* Array index corresponding to startday */
+  float startday;       /* Starting day of overlap region */
+  float endday;         /* Starting day of overlap region */
+  float *mean;          /* Array to hold means of curves */
+  float rms;            /* RMS in light-curve section */
+  Fluxrec *fptr;        /* Pointer to navigate the lc arrays */
+
+  /*
+   * First check if the setup->nmu value has been set by the user.
+   *  If it hasn't, set it to the default NFLUXSTEP.
+   */
+
+  if(setup->nmu == 0)
+    setup->nmu = NFLUXSTEP;
+  printf("\nset_mu_grid: Number of magnification steps set to %d.\n",
+	 setup->nmu);
+
+  /*
+   * Now check to see if the setup->mu0 values have already been
+   *  set by the user.  If they have, don't bother continuing.
+   */
+
+  if(setup->mu0[0] > 0.0) {
+    printf("set_mu_grid:  Initial guesses for magnifications have ");
+    printf("already been set:\n");
+    for(i=0; i<setup->ncurves; i++) {
+      printf("   mu0_[%d] = %7.4f\n",i,setup->mu0[0]);
+    }
+    return 0;
+  }
+
+  /*
+   * Allocate memory for mean array
+   */
+
+  if(!(mean = new_array(setup->ncurves,1))) {
+    fprintf(stderr,"ERROR: set_mu_grid.\n");
+    return 1;
+  }
+
+  /*
+   * Calculate the means using the inner 50% of points from each light 
+   *  curve.
+   */
+
+  printf("set_mu_grid: --------------------------------------------------\n");
+  printf("set_mu_grid: Calculating means for inner 50%% of light curves.\n");
+  for(i=0; i<setup->ncurves; i++) {
+    fptr = lc[i];
+    startindex = (int) floor(npoints[i] / 4);
+    endindex = (int) floor(3 * npoints[i] / 4);
+    startday = (fptr+startindex-1)->day;
+    endday = (fptr+endindex-1)->day;
+    if(calc_mean_dt(lc[i],npoints[i],mean+i,&rms,startday,endday,0.0))
+      no_error = 0;
+  }
+
+  /*
+   * Print out results and fill the setup->mu0 containers
+   */
+
+  printf("set_mu_grid: Means are: ");
+  for(i=0; i<setup->ncurves; i++)
+    printf("%6.3f ",mean[i]);
+  printf("\nset_mu_grid: Flux ratios are: ");
+  for(i=0; i<setup->ncurves; i++) {
+    setup->mu0[i] = mean[i]/mean[0];
+    printf("%6.4f ",setup->mu0[i]);
+  }
+  printf("\n\n");
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function set_tau_grid
+ *
+ * Sets the default values for the delays to be used in the grid search
+ *  for the best-fit delays.  The values are only set if not already set
+ *  by the input setup file.  The values are stored in setup->tau0.
+ *
+ * Inputs: Fluxrec *lc[]       input light curves
+ *         int *npoints        number of points in each light curves
+ *         int *index          array showing which curves are being compared
+ *         Setup *setup        setup information.  Note that 
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup)
+{
+  int i;                /* Looping variable */
+  int no_error=1;       /* Flag set to 0 on error */
+  float startday;       /* Starting day of light curve */
+  float endday;         /* Starting day of light curve */
+  float ttotal;         /* Total length of run */
+  float *mean;          /* Array to hold means of curves */
+  float rms;            /* RMS in light-curve section */
+  char line[MAXC];      /* General string for reading input */
+  Fluxrec *fptr;        /* Pointer to navigate the lc arrays */
+
+  /*
+   * Print out information about the input curves
+   */
+
+  printf("\nset_tau_grid: Curve  Start    End    Midpt   Length  <dt> \n");
+  printf("set_tau_grid: -----  ------  ------  ------  ------  -----\n");
+  for(i=0; i<setup->ncurves; i++) {
+    startday = lc[index[i]]->day;
+    endday = (lc[index[i]]+npoints[index[i]]-1)->day;
+    ttotal = endday - startday;
+    printf("set_tau_grid: %5d  %6.1f  %6.1f  %6.1f  %5.1f   %4.1f\n",
+	   i+1,startday,endday,(startday+endday)/2.0,ttotal,
+	   ttotal/npoints[index[i]]);
+  }
+
+  /*
+   * See if the values of tau0 have been set in the input file.  If they
+   *  have been, just echo the values.
+   */
+
+  if(setup->tauset == YES) {
+    printf("set_tau_grid: Using values for tau0 set in input file.\n");
+    printf("set_tau_grid: ");
+    for(i=0; i<setup->ncurves; i++)
+      printf("%6.1f  ",setup->tau0[i]);
+  }
+
+  /*
+   * If tau0 values have not been set, query the user for them
+   */
+
+  else {
+    printf("\nset_tau_grid: Values of tau0 (delays) have not been set.\n");
+    for(i=0; i<setup->ncurves; i++) {
+      printf("set_tau_grid: Enter value of tau0 to use for curve %d: [%6.1f] ",
+	     i+1,setup->tau0[i]);
+      fgets(line,MAXC,stdin);
+      if(line[0] != '\n') {
+	while(sscanf(line,"%f",&setup->tau0[i]) != 1) {
+	  fprintf(stderr," ERROR. Bad input.  Enter value again:  ");
+	  fgets(line,MAXC,stdin);
+	}
+      }
+    }
+  }
+
+  /*
+   * Get the stepsize for the tau grid if it has not been set already
+   */
+
+  if(setup->dtau == 0) {
+   printf("\nset_tau_grid: Stepsize to be used in delay grid (dtau) has ");
+   printf("not been set.\n");
+   setup->dtau = 1.0;
+   printf("set_tau_grid: Enter value of dtau: [%5.2f] ",setup->dtau);
+   fgets(line,MAXC,stdin);
+   if(line[0] != '\n') {
+     while(sscanf(line,"%lf",&setup->dtau) != 1 || setup->dtau <= 0.0) {
+       fprintf(stderr," ERROR. Bad input.  Enter value again:  ");
+       fgets(line,MAXC,stdin);
+     }
+   }
+  }
+
+  /*
+   * Calculate the number of time delays to consider if this value has
+   *  not already been set in the Setup function.  The default value is
+   *  that which will include 1/4 of the total length of the observations
+   *  on each side of tau_0, i.e., from 1/4 to 3/4 of the total length.
+   *  Use the length of the unshifted curve, if the curves are of different
+   *  lengths.
+   */
+
+  if(setup->ntau == 0 && no_error) {
+    setup->ntau = floor(ttotal / (4.0 * setup->dtau));
+    printf("set_tau_grid: Enter number of time delay steps to take on\n");
+    printf("set_tau_grid:   either side of tau0: [%d] ",setup->ntau);
+    fgets(line,MAXC,stdin);
+    if(line[0] != '\n') {
+      while(sscanf(line,"%d",&setup->ntau) != 1 || setup->ntau <= 0) {
+	fprintf(stderr,"ERROR: Invalid input for number of steps.  ");
+	fprintf(stderr,"Enter value again.  ");
+	fgets(line,MAXC,stdin);
+      }
+    }
+  }
+
+  printf("\n");
+#if 0
+  /*
+   * Put the tau information into the Prange container.  This
+   *  information is stored in the Setup container, and the assignment
+   *  is controlled by the index array.  Note that index[0] will always
+   *  contain the index of the UNSHIFTED/UNMAGNIFIED curve.  This means
+   *  that we only load the values for index[1] -> index[ncurves-1].
+   */
+
+  if(no_error) {
+    for(i=0,pptr=tau0; i<ncurves-1; i++,pptr++) {
+      pptr->val0 = setup->tau0[index[i+1]];
+      pptr->nval = setup->ntau;
+      pptr->dval = DAYSTEP;
+      pptr->minstep = ((int) (pptr->val0/pptr->dval)) - pptr->nval;
+      pptr->maxstep = ((int) (pptr->val0/pptr->dval)) + pptr->nval;
+      printf(" disp_setup: tau0=%6.1f, tau_min=%6.1f, tau_max=%6.1f, ",
+	     pptr->val0,pptr->minstep * pptr->dval,
+	     pptr->maxstep * pptr->dval);
+      printf("dtau=%5.2f, ntau=%d\n",pptr->dval,2 * pptr->nval + 1);
+    }
+  }
+
+  /*
+   * First check if the setup->nmu value has been set by the user.
+   *  If it hasn't, set it to the default NFLUXSTEP.
+   */
+
+  if(setup->nmu == 0)
+    setup->nmu = NFLUXSTEP;
+  printf("\nset_mu_grid: Number of magnification steps set to %d.\n",
+	 setup->nmu);
+
+  /*
+   * Now check to see if the setup->mu0 values have already been
+   *  set by the user.  If they have, don't bother continuing.
+   */
+
+  if(setup->mu0[0] > 0.0) {
+    printf("set_mu_grid:  Initial guesses for magnifications have ");
+    printf("already been set:\n");
+    for(i=0; i<setup->ncurves; i++) {
+      printf("   mu0_[%d] = %7.4f\n",i,setup->mu0[0]);
+    }
+    return 0;
+  }
+
+  /*
+   * Allocate memory for mean array
+   */
+
+  if(!(mean = new_array(setup->ncurves,1))) {
+    fprintf(stderr,"ERROR: set_mu_grid.\n");
+    return 1;
+  }
+
+  /*
+   * Calculate the means using the inner 50% of points from each light 
+   *  curve.
+   */
+
+  printf("set_mu_grid:  --------------------------------------------------\n");
+  printf("set_mu_grid: Calculating means for inner 50%% of light curves.\n");
+  for(i=0; i<setup->ncurves; i++) {
+    fptr = lc[i];
+    startindex = (int) floor(npoints[i] / 4);
+    endindex = (int) floor(3 * npoints[i] / 4);
+    startday = (fptr+startindex-1)->day;
+    endday = (fptr+endindex-1)->day;
+    if(calc_mean_dt(lc[i],npoints[i],mean+i,&rms,startday,endday,0.0))
+      no_error = 0;
+  }
+
+  /*
+   * Print out results and fill the setup->mu0 containers
+   */
+
+  printf("set_mu_grid: Means are: ");
+  for(i=0; i<setup->ncurves; i++)
+    printf("%6.3f ",mean[i]);
+  printf("\nset_mu_grid: Flux ratios are: ");
+  for(i=0; i<setup->ncurves; i++) {
+    setup->mu0[i] = mean[i]/mean[0];
+    printf("%6.4f ",setup->mu0[i]);
+  }
+  printf("\n");
+#endif
+  return 0;
+}
+
 
 /*.......................................................................
  *

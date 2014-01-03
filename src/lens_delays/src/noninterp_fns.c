@@ -613,9 +613,9 @@ int disp_setup(Fluxrec *flux[], int ncurves, int *npoints,
  *                a passed parameter (no longer needed for make_compos).
  */
 
-int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
-		   Prange *tau0, Prange *mu0, Setup *setup, 
-		   LCdisp *bestdisp, char *outname)
+int two_curve_disp_new(Fluxrec *flux[], int *npoints, int *index,
+		       Prange *tau0, Prange *mu0, Setup *setup, 
+		       LCdisp *bestdisp, char *outname)
 {
   int i,j;                  /* Looping variables */
   int no_error=1;           /* Flag set to 0 on error */
@@ -861,7 +861,7 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
 
 /*.......................................................................
  *
- * Function two_curve_disp_orig
+ * Function two_curve_disp
  *
  * *** TEMPORARY ORIGINAL VERSION OF TWO_CURVE_DISP ***
  *
@@ -899,9 +899,9 @@ int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
  *                a passed parameter (no longer needed for make_compos).
  */
 
-int two_curve_disp_orig(Fluxrec *flux[], int *npoints, int *index,
-			Prange *tau0, Prange *mu0, Setup *setup, 
-			LCdisp *bestdisp, char *outname)
+int two_curve_disp(Fluxrec *flux[], int *npoints, int *index,
+		   Prange *tau0, Prange *mu0, Setup *setup, 
+		   LCdisp *bestdisp, char *outname)
 {
   int i,j;                  /* Looping variables */
   int no_error=1;           /* Flag set to 0 on error */

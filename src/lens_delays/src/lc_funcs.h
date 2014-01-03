@@ -75,8 +75,6 @@ Fluxrec *norm_zero_mean(Fluxrec *raw, int nlines);
 Fluxrec *norm_config(Fluxrec *raw, int nlines, char *source, int doprint);
 Fluxrec *calc_flrat(Fluxrec *flux1, Fluxrec *flux2, int size);
 int set_mu0(Fluxrec *fl08[], int nlines, Setup *setup);
-int set_mu_grid(Fluxrec *lc[], int *npoints, Setup *setup);
-int set_tau_grid(Fluxrec *lc[], int *npoints, int *index, Setup *setup);
 int ratio_err(Fluxrec *flux1, Fluxrec *flux2, int nlines, float *fracrms);
 int calc_mean(Fluxrec *flux, int nlines, float *mean, float *rms);
 int calc_mean_dt(Fluxrec *flux, int nlines, float *mean, float *rms,
