@@ -238,7 +238,7 @@ def reduce_sci(sci_frames, outroot, skyfile, flatfile, dodark=False,
 
 #-----------------------------------------------------------------------
 
-def niri_bpm_from_sky(sky_frames, outname, inroot='ff', sigbpm=20.,
+def niri_bpm_from_sky(sky_frames, outbpm, inroot='ff', sigbpm=20.,
                       sigclip=3.):
    """
    Given a list of flat-fielded frames (e.g., produced by the reduce_sci
@@ -289,7 +289,7 @@ def niri_bpm_from_sky(sky_frames, outname, inroot='ff', sigbpm=20.,
    bpmhdu.writeto(outname,clobber=True)
 
    """ Clean up """
-   os.remove('__tmp__med.fits')
+   #os.remove('__tmp__med.fits')
    for i in tmplist:
       os.remove(i)
 
