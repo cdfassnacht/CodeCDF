@@ -238,8 +238,8 @@ def reduce_sci(sci_frames, outroot, skyfile, flatfile, dodark=False,
 
 #-----------------------------------------------------------------------
 
-def niri_bpm_from_sky(sky_frames, outbpm, inroot='ff', sigbpm=20.,
-                      sigclip=3.):
+def niri_bpm_from_sky(sky_frames, outbpm, inroot='ff', sigbpm=5.,
+                      sigclip=3., outsky=None):
    """
    Given a list of flat-fielded frames (e.g., produced by the reduce_sci
    function), create a median sky from the science HDUs of the input files.
@@ -286,10 +286,13 @@ def niri_bpm_from_sky(sky_frames, outbpm, inroot='ff', sigbpm=20.,
    bpm[mask] = 1
    bpmhdu = pf.PrimaryHDU(bpm)
    bpmhdu.header.update('object','Bad Pixel Mask')
-   bpmhdu.writeto(outname,clobber=True)
+   bpmhdu.writeto(outbpm,clobber=True)
 
    """ Clean up """
-   #os.remove('__tmp__med.fits')
+   if outsky is None:
+      os.remove('__tmp__med.fits')
+   else:
+      os.rename('__tmp__med.fits',outsky)
    for i in tmplist:
       os.remove(i)
 
