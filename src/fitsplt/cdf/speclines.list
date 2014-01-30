@@ -1,0 +1,86 @@
+# Line        Wavelength   Label      Comment
+#----------   ----------  ----------  ----------
+He II        #  256.32   # He II     # 
+He II        #  303.78   # He II     # 
+He I         #  537.03   # He I      # 
+He I         #  584.33   # He I      # 
+Ly-gamma     #  972.54   # Ly\gg     # 
+Ly-beta      # 1025.7    # Ly\gb     # 
+O VI         # 1035.07   # O VI      # 
+Ly-alpha     # 1215.7    # Ly\ga     # 
+N V          # 1240.1    # N V       # 
+Si II        # 1263.3    # Si II     # 
+O I          # 1303.5    # O I       # 
+C II         # 1334.53   # C II      # 
+Si IV        # 1396.7    # Si IV     # 
+Si IV/O IV]  # 1400      # Si IV/O IV] #
+O IV]        # 1402.2    # O IV]     # 
+N IV]        # 1486.5    # N IV]     # 
+C IV         # 1549.1    # C IV      # 
+He II        # 1640.5    # He II     # 
+O III]       # 1663.0    # O III]    # 
+N III]       # 1750.4    # N III]    # 
+Al III       # 1858.7    # Al III    # 
+Si III]      # 1892.0    # Si III]   # 
+C III]       # 1908.7    # C III]    # 
+Fe III       # 2075      # Fe III    # 
+C II]        # 2326      # C II]     # 
+Fe II (abs)  # 2375      # Fe II     # 
+Fe II (abs)  # 2383      # Fe II     # 
+[Ne IV]      # 2423      # [Ne IV]   # 
+Fe II (abs)  # 2587      # Fe II     # 
+Fe II (abs)  # 2600      # Fe II     # 
+Fe II        # 2750.3    # Fe II     # 
+Mg II (em)   # 2799.8    # Mg II     # 
+Mg II (abs)  # 2795.529  # Mg II     # 
+Mg II (abs)  # 2802.707  # Mg II     #
+Mg I         # 2852      # Mg I      #
+O III        # 3047      # O III     #
+O III        # 3133      # O III     #
+[Ne V]       # 3346      # [Ne V]    # 
+[Ne V]       # 3426.85   # [Ne V]    # 
+[O II]       # 3727.61   # [O II]    # 
+H-kappa      # 3750      # H\gk      # 
+[Fe VII]     # 3761.4    # [Fe VII]  # 
+H-iota       # 3770      # H\gi      # 
+H-theta      # 3797      # H\gh      # 
+H-eta        # 3835      # H\gy      # 
+CN/FeI/MgI   # 3840      # CN/Fe I/Mg I #
+[Ne III]     # 3868.76   # [Ne III]  # 
+H-zeta       # 3889      # H\gz      # 
+He I         # 3889      # He I      # 
+CaII K       # 3933.667  # Ca II K   # 
+CaII H       # 3968.472  # Ca II H   # 
+[Ne III]     # 3967.47   # [Ne III]  # 
+H-epsilon    # 3970.072  # H\ge      # 
+[S II]       # 4068      # [S II]    # 
+[S II]       # 4076      # [S II]    # 
+H-delta      # 4101.74   # H\gd      # 
+G-band       # 4305      # G-band    #
+H-gamma      # 4340.47   # H\gg      # 
+[O III]      # 4364.4    # [O III]   # 
+Fe4383       # 4383      # Fe4383    #
+Ca4455       # 4455      # Ca4455    #
+Fe4531       # 4531      # Fe4531    #
+H-beta       # 4861.33   # H\gb      # 
+[O III]      # 4960.30   # [O III]   # 
+[O III]      # 5008.24   # [O III]   # 
+Mg I         # 5172      # Mg I      #
+Mg I (b)     # 5176      # Mg b      #
+Mg I         # 5183      # Mg I      #
+Fe I         # 5269      # Fe I      #
+Ca I         # 5589      # Ca I      #
+He I         # 5877.2    # He I      # 
+Na I (D)     # 5893      # Na D      # 
+[O I]        # 6300      # [O I]     #
+[O I]        # 6364      # [O I]     #
+[N II]       # 6548.06   # [N II]    # 
+H-alpha      # 6562.799  # H\ga      # 
+[N II]       # 6585.2    # [N II]    # 
+[S II]       # 6725.5    # [S II]    # 
+He I         # 7065.19   # He I      #
+[O II]       # 7319.1    # [O II]    #
+[O II]       # 7330.2    # [O II]    #
+
+
+

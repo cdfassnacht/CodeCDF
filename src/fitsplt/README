@@ -1,0 +1,71 @@
+INSTALLATION INSTRUCTIONS
+=========================
+
+  1. Find the required libraries.
+      You will need to locate where your system keeps its pgplot and X11
+       libraries.  The files you are looking for are called:
+         libpgplot.a
+         libcpgplot.a
+         libcpgplot.so
+         libpgplot.so
+         libX11.a
+      The first 4 will probably be found in the same directory -- check
+       /usr/local/pgplot, /usr/local/lib, /usr/lib
+      Check for the X11 libraries in /usr/X11R6/lib, /usr/lib,
+       /usr/openwin/lib.
+
+  2. Set the environment variable needed for compilation -- LD_LIBRARY_PATH
+    Make sure your LD_LIBRARY_PATH contains the directory containing the
+     pgplot *.so shared libraries listed above.
+
+     *If you don't have an LD_LIBRARY_PATH environment variable 
+      (type "printenv | grep LD" to check), then set it to the correct
+      directory (for this example assumed to be /usr/local/pgplot):
+
+      For cshrc/tcshrc, type "setenv LD_LIBRARY_PATH /usr/local/pgplot"
+
+      For bash, type LD_LIBRARY_PATH="/usr/local/pgplot"; export LD_LIBRARY_PATH
+
+     *If you already have a LD_LIBRARY_PATH variable and the pgplot directory
+      is not in it, type
+
+        setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/local/pgplot (for cshrc)
+
+     *** NB: You will also need to have this set to run the programs, so
+         it would be a good idea to put this into your .cshrc or .bashrc
+         file.
+
+  3. Set the environment variable needed for running the program -- PGPLOT_DIR
+
+       type "setenv PGPLOT_DIR /usr/local/pgplot" (for cshrc)
+      You will need this every time you run the program, so it would be a
+       good idea to put the above line into your .cshrc file.
+
+
+  4. Edit the "configure" file to contain the information about the *.a
+     libraries in step 1.  Look at the PGPLOT_LIB line and modify the 
+     "-L" values.
+
+  5. Decide where your executable is going, and modify the BINDIR line
+     in the "configure" file.
+
+  6. Run the configure file with the appropriate operating-system flag.
+     There are currently three options:
+
+       ./configure sun4-gcc
+       ./configure sol2-gcc
+       ./configure linux-gcc
+
+     See the notes in the "configure" file for more explanation.
+
+  7. Actually compile the program.
+     The previous step should have created a file called "makeall".
+     Type "./makeall".
+
+  8. Type "rehash" -- now you are ready to go
+
+  9. For help with fitsplt or specplot, just type the program name on
+     the command line and hit return.
+
+
+

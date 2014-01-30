@@ -1,0 +1,133 @@
+#
+# ***** NB: Now in Linux  mode *****
+#
+# ANSI-C compiler.
+
+CC = gcc
+
+# ANSI-C run-time library.
+
+CCLIB = `gcc -print-libgcc-file-name`
+
+# FORTRAN compiler.
+
+FC = f77
+#FC = g77
+
+# C and FORTRAN compilation flags.
+
+CFLAGS = -g -Wall
+FFLAGS = -O
+
+# Directory for includes.
+
+INCDIR = $(HOME)/include
+
+#
+# OS-dependent directories
+#
+# Directory for libraries.
+
+LINUXLIB = $(HOME)/lib/Linux
+SOLLIB = $(HOME)/lib/Solaris
+CITLIB = $(HOME)/lib
+LIBDIR = $(LINUXLIB)
+
+# Destination for executables
+
+LINUXBIN = $(HOME)/bin/Linux
+SOLBIN = $(HOME)/bin/Solaris
+CITBIN = $(HOME)/bin
+BINDIR = $(LINUXBIN)
+
+# Directory in which the PGPLOT library can be found.
+#   Linux path -- pgplot libraries are in the standard library area (/usr/lib)
+LINUXPGPLOT = -lpgplot -L/usr/X11/lib -lX11
+#SOLPGPLOT = -L/usr/local/lib -Bstatic -lpgplot -Bdynamic -L/usr/openwin/lib -lX11
+SOLPGPLOT = -lpgplot -L/usr/openwin/lib -lX11
+CITPGPLOT = -L/usr/local/pgplot -Bstatic -lpgplot -Bdynamic -L/usr/openwin/lib -lX11
+PGPLOT_LIB = $(LINUXPGPLOT)
+
+# Compile time flags.
+LINPGINC = /usr/local/include
+SOLPGINC = /usr/local/include
+CITPGINC = /usr/local/pgplot
+PGPLOTINC = $(LINPGINC)
+
+CFLAGC = -c $(CFLAGS) -I$(INCDIR) -I$(PGPLOTINC)
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the PGPLOT library is to be specified on the loader
+# line.
+
+PGLIB  = -L$(LIBDIR) -lcpgplot $(PGPLOT_LIB)
+
+# Specify how the FITS library is to be specified on the loader line.
+
+FITS = -L$(LIBDIR) -lfits -lrecio -lscrfil
+
+# Specify how the local FITS/image library is to be specified
+
+LOCFITS = $(LIBDIR)/liblf.a
+
+# Specify how the plotting utilities library is to be specified
+
+PLOTUTIL = $(LIBDIR)/libplotutil.a
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libcdfutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: fitsplt specplot
+
+fitsplt: fitsplt.o $(LOCFITS) $(PLOTUTIL) $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/fitsplt fitsplt.o -llf -lplotutil $(CDFUTIL) $(FITS) $(PGLIB) -lm $(CCLIB)
+
+specfit: specfit.o $(LOCFITS) $(PLOTUTIL) $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/specfit specfit.o -llf -lplotutil $(CDFUTIL) $(FITS) $(PGLIB) -lm $(CCLIB)
+
+specplot: specplot.o $(PLOTUTIL) $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/specplot specplot.o -lplotutil $(CDFUTIL) $(PGLIB) -lm $(CCLIB)
+
+
+#-----------------------------------------------------------------------
+# The following rules make the local FITS/image library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+LOCF_OBS = fitsim.o setup_fitsim_.o fitsim_contours.o
+
+$(LOCFITS): $(LOCF_OBS)
+	ar ru $(LOCFITS) $(LOCF_OBS)
+	ranlib $(LOCFITS)
+
+fitsim.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+setup_fitsim.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+fitsim_contours.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+#-----------------------------------------------------------------------
+# The following rules make the plotting utilities library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+PLOTUTIL_OBS = plotfuncs.o
+
+$(PLOTUTIL): $(PLOTUTIL_OBS)
+	ar ru $(PLOTUTIL) $(PLOTUTIL_OBS)
+	ranlib $(PLOTUTIL)
+
+plotfuncs.o: $(INCDIR)/plotfuncs.h $(INCDIR)/structdef.h
+
+

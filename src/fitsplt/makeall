@@ -1,0 +1,40 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Create and install fitsplt suite and its libraries.
+#-----------------------------------------------------------------------
+
+echo ' '; echo 'Compiling the PGPLOT C-wrapper library libcpgplot.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/cpg_src; make)
+
+#echo ' '; echo 'Compiling a subset of the slalib library libslalib.a'; echo ' '
+#(cd slalib_src; make)
+
+echo ' '; echo 'Compiling the scratch file utils library libscrfil.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/scrfil_src; make)
+
+echo ' '; echo 'Compiling the log I/O library liblogio.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/logio_src; make)
+
+#echo ' '; echo 'Compiling the pager interface library libpager.a'; echo ' '
+#(cd pager_src; make)
+
+echo ' '; echo 'Compiling the record I/O interface library librecio.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/recio_src; make)
+
+echo ' '; echo 'Compiling the fits library libfits.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/fits_src; make)
+
+#echo ' '; echo 'Compiling the command parser library libsphere.a'; echo ' '
+#(cd sphere_src; make)
+
+echo ' '; echo 'Compiling the general utility library libutil.a'; echo ' '
+(cd $CDFUTIL; make)
+
+echo ' '; echo 'Compiling the local fits WCS/header library libfitswcs.a'
+echo ' '
+(cd $FITSFNDIR/CDFfits; make)
+
+echo ' '; echo 'Compiling the plotting utilities library libplotutil.a'
+echo ' and fitsplt itself'; echo ' '
+(cd src; make)
+

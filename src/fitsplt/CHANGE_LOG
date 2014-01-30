@@ -1,0 +1,33 @@
+Version 1.56
+------------
+ * Added a new program called find_dither.c to the package.  This program
+   takes a pair of input images and their SExtractor catalogs and calculates
+   the dither (in pixels) between the images.  The program is intended to
+   be useful for co-adding dithered frames obtained on the same night --
+   right now there is no provision for any rotation between the images.
+
+Version 1.55
+------------
+ * Updated version of get_params.c
+
+Version 1.54
+------------
+ * Updated version of astrom_rot.c
+
+Version 1.53
+------------
+ * Temporary version containing "in progress" versions of new xy_rot.c
+
+Version 1.52
+------------
+ * For drawing compass, use rotation determined from CD matrix as default,
+   if available.  If not, use the old method of determining image rotation
+   from instrument-specific keywords.
+ * Changed axis labeling to "Relative R.A."/"Relative Dec" if image PA
+   is within 1 degree of PA=0.
+
+Version 1.51
+------------
+ * Fixed a small bug in draw_compass in fitsim.c
+
+

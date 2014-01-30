@@ -1,0 +1,55 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Return the fitsplt directory structure to its original un-compiled
+# state. This involves deleting object file, libraries, executables etc..
+# from under this directory.
+#-----------------------------------------------------------------------
+
+# Remove all object files under this directory.
+
+echo ' '; echo 'Deleting object files'
+find . -name '*.o' -exec echo rm {} \; -exec rm {} \;
+
+# Remove all libraries under this directory.
+
+echo ' '; echo 'Deleting library files'
+find . -name '*.a' -exec echo rm {} \; -exec rm {} \;
+
+# Remove all emacs backups under this directory.
+
+echo ' '; echo 'Deleting emacs backup files *~ and #*#'
+find . \( -name '*~' -o -name '#*#' \) -exec echo rm {} \; -exec rm {} \;
+
+# Remove configured make files.
+
+echo ' '; echo 'Deleting locally configured make files.'
+find . -name 'makefile' -exec echo rm {} \; -exec rm {} \;
+
+## Remove pgbind executable from ./cpg_src/
+
+echo ' '; echo 'Deleting pgbind executable from ./cpg_src/'
+rm -f ./cpg_src/pgbind
+
+# Clear ./lib and ./include directories.
+
+echo ' '; echo 'Clearing ./lib'
+find ./lib \! -type d -exec echo rm {} \; -exec rm {} \;
+find ./include \! -type d -exec echo rm {} \; -exec rm {} \;
+
+# Delete any executable versions of difmap that are under the current
+# directory.
+
+#echo ' '; echo 'Deleting difmap binaries under the current directory'
+#find . -perm -100 -name 'difmap' -exec echo rm {} \; -exec rm {} \;
+
+## Remove symbolic links (not directories).
+#
+#echo ' '; echo 'Removing symbolic links'
+#find . -type l \! -name 'help' -exec echo rm {} \; -exec rm {} \;
+
+# Remove core files.
+
+echo ' '; echo "Removing core files (There shouldn't be any)."
+find . -name core -exec echo rm {} \; -exec rm {} \;
+
+echo ' ';echo 'Clean completed'

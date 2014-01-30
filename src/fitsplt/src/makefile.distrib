@@ -1,0 +1,158 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the libplotutil.a makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the plotting interface library and for
+#              fitsplt and specplot themselves.
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu). 
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the PGPLOT library is to be specified on the loader
+# line.
+
+PGLIB  = -L$(LIBDIR) -lcpgplot $(PGPLOT_LIB)
+
+# Specify how the FITS library is to be specified on the loader line.
+
+FITS = -L$(LIBDIR) -lfits -lrecio -lscrfil
+
+# Specify how the local FITS/image library is to be specified
+
+LOCFITS = $(LIBDIR)/liblf.a
+
+# Specify how the local FITS header/WCS library is to be specified
+
+LOCFITSWCS = $(LIBDIR)/liblfwcs.a
+
+# Specify how the plotting utilities library is to be specified
+
+PLOTUTIL = $(LIBDIR)/libplotutil.a
+
+# Specify how the spectral utilities library is to be specified
+
+SPECUTIL = $(LIBDIR)/libspecutil.a
+
+# Specify how the general utilities library is to be specified
+
+LIBUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: $(BINDIR)/fitsplt $(BINDIR)/catplot $(BINDIR)/astrom_rot $(BINDIR)/match_astrom $(BINDIR)/xy_rot $(BINDIR)/specplot $(BINDIR)/find_dither $(BINDIR)/plot_phot $(BINDIR)/testplt install-header
+
+$(BINDIR)/fitsplt: fitsplt.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/fitsplt fitsplt.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/testplt: testplt.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/testplt testplt.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/plot_phot: plot_phot.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/plot_phot plot_phot.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/catplot: catplot.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/catplot catplot.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/astrom_rot: astrom_rot.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/astrom_rot astrom_rot.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/xy_rot: xy_rot.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/xy_rot xy_rot.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/match_astrom: match_astrom.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/match_astrom match_astrom.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/find_dither: find_dither.o $(LOCFITS) $(PLOTUTIL) $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/find_dither find_dither.o -llf -lplotutil $(LIBUTIL) $(FITS) $(LOCFITSWCS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/specfit: specfit.o $(LOCFITS) $(PLOTUTIL) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/specfit specfit.o -llf -lplotutil $(LIBUTIL) $(FITS) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/specplot: specplot.o $(SPECUTIL) $(PLOTUTIL) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/specplot specplot.o -lspecutil -lplotutil $(LIBUTIL) $(PGLIB) -lm $(CCLIB)
+
+$(BINDIR)/specfix: specfix.o $(SPECUTIL) $(PLOTUTIL) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/specfix specfix.o -lspecutil -lplotutil $(LIBUTIL) $(PGLIB) -lm $(CCLIB)
+
+install-header:	$(INCDIR)/fitsim.h $(INCDIR)/plotfuncs.h $(INCDIR)/onedspec.h
+
+
+#-----------------------------------------------------------------------
+# The following rules make the local FITS/image library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+LOCF_OBS = fitsim.o setup_fitsim.o get_params.o contours_fitsim.o
+
+$(LOCFITS): $(LOCF_OBS)
+	ar ru $(LOCFITS) $(LOCF_OBS)
+	ranlib $(LOCFITS)
+
+$(INCDIR)/fitsim.h: fitsim.h
+	cp fitsim.h $(INCDIR)/fitsim.h
+	chmod ugo+r $(INCDIR)/fitsim.h
+
+contours_fitsim.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+fitsim.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+get_params.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+setup_fitsim.o: $(INCDIR)/fitsim.h $(INCDIR)/structdef.h
+
+
+#-----------------------------------------------------------------------
+# The following rules make the plotting utilities library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+PLOTUTIL_OBS = plotfuncs.o
+
+$(INCDIR)/plotfuncs.h: plotfuncs.h
+	cp plotfuncs.h $(INCDIR)/plotfuncs.h
+	chmod ugo+r $(INCDIR)/plotfuncs.h
+
+$(PLOTUTIL): $(PLOTUTIL_OBS)
+	ar ru $(PLOTUTIL) $(PLOTUTIL_OBS)
+	ranlib $(PLOTUTIL)
+
+plotfuncs.o: $(INCDIR)/plotfuncs.h $(INCDIR)/structdef.h
+
+#-----------------------------------------------------------------------
+# The following rules make the spectral function library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+SPECUTIL_OBS = onedspec.o setup_spec.o
+
+$(INCDIR)/onedspec.h: onedspec.h
+	cp onedspec.h $(INCDIR)/onedspec.h
+	chmod ugo+r $(INCDIR)/onedspec.h
+
+$(SPECUTIL): $(SPECUTIL_OBS)
+	ar ru $(SPECUTIL) $(SPECUTIL_OBS)
+	ranlib $(SPECUTIL)
+
+onedspec.o: $(INCDIR)/onedspec.h $(INCDIR)/structdef.h $(INCDIR)/plotfuncs.h $(INCDIR)/dataio.h
+
+onedspec.o: $(INCDIR)/onedspec.h $(INCDIR)/structdef.h 
