@@ -1,0 +1,11 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Create and install cosmo suite and its libraries.
+#-----------------------------------------------------------------------
+
+echo ' '; echo 'Compiling the general utility library libutil.a'; echo ' '
+(cd $CDFUTIL; make)
+
+echo ' '; echo 'Compiling the cosmo programs'; echo ' '
+(cd src; make)
+

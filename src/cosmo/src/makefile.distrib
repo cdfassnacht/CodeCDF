@@ -1,0 +1,52 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the cosmo programs
+#  makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the cosmo programs directory
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu). 
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: cosmocalc group_select m200
+
+group_select: group_select.o $(CDFUTIL) 
+	$(CC) -o $(BINDIR)/group_select group_select.o $(CDFUTIL) -lm $(CCLIB)
+
+m200: m200.o $(CDFUTIL) 
+	$(CC) -o $(BINDIR)/m200 m200.o $(CDFUTIL) -lm $(CCLIB)
+
+cosmocalc: cosmocalc.o $(CDFUTIL) 
+	$(CC) -o $(BINDIR)/cosmocalc cosmocalc.o $(CDFUTIL) -lm $(CCLIB)
+
+cosmo_multiz: cosmo_multiz.o $(CDFUTIL) 
+	$(CC) -o $(BINDIR)/cosmo_multiz cosmo_multiz.o $(CDFUTIL) -lm $(CCLIB)
+
+
+clean:
+	rm *.o
+
+
