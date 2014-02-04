@@ -358,7 +358,8 @@ def niri_fixpix(infiles, boxsize=11, verbose=True):
 
 #------------------------------------------------------------------------------
 
-def split_and_fix_ff(infiles, badpixfile=None, fixpix=True, bpmgrow=3):
+def split_and_fix_ff(inframes, inprefix='ff', outprefix='fc', badpixfile=None, 
+                     fixpix=True, bpmgrow=3):
    """
 
    Splits the ff*fits files created by calib_2 into the format that will
@@ -369,22 +370,36 @@ def split_and_fix_ff(infiles, badpixfile=None, fixpix=True, bpmgrow=3):
      data-quality (HDU3)
    SExtractor needs these images as separate files, which are produced by
     this function.
-   At the same time, fixes the bad pixels in all of the files.
+   At the same time, fixes the bad pixels in all of the files if requested.
+
+   Inputs:
+      inframes:   list of input frames
+      inprefix:   prefix for input files.  Default='ff' (flat-fielded)
+      outprefix:  prefix for output files. Default='fc' (final calibration)
+      badpixfile: previously generated bad pixel file.  If this file is
+                  given (default=None), then it is combined with the bad
+                  pixel list generated here.
+      fixpix:     set to True (default) to correct the bad pixels
+      bpmgrow:    amount to flag around the bad pixels. Default=3
    """
 
    """ Set up for running the task """
-   if type(infiles) is str:
+   if type(inframes) is str or type(inframes) is int:
       print ""
       print "Single input file"
-      tmplist = [infiles,]
-   elif type(infiles) is list:
+      tmplist = [inframes,]
+   elif type(inframes) is n.ndarray:
+      print ""
+      print "Input numpy array"
+      tmplist = inframes
+   elif type(inframes) is list:
       print ""
       print "Input file list"
-      tmplist = infiles
+      tmplist = inframes
    else:
       print ""
-      print "Warning.  Input files need to be either a list of files "
-      print " (python type==list) or a single input file name."
+      print "Warning.  Input frames need to be either a list of frames "
+      print " (python type==list) or a single input frame number."
       print ""
       return
 
@@ -395,17 +410,18 @@ def split_and_fix_ff(infiles, badpixfile=None, fixpix=True, bpmgrow=3):
    for i in range(len(tmplist)):
 
       """ Open the input file """
-      f = pf.open(tmplist[i])
+      tmpname = '%s%d.fits' % (inprefix,tmplist[i])
+      f = pf.open(tmpname)
       print ""
       print "Splitting input file in preparation for running SExtractor"
       print "------------------------------------------------------------"
       f.info()
 
       """ Split the input file data """
-      sciname  = tmplist[i].replace('.fits','_sci.fits')
-      varname  = tmplist[i].replace('.fits','_var.fits')
-      whtname  = tmplist[i].replace('.fits','_sci_wht.fits')
-      flagname = tmplist[i].replace('.fits','_flag.fits')
+      sciname = '%s%d_sci.fits' % (outprefix,tmplist[i])
+      #sciname  = tmplist[i].replace('.fits','_sci.fits')
+      whtname  = sciname.replace('.fits','_wht.fits')
+      flagname = sciname.replace('sci.fits','flag.fits')
       sci_files.append(sciname)
       scidat   = f[1].data.copy()
       vardat   = f[2].data.copy()
@@ -484,13 +500,17 @@ def niri_sextractor(infiles, catformat='ascii'):
    """ Run SExtractor on the input list """
    print ""
    for i in range(len(sci_files)):
-      f = tmplist[i]
+      f = sci_files[i]
       sciname = f
+      whtname = f.replace('.fits','_wht.fits')
       catname = f.replace('.fits','.cat')
       regname = f.replace('.fits','.reg')
+      hdr = pf.getheader(f)
+      texp = hdr['coaddexp']
+      ncoadd = hdr['coadds']
 
       astrom.make_cat_niri(sciname,catname,regname,catformat=catformat,
-                           texp=texp[i],ncoadd=ncoadd[i],weight_file=whtname,
+                           texp=texp,ncoadd=ncoadd,weight_file=whtname,
                            weight_type='MAP_WEIGHT')
 
 #------------------------------------------------------------------------------
