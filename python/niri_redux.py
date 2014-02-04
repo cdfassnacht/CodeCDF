@@ -99,8 +99,8 @@ def make_flat(on_frames, off_frames, rawroot, band, rawdir='.'):
 
 #-----------------------------------------------------------------------
 
-def make_sky(sci_frames, rawroot, outroot, bpmfile, rawdir='.', obsdate=None, 
-             do_nresid=False):
+def calib_1(sci_frames, rawroot, outroot, bpmfile, rawdir='.', obsdate=None, 
+            do_nresid=False):
    """
    Does the non-linearity correction and then converts the linearized
     input files to the format expected by the Gemini pyraf tasks.  
@@ -199,7 +199,7 @@ def reduce_sci(sci_frames, outroot, skyfile, flatfile, dodark=False,
    """
    Runs pyraf task nireduce to reduce the science frames using the 
    skyflat frame generated from these same science frames (using the
-   make_sky function) and the domeflat generated using the make_flat function.
+   calib_1 function) and the domeflat generated using the make_flat function.
    """
 
    from pyraf import iraf
@@ -358,14 +358,18 @@ def niri_fixpix(infiles, boxsize=11, verbose=True):
 
 #------------------------------------------------------------------------------
 
-def niri_sextractor(infiles, badpixfile=None, fixpix=True, bpmgrow=3, 
-                    catformat='ascii'):
+def split_and_fix_ff(infiles, badpixfile=None, fixpix=True, bpmgrow=3):
    """
-   Runs SExtractor on NIRI multi-extension fits files.  These files consist
-   of 3 images: science (HDU1), variance (HDU2), and data-quality (i.e., flags,
-   HDU3).  SExtractor takes these as separate files, so this task separates
-   them before calling SExtractor.
-   After running SExtractor, make a ds9 region file from the catalog
+
+   Splits the ff*fits files created by calib_2 into the format that will
+   be used by all of the following tasks.  
+   These ff*fits files are multi-extension files containing 3 images:
+     science (HDU1)
+     variance (HDU2)
+     data-quality (HDU3)
+   SExtractor needs these images as separate files, which are produced by
+    this function.
+   At the same time, fixes the bad pixels in all of the files.
    """
 
    """ Set up for running the task """
@@ -452,11 +456,36 @@ def niri_sextractor(infiles, badpixfile=None, fixpix=True, bpmgrow=3,
       print ""
       niri_fixpix(sci_files)
 
+#------------------------------------------------------------------------------
+
+def niri_sextractor(infiles, catformat='ascii'):
+   """
+   Runs SExtractor on the files that were produced by the split_and_fix_ff
+    function.
+   After running SExtractor, make a ds9 region file from the catalog
+   """
+
+   """ Set up for running the task """
+   if type(infiles) is str:
+      print ""
+      print "Single input file"
+      sci_files = [infiles,]
+   elif type(infiles) is list:
+      print ""
+      print "Input file list"
+      sci_files = infiles
+   else:
+      print ""
+      print "Warning.  Input files need to be either a list of files "
+      print " (python type==list) or a single input file name."
+      print ""
+      return
+
    """ Run SExtractor on the input list """
    print ""
-   for i in range(len(tmplist)):
+   for i in range(len(sci_files)):
       f = tmplist[i]
-      sciname = f.replace('.fits','_sci.fits')
+      sciname = f
       catname = f.replace('.fits','.cat')
       regname = f.replace('.fits','.reg')
 
