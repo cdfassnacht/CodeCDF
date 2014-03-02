@@ -80,6 +80,8 @@ for f in files:
       elif inst == 'WFPC2':
          objname = 'targname'
          filtname = 'filtnam1'
+      elif inst == 'SuprimeCam':
+         filtname = 'filter01'
 
    # Get object name
    try:
