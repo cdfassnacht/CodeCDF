@@ -20,6 +20,7 @@ Instrument-specific functions
  make_cat_fors2
  make_cat_isaac
  make_cat_niri
+ make_cat_suprimecam
 
 """
 
@@ -143,7 +144,8 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
          return
    else:
       try:
-         os.system('sextractor -c %s %s %s > %s' % (configfile,fitsfile,sopts,logfile))
+         os.system('sextractor -c %s %s %s > %s' % \
+                      (configfile,fitsfile,sopts,logfile))
       except:
          print ""
          print "ERROR.  Could not run SExtractor on %s" % fitsfile
@@ -345,6 +347,78 @@ def make_cat_wirc(fitsfile, outcat='tmp.cat', regfile=None,
                  weight_file=weight_file, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
+
+#-----------------------------------------------------------------------
+
+def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
+                        configfile='sext_suprimecam.config', 
+                        ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
+                        weight_file=None, weight_type='MAP_WEIGHT', 
+                        flag_file=None, det_thresh=-1, det_area=-1, 
+                        logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but gets gain first from the fits file
+
+   Note that readnoise for the SuprimeCam chips is 10 e-
+   """
+
+   """ Get gain and exposure time from header """
+   hdr = pf.getheader(fitsfile)
+   try:
+      gain = hdr['gain']
+   except:
+      gain = 1.0
+   try:
+      texp = hdr['exptime']
+   except:
+      texp = 1.0
+   if verbose:
+      print ""
+      print "File: %s has gain=%6.3f and t_exp = %7.1f" % (fitsfile,gain,texp)
+
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
+                 catformat,
+                 weight_file=weight_file, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+
+#-----------------------------------------------------------------------
+
+def run_suprimecam_full(inroot, regroot=None, 
+                        configfile='sext_suprimecam.config', 
+                        ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
+                        weight_file=None, weight_type='MAP_WEIGHT', 
+                        flag_file=None, det_thresh=-1, det_area=-1, 
+                        logfile=None, verbose=True):
+   """
+   Calls make_cat_suprimecam for each of the 10 SuprimeCam chips in turn.
+   This expects the different chips to be in the form produced by SDFRED2,
+    i.e.,  [inroot]_[chipname].fits, where chipname is one of the following:
+      chihiro
+      clarisse
+      fio
+      kiki
+      nausicaa
+      ponyo
+      san
+      satsuki
+      sheeta
+      sophie
+   """
+
+   chipname = ['chihiro','clarisse','fio','kiki','nausicaa','ponyo','san',
+               'satsuki','sheeta','sophie']
+
+   for i in chipname:
+      fitsfile = '%s_%s.fits' % (inroot,i)
+      outcat = '%s_%s.cat' % (inroot,i)
+      if regroot is not None:
+         regfile = '%s_%s.reg' % (regroot,i)
+      make_cat_suprimecam(fitsfile,outcat,regfile=regfile,configfile=configfile,
+                          catformat=catformat)
+      
 
 #-----------------------------------------------------------------------
 
