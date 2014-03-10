@@ -69,7 +69,7 @@ def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
         print 'Input file:  %s' % f
         hdu = pf.open(f)
         data = hdu[0].data
-        hdr = hdu[0].data
+        hdr = hdu[0].header
         try:
             objname = hdr['object']
         except:
