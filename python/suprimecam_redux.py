@@ -17,6 +17,8 @@ The functions in this file take over after the AG masking step.
 import pyfits as pf
 import numpy as n
 
+#---------------------------------------------------------------------------
+
 def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
     """
     Creates a weight file for each input file, in preparation for running
@@ -92,4 +94,85 @@ def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
         """ Clean up """
         hdu.close()
         del ohdu
+
+#---------------------------------------------------------------------------
+
+def make_wht_for_final(infiles, fullfits, sig=4.):
+    """
+    Creates a weight file for each input image to a final swarp call.
+    This weight file will assign zero weight to pixels that differ by
+    more than sig*rms from the median-stacked image that was created
+    in an earlier step.
+    Therefore, this function is a lot like the "blot" step in multidrizzle.
+    """
+
+    """ Make sure that the input is either a list or a single file """
+
+    if type(infiles) is str:
+        print ""
+        print "Single input file"
+        tmplist = [infiles,]
+    elif type(infiles) is list:
+        print ""
+        print "Input file list with %d members" % (len(infiles))
+        tmplist = infiles
+    else:
+        print ""
+        print "Warning.  Input frames need to be either a list of files "
+        print " (python type==list) or a single input file name."
+        print ""
+        return
+
+    """ Get the median fits file """
+    try:
+        medfits = pf.open(fullfits)
+    except:
+        print ""
+        print "ERROR: Could not open %s" % fullfits
+        print ""
+        return
+
+    """ Loop through the input files """
+    for f in infiles:
+        """ Load input file data """
+        try:
+            infits = pf.open(f)
+        except:
+            print ""
+            print "ERROR: Could not open %s" % f
+            print ""
+            return
+        indat = infits[0].data
+        hdr = infits[0].header
+
+        """ Load the weight file data, which will get updated """
+        whtfile = f.replace('fits','weight.fits')
+        try:
+            whtfits = pf.open(whtfile,mode='update')
+        except:
+            print ""
+            print "ERROR: Could not open %s" % whtfile
+            print ""
+            infits.close()
+            return
+
+        """ Set up the relevant region to be examined and the flux scale"""
+        x1 = hdr['comin1'] - 1
+        y1 = hdr['comin2'] - 1
+        x2 = x1 + data.shape[1]
+        y2 = y1 + data.shape[0]
+        fscal = hdr['flxscale']
+
+        """ 
+        Make the cutout of the median-stack image and then take the 
+        difference between this file and the scaled input individual file
+        """
+        meddat = medfits[0].data[y1:y2,x1:x2].copy()
+        diff = meddat - indat * fscal
+
+        """ Close the files for this loop """
+        infits.close()
+        whtfits.flush()
+        del meddat,diff
+
 
