@@ -170,6 +170,9 @@ def make_wht_for_final(infiles, fullfits, sig=4.):
         meddat = medfits[0].data[y1:y2,x1:x2].copy()
         diff = meddat - indat * fscal
 
+        """ Get an estimate of the RMS noise in the data """
+        # Need to talk to James to interpret his idl code
+
         """ Close the files for this loop """
         infits.close()
         whtfits.flush()
