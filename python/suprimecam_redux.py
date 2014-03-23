@@ -19,6 +19,34 @@ import numpy as n
 
 #---------------------------------------------------------------------------
 
+def rename_before_swarp(indir='../Calib'):
+    """
+
+    Creates symbolic links from to post AG masking step in order to have
+      more compact filenames.
+    Input files are expected to have the following form:
+        [indir]/AgfTo_RH[obsdate]objectnnn_[chipname].fits
+    They will be link with a link name of [outdir]/objectnnn_[chipname].fits
+
+    Inputs:
+      indir  -  Location of post AG masking files (AgfTo_RH*fits)
+
+    """
+    import glob
+    import os
+
+    """ Get the input file list """
+    infiles = glob.glob('%s/AgfTo_RH*fits' % indir)
+
+    """ Rename the files """
+    for f in infiles:
+        objchip = f.split('object')[1]
+        outfile = 'object%s' % objchip
+        os.system('ln -s %s %s' % (f,outfile))
+        print 'Linked %s to %s' %(f,outfile)
+
+#---------------------------------------------------------------------------
+
 def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
     """
     Creates a weight file for each input file, in preparation for running
