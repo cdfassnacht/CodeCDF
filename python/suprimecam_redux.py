@@ -125,13 +125,72 @@ def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
 
 #---------------------------------------------------------------------------
 
-def make_wht_for_final(infiles, fullfits, sig=4.):
+def robust_sigma(data, refzero=False):
+    """
+    Calculate a robust estimate of the dispersion of a distribution.
+    For an uncontaminated distribution, this estimate is identical to
+    the standard deviation.
+
+    This code is ported from robust_sigma.pro in IDL/astrolib
+
+    Inputs:
+
+    Output:
+       rsig - robust sigma estimator.  Return -1 if failure.
+    """
+
+    """ Set a tolerance """
+    eps = 1.e-20
+
+    """ Set central point for cfomputing the dispersion """
+    if refzero:
+        dat0 = 0.0
+    else:
+        dat0 = n.median(data)
+    datdiff = (data - dat0).flatten()
+
+    """ Find absolute deviation about the median """
+    mad = n.median(n.absolute(datdiff))/0.6745
+
+    """ Try the mean absolute deviation if the mad is zero """
+    if mad<eps:
+        mad = (n.absolute(datdiff)).mean()/0.8
+    if mad<eps:
+        return 0.0
+
+    """ Do the biweighted value """
+    u = datdiff / (6. * mad)
+    uu = u*u
+    q = uu<1.
+    if q.sum()<3:
+        print ''
+        print 'robust_sigma: input distribution is just too weird.'
+        print 'returning value of -1.'
+        return -1.
+    ntot = data[n.isfinite(data)].sum()
+    num = ((data[q] - dat0)**2 * (1.-uu[q])**4).sum()
+    denom = ((1.-uu[q]) * (1. - 5.*uu[q])).sum()
+    rvar = ntot * num / (denom * (denom - 1.))
+
+    if rvar>0.:
+        return n.sqrt(rvar)
+    else:
+        return 0.
+
+#---------------------------------------------------------------------------
+
+def make_wht_for_final(infiles, medfits, sig=4.):
     """
     Creates a weight file for each input image to a final swarp call.
     This weight file will assign zero weight to pixels that differ by
     more than sig*rms from the median-stacked image that was created
     in an earlier step.
     Therefore, this function is a lot like the "blot" step in multidrizzle.
+
+    Inputs:
+       infiles - list of individual input fits files that will be compared to the
+                 median stack.  These will probably be called *resamp.fits
+       medfits - median-stacked fits file
     """
 
     """ Make sure that the input is either a list or a single file """
@@ -153,10 +212,10 @@ def make_wht_for_final(infiles, fullfits, sig=4.):
 
     """ Get the median fits file """
     try:
-        medfits = pf.open(fullfits)
+        medfits = pf.open(medfits)
     except:
         print ""
-        print "ERROR: Could not open %s" % fullfits
+        print "ERROR: Could not open %s" % medfits
         print ""
         return
 
@@ -199,6 +258,7 @@ def make_wht_for_final(infiles, fullfits, sig=4.):
         diff = meddat - indat * fscal
 
         """ Get an estimate of the RMS noise in the data """
+        rms = sqrt(meddat[meddat>0])
         # Need to talk to James to interpret his idl code
 
         """ Close the files for this loop """
