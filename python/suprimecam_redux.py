@@ -16,6 +16,7 @@ The functions in this file take over after the AG masking step.
 
 import pyfits as pf
 import numpy as n
+from math import sqrt
 
 #---------------------------------------------------------------------------
 
@@ -179,11 +180,11 @@ def robust_sigma(data, refzero=False):
 
 #---------------------------------------------------------------------------
 
-def make_wht_for_final(infiles, medfits, sig=4.):
+def make_wht_for_final(infiles, medfits, nsig=4.):
     """
     Creates a weight file for each input image to a final swarp call.
     This weight file will assign zero weight to pixels that differ by
-    more than sig*rms from the median-stacked image that was created
+    more than nsig*rms from the median-stacked image that was created
     in an earlier step.
     Therefore, this function is a lot like the "blot" step in multidrizzle.
 
@@ -220,6 +221,9 @@ def make_wht_for_final(infiles, medfits, sig=4.):
         return
 
     """ Loop through the input files """
+    print ''
+    print ' Input file                            rms_orig  robust_sig rms_final'
+    print '------------------------------------- ---------- ---------- ---------'
     for f in infiles:
         """ Load input file data """
         try:
@@ -242,12 +246,13 @@ def make_wht_for_final(infiles, medfits, sig=4.):
             print ""
             infits.close()
             return
+        inwht = whtfits[0].data
 
         """ Set up the relevant region to be examined and the flux scale"""
         x1 = hdr['comin1'] - 1
         y1 = hdr['comin2'] - 1
-        x2 = x1 + data.shape[1]
-        y2 = y1 + data.shape[0]
+        x2 = x1 + indat.shape[1]
+        y2 = y1 + indat.shape[0]
         fscal = hdr['flxscale']
 
         """ 
@@ -259,11 +264,27 @@ def make_wht_for_final(infiles, medfits, sig=4.):
 
         """ Get an estimate of the RMS noise in the data """
         rms = sqrt(meddat[meddat>0])
-        # Need to talk to James to interpret his idl code
+        rsig = sc.robust_sigma(indat[inwht > 0.])*fscal
+        rms2 = sqrt(rms**2 + rsig**2)
+        print '%-37s %10f %10f %10f' % (f,rms,rsig,rms2)
+
+        """ 
+        Flag pixels that deviate by more than nsig sigma from the median-stacked
+        image
+        """
+        blotmask = n.absolute(diff) > nsig*rms2
+        print '   Flagged an additional %d of %d pixels' % \
+            (blotmask.sum(),indat.size)
+
+        """ Debugging step: make a new mask file """
+        foodat = n.ones(indat.shape)
+        foodat[blotmask] = 0
 
         """ Close the files for this loop """
         infits.close()
         whtfits.flush()
-        del meddat,diff
+        fooname = f.replace('.fits','_foo.fits')
+        pf.PrimaryHDU(foodat).writeto(fooname)
+        del indat,inwht,meddat,diff,foodat,blotmask
 
 
