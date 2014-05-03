@@ -126,61 +126,8 @@ def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
 
 #---------------------------------------------------------------------------
 
-def robust_sigma(data, refzero=False):
-    """
-    Calculate a robust estimate of the dispersion of a distribution.
-    For an uncontaminated distribution, this estimate is identical to
-    the standard deviation.
-
-    This code is ported from robust_sigma.pro in IDL/astrolib
-
-    Inputs:
-
-    Output:
-       rsig - robust sigma estimator.  Return -1 if failure.
-    """
-
-    """ Set a tolerance """
-    eps = 1.e-20
-
-    """ Set central point for cfomputing the dispersion """
-    if refzero:
-        dat0 = 0.0
-    else:
-        dat0 = n.median(data)
-    datdiff = (data - dat0).flatten()
-
-    """ Find absolute deviation about the median """
-    mad = n.median(n.absolute(datdiff))/0.6745
-
-    """ Try the mean absolute deviation if the mad is zero """
-    if mad<eps:
-        mad = (n.absolute(datdiff)).mean()/0.8
-    if mad<eps:
-        return 0.0
-
-    """ Do the biweighted value """
-    u = datdiff / (6. * mad)
-    uu = u*u
-    q = uu<1.
-    if q.sum()<3:
-        print ''
-        print 'robust_sigma: input distribution is just too weird.'
-        print 'returning value of -1.'
-        return -1.
-    ntot = data[n.isfinite(data)].sum()
-    num = ((data[q] - dat0)**2 * (1.-uu[q])**4).sum()
-    denom = ((1.-uu[q]) * (1. - 5.*uu[q])).sum()
-    rvar = ntot * num / (denom * (denom - 1.))
-
-    if rvar>0.:
-        return n.sqrt(rvar)
-    else:
-        return 0.
-
-#---------------------------------------------------------------------------
-
-def make_wht_for_final(infiles, medfits, nsig=4.):
+def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False, 
+                       medwhtfile='default'):
     """
     Creates a weight file for each input image to a final swarp call.
     This weight file will assign zero weight to pixels that differ by
@@ -189,9 +136,25 @@ def make_wht_for_final(infiles, medfits, nsig=4.):
     Therefore, this function is a lot like the "blot" step in multidrizzle.
 
     Inputs:
-       infiles - list of individual input fits files that will be compared to the
-                 median stack.  These will probably be called *resamp.fits
-       medfits - median-stacked fits file
+       infiles      - list of individual input fits files that will be compared
+                       to the median stack.  These will probably be called 
+                       *resamp.fits
+       medfile      - median-stacked fits file
+       nsig         - minimum sigma difference between an individual input image
+                      and the median stacked image that will cause a pixel to be
+                      flagged.
+       flag_posonly - Sets flagging behavior.  If flag_posonly=True then only
+                      flag pixels where the value in the individual image is
+                      more than nsig*rms _larger_ than the value in the
+                      median-stacked image.
+                      If False, then flag pixels for which the absolute
+                      value of the difference is more than nsig*rms
+                      Explanation: Set to True to flag, e.g., cosmic rays in
+                      the individual image and to avoid flagging
+       medwhtfile   - Name of the weight file associated with medfile.  The
+                      default value ('default') will take the name of the
+                      median-stacked image (medfile) and replace '.fits' with
+                      '_wht.fits'
     """
 
     """ Make sure that the input is either a list or a single file """
@@ -211,21 +174,36 @@ def make_wht_for_final(infiles, medfits, nsig=4.):
         print ""
         return
 
-    """ Get the median fits file """
-    try:
-        medfits = pf.open(medfits)
-    except:
-        print ""
-        print "ERROR: Could not open %s" % medfits
-        print ""
-        return
+    """ Get the median fits file and its associated weight file """
+    #try:
+    #    medfits = pf.open(medfile)
+    #except:
+    #    print ""
+    #    print "ERROR: Could not open %s" % medfile
+    #    print ""
+    #    return
+    if medwhtfile == 'default':
+        medwhtfile = medfile.replace('.fits','_wht.fits')
+    #try:
+    #    medwhthdu = pf.open(medwhtfile)
+    #except:
+    #    print ""
+    #    print "ERROR: Could not open %s" % mwhtfile
+    #    print ""
+    #    return
+
 
     """ Loop through the input files """
+    epsil = 1.e-20
     print ''
-    print ' Input file                            rms_orig  robust_sig rms_final'
-    print '------------------------------------- ---------- ---------- ---------'
-    for f in infiles:
-        """ Load input file data """
+    print ' Input file                      gain   bkgd    fscal  N_flagged'
+    print '-------------------------------- ---- -------- ------- ---------'
+    for f in tmplist:
+        """ Set up other file names """
+        whtfile = f.replace('fits','weight.fits')
+        origfile = f.replace('resamp.fits','fits')
+
+        """ Load input resamp.fits file """
         try:
             infits = pf.open(f)
         except:
@@ -236,8 +214,7 @@ def make_wht_for_final(infiles, medfits, nsig=4.):
         indat = infits[0].data
         hdr = infits[0].header
 
-        """ Load the weight file data, which will get updated """
-        whtfile = f.replace('fits','weight.fits')
+        """ Load the associated weight file data, which will get updated """
         try:
             whtfits = pf.open(whtfile,mode='update')
         except:
@@ -248,43 +225,103 @@ def make_wht_for_final(infiles, medfits, nsig=4.):
             return
         inwht = whtfits[0].data
 
-        """ Set up the relevant region to be examined and the flux scale"""
+        """ Also load the header of the original file for some important info """
+        try:
+            orighdr = pf.getheader(origfile)
+        except:
+            print ""
+            print "ERROR: Could not open %s" % origfile
+            print ""
+            infits.close()
+            whtfits.close()
+            return
+
+        """ Set up the relevant region to be examined """
         x1 = hdr['comin1'] - 1
         y1 = hdr['comin2'] - 1
         x2 = x1 + indat.shape[1]
         y2 = y1 + indat.shape[0]
+
+        """ Get other important header information """
         fscal = hdr['flxscale']
+        bkgd = hdr['backmean']
+        gain = orighdr['gain']
 
         """ 
         Make the cutout of the median-stack image and then take the 
         difference between this file and the scaled input individual file
         """
-        meddat = medfits[0].data[y1:y2,x1:x2].copy()
-        diff = meddat - indat * fscal
-
-        """ Get an estimate of the RMS noise in the data """
-        rms = sqrt(meddat[meddat>0])
-        rsig = sc.robust_sigma(indat[inwht > 0.])*fscal
-        rms2 = sqrt(rms**2 + rsig**2)
-        print '%-37s %10f %10f %10f' % (f,rms,rsig,rms2)
+        meddat = (pf.getdata(medfile))[y1:y2,x1:x2]
+        medwht = (pf.getdata(medwhtfile))[y1:y2,x1:x2]
+        diff = n.zeros(indat.shape)
+        whtmask = inwht>0
+        diff[whtmask] = indat[whtmask] * fscal - meddat[whtmask]
+        del meddat,whtmask
 
         """ 
-        Flag pixels that deviate by more than nsig sigma from the median-stacked
-        image
+        Get an estimate of the RMS noise in the data.  Since we are creating
+        a difference, indat - meddat, the final rms will be
+            sigma_diff^2 = sigma_med^2 + sigma_ind^2
+        The input variances will come from:
+            sigma_med^2 = 1. / medwht 
+              - Swarp produces an inverse-variance weight map
+                NOTE: However, this does NOT include Poisson noise from the
+                objects in the image.  This is because computes this Poisson
+                noise when it does its object detections, and therefore 
+                expects any input weight file to not include the Poisson noise.
+            sigma_ind^2 = (inddat+bkdg) / gain
+              - inddat is a background-subtracted image with units of ADU.
+                Therefore, add back in the background and then divide by
+                the gain to get the variance in each pixel.
+                This is because sigma_ADU^2 = ADU/gain, assuming that
+                N_e = gain * ADU is a Poisson process.
         """
-        blotmask = n.absolute(diff) > nsig*rms2
-        print '   Flagged an additional %d of %d pixels' % \
-            (blotmask.sum(),indat.size)
+        medvar = n.zeros(indat.shape)
+        medmask = (inwht>0) & (n.absolute(medwht>epsil))
+        medvar[medmask] = 1. / medwht[medmask]
+        del medmask,medwht
 
-        """ Debugging step: make a new mask file """
-        foodat = n.ones(indat.shape)
-        foodat[blotmask] = 0
+        indvar = n.zeros(indat.shape)
+        mask = (inwht>0) & ((indat + bkgd) > 0.)
+        indvar[mask] = fscal**2 * (indat[mask]+bkgd)/gain
+        rms = n.sqrt(medvar + indvar)
+        del medvar,indvar,mask,indat
+        infits.close()
+
+        """ 
+        Flag pixels that deviate by more than nsig sigma from the 
+        median-stacked image
+        """
+        if flag_posonly:
+            blotmask = diff > nsig*rms
+        else:
+            blotmask = n.absolute(diff) > nsig*rms
+        print '%-32s %4.2f %8.2f %7.5f %9d' \
+            % (f[:-5],gain,bkgd,fscal,blotmask.sum())
+
+        """ Debugging step(s) """
+        #foodat = n.ones(diff.shape)
+        #foodat[blotmask] = 0
+        #fooname = f.replace('.fits','_foo.fits')
+        #pf.PrimaryHDU(foodat).writeto(fooname,clobber=True)
+        #del foodat
+
+        #rmsname = f.replace('.fits','_rms.fits')
+        #pf.PrimaryHDU(rms,hdr).writeto(rmsname,clobber=True)
+
+        snr = n.zeros(diff.shape)
+        rmsmask = rms>0
+        snr[rmsmask] = diff[rmsmask] / rms[rmsmask]
+        snrname = f.replace('.fits','_snr.fits')
+        pf.PrimaryHDU(snr,hdr).writeto(snrname,clobber=True)
+        del snr
+
+        """ Modify the weight file with the newly-flagged pixels """
+        inwht[blotmask] = 0
+        whtfits.flush()
+        del inwht
 
         """ Close the files for this loop """
-        infits.close()
-        whtfits.flush()
-        fooname = f.replace('.fits','_foo.fits')
-        pf.PrimaryHDU(foodat).writeto(fooname)
-        del indat,inwht,meddat,diff,foodat,blotmask
+        del diff,blotmask,rms
 
 
