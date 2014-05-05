@@ -50,6 +50,60 @@ def sigma_clip(data,nsig=3.,verbose=False):
       delta = size-d.size
    return avg,std
 
+#---------------------------------------------------------------------------
+
+def robust_sigma(data, refzero=False):
+    """
+    Calculate a robust estimate of the dispersion of a distribution.
+    For an uncontaminated distribution, this estimate is identical to
+    the standard deviation.
+
+    This code is ported from robust_sigma.pro in IDL/astrolib
+
+    Inputs:
+
+    Output:
+       rsig - robust sigma estimator.  Return -1 if failure.
+    """
+
+    """ Set a tolerance """
+    eps = 1.e-20
+
+    """ Set central point for cfomputing the dispersion """
+    if refzero:
+        dat0 = 0.0
+    else:
+        dat0 = n.median(data)
+    datdiff = (data - dat0).flatten()
+
+    """ Find absolute deviation about the median """
+    mad = n.median(n.absolute(datdiff))/0.6745
+
+    """ Try the mean absolute deviation if the mad is zero """
+    if mad<eps:
+        mad = (n.absolute(datdiff)).mean()/0.8
+    if mad<eps:
+        return 0.0
+
+    """ Do the biweighted value """
+    u = datdiff / (6. * mad)
+    uu = u*u
+    q = uu<1.
+    if q.sum()<3:
+        print ''
+        print 'robust_sigma: input distribution is just too weird.'
+        print 'returning value of -1.'
+        return -1.
+    ntot = data[n.isfinite(data)].sum()
+    num = ((data[q] - dat0)**2 * (1.-uu[q])**4).sum()
+    denom = ((1.-uu[q]) * (1. - 5.*uu[q])).sum()
+    rvar = ntot * num / (denom * (denom - 1.))
+
+    if rvar>0.:
+        return n.sqrt(rvar)
+    else:
+        return 0.
+
 #-----------------------------------------------------------------------
 
 def set_param_array(hdulen,inval):
