@@ -174,23 +174,9 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         print ""
         return
 
-    """ Get the median fits file and its associated weight file """
-    #try:
-    #    medfits = pf.open(medfile)
-    #except:
-    #    print ""
-    #    print "ERROR: Could not open %s" % medfile
-    #    print ""
-    #    return
+    """ Set up the weight file associated with the median-stacked image """
     if medwhtfile == 'default':
         medwhtfile = medfile.replace('.fits','_wht.fits')
-    #try:
-    #    medwhthdu = pf.open(medwhtfile)
-    #except:
-    #    print ""
-    #    print "ERROR: Could not open %s" % mwhtfile
-    #    print ""
-    #    return
 
 
     """ Loop through the input files """
