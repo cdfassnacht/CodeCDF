@@ -1093,8 +1093,9 @@ class Image:
       Update the header info, including updating the CRPIXn values if they
       are present.
       """
-      hdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]' % \
-                    (self.infile,self.subx1,self.subx2,self.suby1,self.suby2))
+      hdr.update('ORIG_IM','Copied from %s' % self.infile)
+      hdr.update('ORIG_REG','Region in original image: [%d:%d,%d:%d]' % \
+                    (self.subx1,self.subx2,self.suby1,self.suby2))
       """ Update the headers to reflect the cutout center"""
       try:
          hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
