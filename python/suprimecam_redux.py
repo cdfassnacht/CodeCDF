@@ -157,6 +157,8 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
                       '_wht.fits'
     """
 
+    import imfuncs as imf
+
     """ Make sure that the input is either a list or a single file """
 
     if type(infiles) is str:
@@ -178,16 +180,61 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
     if medwhtfile == 'default':
         medwhtfile = medfile.replace('.fits','_wht.fits')
 
+    """ First loop through the input files to get information """
+    gain = n.zeros(len(tmplist))
+    bkgd = n.zeros(len(tmplist))
+    fscal = n.zeros(len(tmplist))
+    x1 = n.zeros(len(tmplist))
+    y1 = n.zeros(len(tmplist))
+
+    print ''
+    print ' Input file                  gain  <bkgd>   fscal  <rms_sky>'
+    print '---------------------------- ---- -------- ------- ---------'
+    for i in range(len(tmplist)):
+
+        """ Load the header information """
+        f = tmplist[i]
+        try:
+            hdr = pf.getheader(f)
+        except:
+            print ""
+            print "ERROR: Could not open %s" % f
+            print ""
+            return
+
+        origfile = f.replace('resamp.fits','fits')
+        try:
+            orighdr = pf.getheader(origfile)
+        except:
+            print ""
+            print "ERROR: Could not open %s" % origfile
+            print ""
+            return
+
+        """ Set the relevant values """
+        x1[i]    = hdr['comin1'] - 1
+        y1[i]    = hdr['comin2'] - 1
+        bkgd[i]  = hdr['backmean']
+        fscal[i] = hdr['flxscale']
+        gain[i]  = orighdr['gain']
+
+        """ Print out the relevant information and clean up """
+        print '%-28s %4.2f %8.2f %7.5f' \
+            % (f[:-5],gain[i],bkgd[i],fscal[i])
+        del hdr,orighdr
+
+    gainmean = gain.mean()
+    print '------------------------------------------------------------'
+    print 'Mean values (%3d files) %9.2f %8.2f %7.5f' % \
+        (len(tmplist),gainmean,bkgd.mean(),fscal.mean())
+    return
 
     """ Loop through the input files """
     epsil = 1.e-20
-    print ''
-    print ' Input file                      gain   bkgd    fscal  N_flagged'
-    print '-------------------------------- ---- -------- ------- ---------'
-    for f in tmplist:
-        """ Set up other file names """
+    for i in range(len(tmplist)):
+        """ Set up file names """
+        f = tmplist[i]
         whtfile = f.replace('fits','weight.fits')
-        origfile = f.replace('resamp.fits','fits')
 
         """ Load input resamp.fits file """
         try:
@@ -211,56 +258,42 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
             return
         inwht = whtfits[0].data
 
-        """ Also load the header of the original file for some important info """
-        try:
-            orighdr = pf.getheader(origfile)
-        except:
-            print ""
-            print "ERROR: Could not open %s" % origfile
-            print ""
-            infits.close()
-            whtfits.close()
-            return
 
         """ Set up the relevant region to be examined """
-        x1 = hdr['comin1'] - 1
-        y1 = hdr['comin2'] - 1
-        x2 = x1 + indat.shape[1]
-        y2 = y1 + indat.shape[0]
-
-        """ Get other important header information """
-        fscal = hdr['flxscale']
-        bkgd = hdr['backmean']
-        gain = orighdr['gain']
+        x2 = x1[i] + indat.shape[1]
+        y2 = y1[i] + indat.shape[0]
 
         """ 
         Make the cutout of the median-stack image and then take the 
         difference between this file and the scaled input individual file
         """
-        meddat = (pf.getdata(medfile))[y1:y2,x1:x2]
-        medwht = (pf.getdata(medwhtfile))[y1:y2,x1:x2]
+        meddat = (pf.getdata(medfile))[y1[i]:y2,x1[i]:x2]
+        medwht = (pf.getdata(medwhtfile))[y1[i]:y2,x1[i]:x2]
         diff = n.zeros(indat.shape)
         whtmask = inwht>0
-        diff[whtmask] = indat[whtmask] * fscal - meddat[whtmask]
+        diff[whtmask] = indat[whtmask] * fscal[i] - meddat[whtmask]
         del meddat,whtmask
 
         """ 
         Get an estimate of the RMS noise in the data.  Since we are creating
         a difference, indat - meddat, the final rms will be
-            sigma_diff^2 = sigma_med^2 + sigma_ind^2
+            sigma_diff^2 = sigma_ind^2 + sigma_med^2
         The input variances will come from:
-            sigma_med^2 = 1. / medwht 
-              - Swarp produces an inverse-variance weight map
-                NOTE: However, this does NOT include Poisson noise from the
-                objects in the image.  This is because computes this Poisson
-                noise when it does its object detections, and therefore 
-                expects any input weight file to not include the Poisson noise.
-            sigma_ind^2 = (inddat+bkdg) / gain
+
+            sigma_ind^2 = (inddat+bkgd) / gain
               - inddat is a background-subtracted image with units of ADU.
                 Therefore, add back in the background and then divide by
                 the gain to get the variance in each pixel.
                 This is because sigma_ADU^2 = ADU/gain, assuming that
                 N_e = gain * ADU is a Poisson process.
+
+            sigma_med^2 = (1. / medwht) + [for SNR>1: meddat/gain] 
+              - Swarp produces an inverse-variance weight map
+                NOTE: However, this does NOT include Poisson noise from the
+                objects in the image.  This is because computes this Poisson
+                noise when it does its object detections, and therefore 
+                expects any input weight file to not include the Poisson noise.
+
         """
         medvar = n.zeros(indat.shape)
         medmask = (inwht>0) & (n.absolute(medwht>epsil))
@@ -268,8 +301,8 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         del medmask,medwht
 
         indvar = n.zeros(indat.shape)
-        mask = (inwht>0) & ((indat + bkgd) > 0.)
-        indvar[mask] = fscal**2 * (indat[mask]+bkgd)/gain
+        mask = (inwht>0) & ((indat + bkgd[i]) > 0.)
+        indvar[mask] = fscal[i]**2 * (indat[mask]+bkgd[i])/gain[i]
         rms = n.sqrt(medvar + indvar)
         del medvar,indvar,mask,indat
         infits.close()
@@ -282,8 +315,8 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
             blotmask = diff > nsig*rms
         else:
             blotmask = n.absolute(diff) > nsig*rms
-        print '%-32s %4.2f %8.2f %7.5f %9d' \
-            % (f[:-5],gain,bkgd,fscal,blotmask.sum())
+        print '%-38s %9d' \
+            % (f[:-5],blotmask.sum())
 
         """ Debugging step(s) """
         #foodat = n.ones(diff.shape)

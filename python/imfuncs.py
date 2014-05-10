@@ -37,6 +37,489 @@ import ccdredux as ccd
 
 #-----------------------------------------------------------------------
 
+class Image:
+
+   def __init__(self, infile, mode='copyonwrite', verbose=True):
+      """
+      This method gets called when the user types something like
+         im = Image(infile)
+
+      Inputs:
+         infile - input file containing the fits image
+         mode   - mode in which to open the fits image.  The default value,
+                  'copyonwrite' is the standard read-only mode.  To enable
+                  modification in place, use mode='update'
+      """
+
+      """
+      Start by loading the hdu information
+      """
+      if verbose:
+         print ""
+         print "Loading file %s" % infile
+         print "-----------------------------------------------"
+      try:
+         self.hdu = open_fits(infile, mode)
+      except:
+         print "  ERROR. Problem in loading file %s" % infile
+         print "  Check to make sure filename matches an existing file."
+         print "  If it does, there may be something wrong with the fits header."
+         print ""
+         return
+      if verbose:
+         self.hdu.info()
+
+      """ Set parameters related to image properties """
+      self.infile = infile
+
+      """ Initialize display parameters """
+      self.found_rms = False
+      self.mean_clip = 0.0
+      self.rms_clip = 0.0
+      self.statsize = 2048
+
+   #-----------------------------------------------------------------------
+
+   def close(self):
+      """
+      Closes the image
+      """
+
+      self.hdu.close()
+      
+
+   #-----------------------------------------------------------------------
+
+   def get_subim_bounds(self, hdu, subimsize, subimcent):
+      """
+      Defines a subimage based on a subimage size and center
+      """
+
+      hdr = self.hdu[hdu].header
+      nx = hdr['naxis1']
+      ny = hdr['naxis1']
+
+      """ Define subimage center """
+      if subimcent is None:
+         self.subcentx = int((nx+1.)/2.)
+         self.subcenty = int((ny+1.)/2.)
+      else:
+         self.subcentx = int(subimcent[0])
+         self.subcenty = int(subimcent[1])
+
+      """ 
+      Define limits of subimage 
+      For now does not deal with regions partially outside the input file
+      """
+      if subimsize is not None:
+         subxy = n.atleast_1d(subimsize) # Converts subimsize to a numpy array
+         subx = subxy[0]
+         if subxy.size>1:
+            suby = subxy[1]
+         else:
+            suby = subxy[0]
+         halfx = int(subx/2.0)
+         halfy = int(suby/2.0)
+         self.subx1 = self.subcentx - halfx
+         self.subx2 = self.subx1 + subx
+         self.suby1 = self.subcenty - halfy
+         self.suby2 = self.suby1 + suby
+         self.subsizex = int(subx)
+         self.subsizey = int(suby)
+      else:
+         self.subx1 = 0
+         self.subx2 = nx
+         self.suby1 = 0
+         self.suby2 = ny
+         self.subsizex = nx
+         self.subsizey = ny
+   #-----------------------------------------------------------------------
+
+   def def_subim_xy(self, hext=0):
+      """
+
+      Selects the data in the subimage defined by the bounds x1, x2, y1, y2.
+      These bounds are all contained within the Image class itself, and
+      were either set directly (e.g., by a call to imcopy) or by the
+      get_subim_bounds function (which takes a subimage center and size)
+
+      Inputs:
+         hext    - Image HDU number that contains the full image
+
+      """
+
+      """ Cut out the subimage based on the bounds """
+      self.subim = self.hdu[hext].data[self.suby1:self.suby2,
+                                       self.subx1:self.subx2].copy()
+      self.subimhdr = self.hdu[hext].header.copy()
+
+      """ 
+      Update the header info, including updating the CRPIXn values if they
+      are present.
+      """
+      self.subimhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]'\
+                              % (self.infile,self.subx1,self.subx2,self.suby1,
+                                 self.suby2))
+
+      """ Update the headers to reflect the cutout center"""
+      try:
+         self.subimhdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
+      except:
+         pass
+      try:
+         self.subimhdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
+      except:
+         pass
+
+   #-----------------------------------------------------------------------
+
+   def def_subim_radec(self, ra, dec, xsize, ysize, outscale=None, hext=0, 
+                       dext=0, verbose=True):
+      """
+      Selects the data in the subimage defined by ra, dec, xsize, and ysize.
+
+      The vast majority of the code is Matt Auger's (his image_cutout in 
+      imagelib.py).
+      Some modifications have been made by Chris Fassnacht.
+
+      Inputs:
+         ra       - Central right ascension in decimal degrees
+         dec      - Central declination in decimal degrees
+         xsize    - Output image x size in arcsec
+         ysize    - Output image y size in arcsec
+         outscale - Output image pixel scale, in arcsec/pix
+         hext     - Input file HDU number that contains the WCS info (default 0)
+         dext     - Input file HDU number that contains the image data (default 
+                    0)
+         verbose - Print out informational statements if True (default=True)
+      """
+
+      """ First check to make sure that a subimage is even requested """
+      if ra is None or dec is None or xsize is None:
+         self.subim     = self.hdu[hext].data.copy()
+         self.subimhdr  = self.hdu[hext].header.copy()
+         self.subsizex = self.hdu[hext].data.shape[1]
+         self.subsizey = self.hdu[hext].data.shape[0]
+         return
+
+      """ Convert ra and dec to decimal degrees if necessary """
+      if wcs.is_degree(ra)==False:
+         ra = wcs.ra2deg(ra)
+      if wcs.is_degree(dec)==False:
+         dec = wcs.dec2deg(dec)
+
+      """ Calculate the (x,y) that is associated with the requested center"""
+      inhdr = self.hdu[hext].header.copy()
+      x,y = wcs.sky2pix(inhdr,ra,dec)
+
+      """ 
+      Get rough image size in pixels for the segment of input image, since the 
+      pixel scale for the output image does not necessarily match that of the 
+      input image.
+      Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
+      x-axis scale, assuming that the y-axis scale is the same.
+      """
+      wcsinfo = wcs.parse_header(inhdr)
+      inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
+      inpixxsize = int(xsize / inscale)
+      inpixysize = int(ysize / inscale)
+      if outscale is None:
+         outscale = inscale
+      self.subsizex = int(xsize / outscale)
+      self.subsizey = int(ysize / outscale)
+
+      """ Summarize the request """
+      if verbose:
+         print " Requested center (RA,Dec): %11.7f %+10.6f" % (ra,dec)
+         print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
+         print " Requested image size (arcsec): %6.2f %6.2f" % \
+             (xsize,ysize)
+         print " Requested size in input pixels: %d %d" % (inpixxsize,inpixysize)
+
+      """
+      In order to account for rotations, etc., when cutting out the
+      desired image section, start with a region that is larger
+      (by a factor of 2, if the image is large enough).
+      """
+      x0 = max(0,int(x-inpixxsize))
+      x1 = min(inhdr['naxis1'],int(x+inpixxsize))
+      y0 = max(0,int(y-inpixysize))
+      y1 = min(inhdr['naxis2'],int(y+inpixysize))
+      if verbose:
+         print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
+
+      """ Actually get the data in the large region """
+      if  inhdr['naxis'] == 4:
+         data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
+      else:
+         data = self.hdu[dext].data[y0:y1,x0:x1].copy()
+      data[~n.isfinite(data)] = 0.
+
+      """ Update the headers to reflect the cutout center"""
+      inhdr.update('CRPIX1',inhdr['CRPIX1']-x0)
+      inhdr.update('CRPIX2',inhdr['CRPIX2']-y0)
+
+      """ 
+      Set up the output header and do the coordinate transform preparation 
+      """
+      outheader = wcs.make_header(ra,dec,self.subsizex,self.subsizey,outscale)
+      coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
+      skycoords = wcs.pix2sky(outheader,coords[1],coords[0])
+      ccdcoords = wcs.sky2pix(inhdr,skycoords[0],skycoords[1])
+      coords[1] = ccdcoords[0]
+      coords[0] = ccdcoords[1]
+      print coords.shape
+
+      """ Transform the coordinates """
+      self.subim = ndimage.map_coordinates(data,coords,output=n.float64,order=5)
+      self.subimhdr = outheader.copy()
+
+      """ Clean up """
+      del data,outheader,coords,skycoords,ccdcoords
+
+   #-----------------------------------------------------------------------
+
+   def poststamp_xy(self, centx, centy, xsize, ysize, outfile, hext=0):
+      """
+      Creates a new fits file that is a cutout of the original image.  For
+      this method, the image center is defined by its (x,y) coordinate
+      rather than (ra,dec).
+
+      Inputs:
+         centx   - x coordinate of cutout center
+         centy   - y coordinate of cutout center
+         xsize   - size of cutout in x direction
+         ysize   - size of cutout in x direction
+         outfile - name of output file
+         hext    - HDU containing the image data in the input image (default=0)
+      """
+
+      print ""
+      print "Input file:  %s" % self.infile
+      print "Output file: %s" % outfile
+
+      """ Read in relevant data """
+      subimsize = (xsize,ysize)
+      subimcent = (centx,centy)
+      self.get_subim_bounds(hext,subimsize,subimcent)
+      data = self.hdu[hext].data[self.suby1:self.suby2,
+                                    self.subx1:self.subx2].copy()
+      hdr = self.hdu[hext].header.copy()
+      print "Cutout image center (x,y): (%d, %d)" % \
+          (self.subcentx,self.subcenty)
+      print "Cutout image size (x y): %dx%d" % \
+          (self.subsizex,self.subsizey)
+      print ''
+
+      """ 
+      Update the header info, including updating the CRPIXn values if they
+      are present.
+      """
+      hdr.update('ORIG_IM','Copied from %s' % self.infile)
+      hdr.update('ORIG_REG','Region in original image: [%d:%d,%d:%d]' % \
+                    (self.subx1,self.subx2,self.suby1,self.suby2))
+      """ Update the headers to reflect the cutout center"""
+      try:
+         hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
+      except:
+         pass
+      try:
+         hdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
+      except:
+         pass
+
+      """ Write to the output file and clean up"""
+      pf.PrimaryHDU(data,hdr).writeto(outfile)
+      print "Wrote postage stamp cutout to %s" % outfile
+      del data,hdr
+
+   #-----------------------------------------------------------------------
+
+   def poststamp_radec(self, ra, dec, xsize, ysize, scale, outfile, 
+                       hext=0, dext=0, verbose=True):
+      """
+      Given a central coordinate (RA,Dec), a size in pixels, and a pixel scale,
+      creates an output cutout image
+
+      The vast majority of the code is Matt Auger's (his image_cutout in 
+      imagelib.py).
+      Some modifications have been made by Chris Fassnacht.
+
+      Inputs:
+         ra      - Central right ascension in decimal degrees
+         dec     - Central declination in decimal degrees
+         xsize   - Output image x size in arcsec
+         ysize   - Output image y size in arcsec
+         scale   - Output image pixel scale, in arcsec/pix
+         outfile - Output file name
+         hext    - Input file HDU number that contains the WCS info (default 0)
+         dext    - Input file HDU number that contains the image data (default 0)
+      """
+
+      """ Create the postage stamp data """
+      self.def_subim_radec(ra,dec,xsize,ysize,scale,hext,dext,verbose)
+
+      """ Write the postage stamp to the output file """
+      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
+      print "Wrote postage stamp cutout to %s" % outfile
+
+   #-----------------------------------------------------------------------
+
+   def imcopy(self, x1, x2, y1, y2, outfile, hext=0):
+      """ 
+      Description: Given the x and y coordinates of 
+      the lower left corner and the upper right corner, creates a new 
+      fits file that is a cutout of the original image.
+
+      Inputs:
+        x1:      x coordinate of the lower left corner of desired region
+        x2:      x coordinate of the upper right corner of desired region
+        y1:      y coordinate of the lower left corner of desired region
+        y2:      y coordinate of the upper right corner of desired region
+        outfile: file name of output image
+        hext:    HDU containing the image data in the input image (default=0)
+      """
+
+      """ Get info about input image """
+      inhdr = self.hdu[hext].header.copy()
+      xmax = inhdr["NAXIS1"]
+      ymax = inhdr["NAXIS2"]
+      print ""
+      print "imcopy: Input image %s has dimensions %d x %d" % \
+          (self.infile,xmax,ymax)
+
+      """Check to make sure that requested corners are inside the image"""
+
+      """ Make sure that everything is in integer format """
+      x1 = int(x1)
+      y1 = int(y1)
+      x2 = int(x2)
+      y2 = int(y2)
+
+      """ 
+      Cut the file, and then update the CRPIXn header cards if they're there 
+      """
+      print "imcopy: Cutting out region between (%d,%d) and (%d,%d)" % \
+          (x1,y1,x2,y2)
+      outdat = self.hdu[hext].data[y1:y2,x1:x2].copy()
+      inhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]' % \
+                      (self.infile,x1,x2,y1,y2))
+      print ""
+      print "Updating CRPIXn header cards if they exist"
+      print "------------------------------------------"
+      try:
+         crpix1 = inhdr['crpix1']
+      except:
+         print "   No CRPIX1 header found"
+         crpix1 = n.nan
+      try:
+         crpix2 = inhdr['crpix2']
+      except:
+         print "   No CRPIX2 header found"
+         crpix2 = n.nan
+      if n.isnan(crpix1)==False:
+         inhdr['crpix1'] -= x1
+         print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
+      if n.isnan(crpix2)==False:
+         inhdr['crpix2'] -= y1
+         print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
+      
+
+      """ Write to output file and clean up """
+      outhdu = pf.PrimaryHDU(data=outdat,header=inhdr)
+      outhdu.verify('fix')
+      print "imcopy: Writing to output file %s" % outfile
+      outhdu.writeto(outfile,clobber=True)
+      del outdat
+
+   #-----------------------------------------------------------------------
+
+   def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
+               sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
+               subimcent=None, subimsize=None, subimunits='pixels', 
+               dispunits='pixels'):
+      # NB: Need to add extent parameter for call to imshow
+      """
+      
+      """
+      print ""
+      print "Input file:  %s" % self.infile
+
+      """ Read in relevant data """
+      if subimdef == 'radec':
+         if subimcent == None:
+            ra = None
+            dec = None
+         else:
+            ra = subimcent[0]
+            dec = subimcent[1]
+         if subimsize == None:
+            xsize = None
+            ysize = None
+         else:
+            xsize = subimsize[0]
+            ysize = subimsize[1]
+         self.def_subim_radec(ra,dec,xsize,ysize,hext=hext)
+      else:
+         self.get_subim_bounds(hext,subimsize,subimcent)
+         self.def_subim_xy(hext)
+         #data = self.hdu[hext].data[self.suby1:self.suby2,
+         #                              self.subx1:self.subx2].copy()
+         print "Display image center (x,y): (%d, %d)" % \
+             (self.subcentx,self.subcenty)
+      print "Displayed image size (x y): %dx%d" % \
+          (self.subsizex,self.subsizey)
+      print ''
+
+      """ 
+      Take the absolute range to display, if requested, otherwise clip the 
+      data and set display limits from the clipped values 
+      """
+      if absrange is not None:
+         print "Taking requested absolute display limits"
+         print "----------------------------------------"
+         vmin = absrange[0]
+         vmax = absrange[1]
+         print "  vmin (absolute): %f" % vmin
+         print "  vmax (absolute): %f" % vmax
+      else:
+         if self.found_rms == False:
+            print "Calculating display limits"
+            print "--------------------------"
+            self.mean_clip,self.rms_clip = ccd.sigma_clip(self.subim,
+                                                          verbose=True)
+            self.found_rms = True
+         vmin = self.mean_clip - siglow*self.rms_clip
+         vmax = self.mean_clip + sighigh*self.rms_clip
+         print " Clipped mean: %f" % self.mean_clip
+         print " Clipped rms:  %f" % self.rms_clip
+         print " vmin (mean - %2d sigma):  %f" % (siglow,vmin)
+         print " vmax (mean + %2d sigma):  %f" % (sighigh,vmax)
+
+      """ Set the color map """
+      if cmap == 'gray':
+         cmap = plt.cm.gray
+      elif cmap == 'heat' or cmap == 'hot':
+         cmap = plt.cm.hot
+      elif cmap == 'Yl_Or_Br' or cmap == 'gaia':
+         cmap = plt.cm.YlOrBr_r
+      elif cmap == 'jet':
+         cmap = plt.cm.jet
+      else:
+         print ' WARNING - Requested unknown color map.  Using gaia colors'
+         cmap = plt.cm.YlOrBr_r
+
+      """ """
+      plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
+                 interpolation='nearest')
+      if title is not None:
+         plt.title(title)
+      #del data
+
+   #-----------------------------------------------------------------------
+
+#-----------------------------------------------------------------------
+
 def open_fits(infile, mode='copyonwrite'):
    """
    Opens a fits file, allowing for the possibility of the missing end that
@@ -813,485 +1296,3 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                
    inhdu.flush()
 
-#-----------------------------------------------------------------------
-
-class Image:
-
-   def __init__(self, infile, mode='copyonwrite', verbose=True):
-      """
-      This method gets called when the user types something like
-         im = Image(infile)
-
-      Inputs:
-         infile - input file containing the fits image
-         mode   - mode in which to open the fits image.  The default value,
-                  'copyonwrite' is the standard read-only mode.  To enable
-                  modification in place, use mode='update'
-      """
-
-      """
-      Start by loading the hdu information
-      """
-      if verbose:
-         print ""
-         print "Loading file %s" % infile
-         print "-----------------------------------------------"
-      try:
-         self.hdu = open_fits(infile, mode)
-      except:
-         print "  ERROR. Problem in loading file %s" % infile
-         print "  Check to make sure filename matches an existing file."
-         print "  If it does, there may be something wrong with the fits header."
-         print ""
-         return
-      if verbose:
-         self.hdu.info()
-
-      """ Set parameters related to image properties """
-      self.infile = infile
-
-      """ Initialize display parameters """
-      self.found_rms = False
-      self.mean_clip = 0.0
-      self.rms_clip = 0.0
-      self.statsize = 2048
-
-   #-----------------------------------------------------------------------
-
-   def close(self):
-      """
-      Closes the image
-      """
-
-      self.hdu.close()
-      
-
-   #-----------------------------------------------------------------------
-
-   def get_subim_bounds(self, hdu, subimsize, subimcent):
-      """
-      Defines a subimage based on a subimage size and center
-      """
-
-      hdr = self.hdu[hdu].header
-      nx = hdr['naxis1']
-      ny = hdr['naxis1']
-
-      """ Define subimage center """
-      if subimcent is None:
-         self.subcentx = int((nx+1.)/2.)
-         self.subcenty = int((ny+1.)/2.)
-      else:
-         self.subcentx = int(subimcent[0])
-         self.subcenty = int(subimcent[1])
-
-      """ 
-      Define limits of subimage 
-      For now does not deal with regions partially outside the input file
-      """
-      if subimsize is not None:
-         subxy = n.atleast_1d(subimsize) # Converts subimsize to a numpy array
-         subx = subxy[0]
-         if subxy.size>1:
-            suby = subxy[1]
-         else:
-            suby = subxy[0]
-         halfx = int(subx/2.0)
-         halfy = int(suby/2.0)
-         self.subx1 = self.subcentx - halfx
-         self.subx2 = self.subx1 + subx
-         self.suby1 = self.subcenty - halfy
-         self.suby2 = self.suby1 + suby
-         self.subsizex = int(subx)
-         self.subsizey = int(suby)
-      else:
-         self.subx1 = 0
-         self.subx2 = nx
-         self.suby1 = 0
-         self.suby2 = ny
-         self.subsizex = nx
-         self.subsizey = ny
-   #-----------------------------------------------------------------------
-
-   def def_subim_xy(self, hext=0):
-      """
-
-      Selects the data in the subimage defined by the bounds x1, x2, y1, y2.
-      These bounds are all contained within the Image class itself, and
-      were either set directly (e.g., by a call to imcopy) or by the
-      get_subim_bounds function (which takes a subimage center and size)
-
-      Inputs:
-         hext    - Image HDU number that contains the full image
-
-      """
-
-      """ Cut out the subimage based on the bounds """
-      self.subim = self.hdu[hext].data[self.suby1:self.suby2,
-                                       self.subx1:self.subx2].copy()
-      self.subimhdr = self.hdu[hext].header.copy()
-
-      """ 
-      Update the header info, including updating the CRPIXn values if they
-      are present.
-      """
-      self.subimhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]'\
-                              % (self.infile,self.subx1,self.subx2,self.suby1,
-                                 self.suby2))
-
-      """ Update the headers to reflect the cutout center"""
-      try:
-         self.subimhdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
-      except:
-         pass
-      try:
-         self.subimhdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
-      except:
-         pass
-
-   #-----------------------------------------------------------------------
-
-   def def_subim_radec(self, ra, dec, xsize, ysize, outscale=None, hext=0, 
-                       dext=0, verbose=True):
-      """
-      Selects the data in the subimage defined by ra, dec, xsize, and ysize.
-
-      The vast majority of the code is Matt Auger's (his image_cutout in 
-      imagelib.py).
-      Some modifications have been made by Chris Fassnacht.
-
-      Inputs:
-         ra       - Central right ascension in decimal degrees
-         dec      - Central declination in decimal degrees
-         xsize    - Output image x size in arcsec
-         ysize    - Output image y size in arcsec
-         outscale - Output image pixel scale, in arcsec/pix
-         hext     - Input file HDU number that contains the WCS info (default 0)
-         dext     - Input file HDU number that contains the image data (default 
-                    0)
-         verbose - Print out informational statements if True (default=True)
-      """
-
-      """ First check to make sure that a subimage is even requested """
-      if ra is None or dec is None or xsize is None:
-         self.subim     = self.hdu[hext].data.copy()
-         self.subimhdr  = self.hdu[hext].header.copy()
-         self.subsizex = self.hdu[hext].data.shape[1]
-         self.subsizey = self.hdu[hext].data.shape[0]
-         return
-
-      """ Convert ra and dec to decimal degrees if necessary """
-      if wcs.is_degree(ra)==False:
-         ra = wcs.ra2deg(ra)
-      if wcs.is_degree(dec)==False:
-         dec = wcs.dec2deg(dec)
-
-      """ Calculate the (x,y) that is associated with the requested center"""
-      inhdr = self.hdu[hext].header.copy()
-      x,y = wcs.sky2pix(inhdr,ra,dec)
-
-      """ 
-      Get rough image size in pixels for the segment of input image, since the 
-      pixel scale for the output image does not necessarily match that of the 
-      input image.
-      Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
-      x-axis scale, assuming that the y-axis scale is the same.
-      """
-      wcsinfo = wcs.parse_header(inhdr)
-      inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
-      inpixxsize = int(xsize / inscale)
-      inpixysize = int(ysize / inscale)
-      if outscale is None:
-         outscale = inscale
-      self.subsizex = int(xsize / outscale)
-      self.subsizey = int(ysize / outscale)
-
-      """ Summarize the request """
-      if verbose:
-         print " Requested center (RA,Dec): %11.7f %+10.6f" % (ra,dec)
-         print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
-         print " Requested image size (arcsec): %6.2f %6.2f" % \
-             (xsize,ysize)
-         print " Requested size in input pixels: %d %d" % (inpixxsize,inpixysize)
-
-      """
-      In order to account for rotations, etc., when cutting out the
-      desired image section, start with a region that is larger
-      (by a factor of 2, if the image is large enough).
-      """
-      x0 = max(0,int(x-inpixxsize))
-      x1 = min(inhdr['naxis1'],int(x+inpixxsize))
-      y0 = max(0,int(y-inpixysize))
-      y1 = min(inhdr['naxis2'],int(y+inpixysize))
-      if verbose:
-         print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
-
-      """ Actually get the data in the large region """
-      if  inhdr['naxis'] == 4:
-         data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
-      else:
-         data = self.hdu[dext].data[y0:y1,x0:x1].copy()
-      data[~n.isfinite(data)] = 0.
-
-      """ Update the headers to reflect the cutout center"""
-      inhdr.update('CRPIX1',inhdr['CRPIX1']-x0)
-      inhdr.update('CRPIX2',inhdr['CRPIX2']-y0)
-
-      """ 
-      Set up the output header and do the coordinate transform preparation 
-      """
-      outheader = wcs.make_header(ra,dec,self.subsizex,self.subsizey,outscale)
-      coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
-      skycoords = wcs.pix2sky(outheader,coords[1],coords[0])
-      ccdcoords = wcs.sky2pix(inhdr,skycoords[0],skycoords[1])
-      coords[1] = ccdcoords[0]
-      coords[0] = ccdcoords[1]
-      print coords.shape
-
-      """ Transform the coordinates """
-      self.subim = ndimage.map_coordinates(data,coords,output=n.float64,order=5)
-      self.subimhdr = outheader.copy()
-
-      """ Clean up """
-      del data,outheader,coords,skycoords,ccdcoords
-
-   #-----------------------------------------------------------------------
-
-   def poststamp_xy(self, centx, centy, xsize, ysize, outfile, hext=0):
-      """
-      Creates a new fits file that is a cutout of the original image.  For
-      this method, the image center is defined by its (x,y) coordinate
-      rather than (ra,dec).
-
-      Inputs:
-         centx   - x coordinate of cutout center
-         centy   - y coordinate of cutout center
-         xsize   - size of cutout in x direction
-         ysize   - size of cutout in x direction
-         outfile - name of output file
-         hext    - HDU containing the image data in the input image (default=0)
-      """
-
-      print ""
-      print "Input file:  %s" % self.infile
-      print "Output file: %s" % outfile
-
-      """ Read in relevant data """
-      subimsize = (xsize,ysize)
-      subimcent = (centx,centy)
-      self.get_subim_bounds(hext,subimsize,subimcent)
-      data = self.hdu[hext].data[self.suby1:self.suby2,
-                                    self.subx1:self.subx2].copy()
-      hdr = self.hdu[hext].header.copy()
-      print "Cutout image center (x,y): (%d, %d)" % \
-          (self.subcentx,self.subcenty)
-      print "Cutout image size (x y): %dx%d" % \
-          (self.subsizex,self.subsizey)
-      print ''
-
-      """ 
-      Update the header info, including updating the CRPIXn values if they
-      are present.
-      """
-      hdr.update('ORIG_IM','Copied from %s' % self.infile)
-      hdr.update('ORIG_REG','Region in original image: [%d:%d,%d:%d]' % \
-                    (self.subx1,self.subx2,self.suby1,self.suby2))
-      """ Update the headers to reflect the cutout center"""
-      try:
-         hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
-      except:
-         pass
-      try:
-         hdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
-      except:
-         pass
-
-      """ Write to the output file and clean up"""
-      pf.PrimaryHDU(data,hdr).writeto(outfile)
-      print "Wrote postage stamp cutout to %s" % outfile
-      del data,hdr
-
-   #-----------------------------------------------------------------------
-
-   def poststamp_radec(self, ra, dec, xsize, ysize, scale, outfile, 
-                       hext=0, dext=0, verbose=True):
-      """
-      Given a central coordinate (RA,Dec), a size in pixels, and a pixel scale,
-      creates an output cutout image
-
-      The vast majority of the code is Matt Auger's (his image_cutout in 
-      imagelib.py).
-      Some modifications have been made by Chris Fassnacht.
-
-      Inputs:
-         ra      - Central right ascension in decimal degrees
-         dec     - Central declination in decimal degrees
-         xsize   - Output image x size in arcsec
-         ysize   - Output image y size in arcsec
-         scale   - Output image pixel scale, in arcsec/pix
-         outfile - Output file name
-         hext    - Input file HDU number that contains the WCS info (default 0)
-         dext    - Input file HDU number that contains the image data (default 0)
-      """
-
-      """ Create the postage stamp data """
-      self.def_subim_radec(ra,dec,xsize,ysize,scale,hext,dext,verbose)
-
-      """ Write the postage stamp to the output file """
-      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
-      print "Wrote postage stamp cutout to %s" % outfile
-
-   #-----------------------------------------------------------------------
-
-   def imcopy(self, x1, x2, y1, y2, outfile, hext=0):
-      """ 
-      Description: Given the x and y coordinates of 
-      the lower left corner and the upper right corner, creates a new 
-      fits file that is a cutout of the original image.
-
-      Inputs:
-        x1:      x coordinate of the lower left corner of desired region
-        x2:      x coordinate of the upper right corner of desired region
-        y1:      y coordinate of the lower left corner of desired region
-        y2:      y coordinate of the upper right corner of desired region
-        outfile: file name of output image
-        hext:    HDU containing the image data in the input image (default=0)
-      """
-
-      """ Get info about input image """
-      inhdr = self.hdu[hext].header.copy()
-      xmax = inhdr["NAXIS1"]
-      ymax = inhdr["NAXIS2"]
-      print ""
-      print "imcopy: Input image %s has dimensions %d x %d" % \
-          (self.infile,xmax,ymax)
-
-      """Check to make sure that requested corners are inside the image"""
-
-      """ Make sure that everything is in integer format """
-      x1 = int(x1)
-      y1 = int(y1)
-      x2 = int(x2)
-      y2 = int(y2)
-
-      """ 
-      Cut the file, and then update the CRPIXn header cards if they're there 
-      """
-      print "imcopy: Cutting out region between (%d,%d) and (%d,%d)" % \
-          (x1,y1,x2,y2)
-      outdat = self.hdu[hext].data[y1:y2,x1:x2].copy()
-      inhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]' % \
-                      (self.infile,x1,x2,y1,y2))
-      print ""
-      print "Updating CRPIXn header cards if they exist"
-      print "------------------------------------------"
-      try:
-         crpix1 = inhdr['crpix1']
-      except:
-         print "   No CRPIX1 header found"
-         crpix1 = n.nan
-      try:
-         crpix2 = inhdr['crpix2']
-      except:
-         print "   No CRPIX2 header found"
-         crpix2 = n.nan
-      if n.isnan(crpix1)==False:
-         inhdr['crpix1'] -= x1
-         print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
-      if n.isnan(crpix2)==False:
-         inhdr['crpix2'] -= y1
-         print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
-      
-
-      """ Write to output file and clean up """
-      outhdu = pf.PrimaryHDU(data=outdat,header=inhdr)
-      outhdu.verify('fix')
-      print "imcopy: Writing to output file %s" % outfile
-      outhdu.writeto(outfile,clobber=True)
-      del outdat
-
-   #-----------------------------------------------------------------------
-
-   def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
-               sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
-               subimcent=None, subimsize=None, subimunits='pixels', 
-               dispunits='pixels'):
-      # NB: Need to add extent parameter for call to imshow
-      """
-      
-      """
-      print ""
-      print "Input file:  %s" % self.infile
-
-      """ Read in relevant data """
-      if subimdef == 'radec':
-         if subimcent == None:
-            ra = None
-            dec = None
-         else:
-            ra = subimcent[0]
-            dec = subimcent[1]
-         if subimsize == None:
-            xsize = None
-            ysize = None
-         else:
-            xsize = subimsize[0]
-            ysize = subimsize[1]
-         self.def_subim_radec(ra,dec,xsize,ysize,hext=hext)
-      else:
-         self.get_subim_bounds(hext,subimsize,subimcent)
-         self.def_subim_xy(hext)
-         #data = self.hdu[hext].data[self.suby1:self.suby2,
-         #                              self.subx1:self.subx2].copy()
-         print "Display image center (x,y): (%d, %d)" % \
-             (self.subcentx,self.subcenty)
-      print "Displayed image size (x y): %dx%d" % \
-          (self.subsizex,self.subsizey)
-      print ''
-
-      """ 
-      Take the absolute range to display, if requested, otherwise clip the 
-      data and set display limits from the clipped values 
-      """
-      if absrange is not None:
-         print "Taking requested absolute display limits"
-         print "----------------------------------------"
-         vmin = absrange[0]
-         vmax = absrange[1]
-         print "  vmin (absolute): %f" % vmin
-         print "  vmax (absolute): %f" % vmax
-      else:
-         if self.found_rms == False:
-            print "Calculating display limits"
-            print "--------------------------"
-            self.mean_clip,self.rms_clip = ccd.sigma_clip(self.subim,
-                                                          verbose=True)
-            self.found_rms = True
-         vmin = self.mean_clip - siglow*self.rms_clip
-         vmax = self.mean_clip + sighigh*self.rms_clip
-         print " Clipped mean: %f" % self.mean_clip
-         print " Clipped rms:  %f" % self.rms_clip
-         print " vmin (mean - %2d sigma):  %f" % (siglow,vmin)
-         print " vmax (mean + %2d sigma):  %f" % (sighigh,vmax)
-
-      """ Set the color map """
-      if cmap == 'gray':
-         cmap = plt.cm.gray
-      elif cmap == 'heat' or cmap == 'hot':
-         cmap = plt.cm.hot
-      elif cmap == 'Yl_Or_Br' or cmap == 'gaia':
-         cmap = plt.cm.YlOrBr_r
-      elif cmap == 'jet':
-         cmap = plt.cm.jet
-      else:
-         print ' WARNING - Requested unknown color map.  Using gaia colors'
-         cmap = plt.cm.YlOrBr_r
-
-      """ """
-      plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
-                 interpolation='nearest')
-      if title is not None:
-         plt.title(title)
-      #del data
-
-   #-----------------------------------------------------------------------
