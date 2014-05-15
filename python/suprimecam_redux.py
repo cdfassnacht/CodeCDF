@@ -186,10 +186,11 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
     fscal = n.zeros(len(tmplist))
     x1 = n.zeros(len(tmplist))
     y1 = n.zeros(len(tmplist))
+    rmssky = n.zeros(len(tmplist))
 
     print ''
-    print ' Input file                  gain  <bkgd>   fscal  <rms_sky>'
-    print '---------------------------- ---- -------- ------- ---------'
+    print ' Input file                  gain  <bkgd>   fscal  rms_sky rms_scal'
+    print '---------------------------- ---- -------- ------- ------- --------'
     for i in range(len(tmplist)):
 
         """ Load the header information """
@@ -212,21 +213,25 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
             return
 
         """ Set the relevant values """
-        x1[i]    = hdr['comin1'] - 1
-        y1[i]    = hdr['comin2'] - 1
-        bkgd[i]  = hdr['backmean']
-        fscal[i] = hdr['flxscale']
-        gain[i]  = orighdr['gain']
+        x1[i]     = hdr['comin1'] - 1
+        y1[i]     = hdr['comin2'] - 1
+        bkgd[i]   = hdr['backmean']
+        fscal[i]  = hdr['flxscale']
+        gain[i]   = orighdr['gain']
+        rmssky[i] = sqrt(bkgd[i] / gain[i])
 
         """ Print out the relevant information and clean up """
-        print '%-28s %4.2f %8.2f %7.5f' \
-            % (f[:-5],gain[i],bkgd[i],fscal[i])
+        print '%-28s %4.2f %8.2f %7.5f %7.3f %8.3f' \
+            % (f[:-5],gain[i],bkgd[i],fscal[i],rmssky[i],rmssky[i]*fscal[i])
         del hdr,orighdr
 
     gainmean = gain.mean()
-    print '------------------------------------------------------------'
-    print 'Mean values (%3d files) %9.2f %8.2f %7.5f' % \
-        (len(tmplist),gainmean,bkgd.mean(),fscal.mean())
+    print '-------------------------------------------------------------------'
+    print '  Mean values                gain  <bkgd>   fscal  rms_sky rms_scal'
+    print '---------------------------- ---- -------- ------- ------- --------'
+    print ' %3d input files             %4.2f %8.2f %7.5f %7.3f %8.3f' % \
+        (len(tmplist),gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(),
+         rmssky.mean()*fscal.mean())
     return
 
     """ Loop through the input files """
