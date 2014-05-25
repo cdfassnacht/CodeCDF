@@ -227,10 +227,11 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
 
     gainmean = gain.mean()
     print '-------------------------------------------------------------------'
-    print '  Mean values                gain  <bkgd>   fscal  rms_sky rms_scal'
+    print ' %3d input files             gain  <bkgd>   fscal  rms_sky rms_scal'\
+        % (len(tmplist))
     print '---------------------------- ---- -------- ------- ------- --------'
-    print ' %3d input files             %4.2f %8.2f %7.5f %7.3f %8.3f' % \
-        (len(tmplist),gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(),
+    print '    Mean values              %4.2f %8.2f %7.5f %7.3f %8.3f' % \
+        (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(),
          rmssky.mean()*fscal.mean())
     return
 
