@@ -235,6 +235,8 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(), \
              rmssky.mean()*fscal.mean())
 
+    """ Open up the median file and its associated weight image"""
+
     """ Loop through the input files """
     epsil = 1.e-20
     print ''
@@ -248,23 +250,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
         """ Load input resamp.fits file """
         try:
-            indat = pf.getdata(f)
+            indat,hdr = pf.getdata(f,header=True)
         except:
             print ""
             print "ERROR: Could not open %s" % f
             print ""
             return
-        hdr = pf.getheader(f)
 
         """ Load the associated weight file data """
         try:
-            inwht = pf.getdata(inwhtfile)
+            inwht,whthdr = pf.getdata(inwhtfile,header=True)
         except:
             print ""
             print "ERROR: Could not open %s" % inwhtfile
             print ""
             return
-        whthdr = pf.getheader(inwhtfile)
 
 
         """ Set up the relevant region to be examined """
