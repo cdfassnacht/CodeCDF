@@ -126,7 +126,8 @@ def make_wht_for_swarp(infiles, mingood=-100, outext='_wht'):
 
 #---------------------------------------------------------------------------
 
-def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False, 
+def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
+                       outwht_suff='_wht.fits', flag_posonly=False, 
                        medwhtfile='default'):
     """
     Creates a weight file for each input image to a final swarp call.
@@ -231,38 +232,39 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         % (len(tmplist))
     print '---------------------------- ---- -------- ------- ------- --------'
     print '    Mean values              %4.2f %8.2f %7.5f %7.3f %8.3f' % \
-        (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(),
-         rmssky.mean()*fscal.mean())
-    return
+        (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(), \
+             rmssky.mean()*fscal.mean())
 
     """ Loop through the input files """
     epsil = 1.e-20
+    print ''
+    print 'Updating weight files, using diff > %d sigma' % nsig
+    print '--------------------------------------------------------------------'
     for i in range(len(tmplist)):
         """ Set up file names """
         f = tmplist[i]
-        whtfile = f.replace('fits','weight.fits')
+        inwhtfile = f.replace('.fits',inwht_suff)
+        outwhtfile = f.replace('.fits',outwht_suff)
 
         """ Load input resamp.fits file """
         try:
-            infits = pf.open(f)
+            indat = pf.getdata(f)
         except:
             print ""
             print "ERROR: Could not open %s" % f
             print ""
             return
-        indat = infits[0].data
-        hdr = infits[0].header
+        hdr = pf.getheader(f)
 
-        """ Load the associated weight file data, which will get updated """
+        """ Load the associated weight file data """
         try:
-            whtfits = pf.open(whtfile,mode='update')
+            inwht = pf.getdata(inwhtfile)
         except:
             print ""
-            print "ERROR: Could not open %s" % whtfile
+            print "ERROR: Could not open %s" % inwhtfile
             print ""
-            infits.close()
             return
-        inwht = whtfits[0].data
+        whthdr = pf.getheader(inwhtfile)
 
 
         """ Set up the relevant region to be examined """
@@ -278,7 +280,7 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         diff = n.zeros(indat.shape)
         whtmask = inwht>0
         diff[whtmask] = indat[whtmask] * fscal[i] - meddat[whtmask]
-        del meddat,whtmask
+        del whtmask
 
         """ 
         Get an estimate of the RMS noise in the data.  Since we are creating
@@ -304,14 +306,16 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         medvar = n.zeros(indat.shape)
         medmask = (inwht>0) & (n.absolute(medwht>epsil))
         medvar[medmask] = 1. / medwht[medmask]
-        del medmask,medwht
+        del medmask
+        medmask = meddat > n.sqrt(medvar)
+        medvar[medmask] += meddat[medmask] / gainmean
+        del medmask,medwht,meddat
 
         indvar = n.zeros(indat.shape)
         mask = (inwht>0) & ((indat + bkgd[i]) > 0.)
         indvar[mask] = fscal[i]**2 * (indat[mask]+bkgd[i])/gain[i]
         rms = n.sqrt(medvar + indvar)
         del medvar,indvar,mask,indat
-        infits.close()
 
         """ 
         Flag pixels that deviate by more than nsig sigma from the 
@@ -341,12 +345,12 @@ def make_wht_for_final(infiles, medfile, nsig, flag_posonly=False,
         pf.PrimaryHDU(snr,hdr).writeto(snrname,clobber=True)
         del snr
 
-        """ Modify the weight file with the newly-flagged pixels """
+        """ Write out a new weight file with the newly-flagged pixels """
         inwht[blotmask] = 0
-        whtfits.flush()
-        del inwht
+        print '%s -> %s' % (inwhtfile,outwhtfile)
+        pf.PrimaryHDU(inwht,whthdr).writeto(outwhtfile,clobber=True)
 
         """ Close the files for this loop """
-        del diff,blotmask,rms
+        del diff,blotmask,rms,inwht
 
 
