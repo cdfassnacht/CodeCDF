@@ -177,16 +177,12 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         print ""
         return
 
-    """ Set up the weight file associated with the median-stacked image """
-    if medwhtfile == 'default':
-        medwhtfile = medfile.replace('.fits','_wht.fits')
-
     """ First loop through the input files to get information """
     gain = n.zeros(len(tmplist))
     bkgd = n.zeros(len(tmplist))
     fscal = n.zeros(len(tmplist))
-    x1 = n.zeros(len(tmplist))
-    y1 = n.zeros(len(tmplist))
+    x1 = n.zeros(len(tmplist),dtype=int)
+    y1 = n.zeros(len(tmplist),dtype=int)
     rmssky = n.zeros(len(tmplist))
 
     print ''
@@ -214,8 +210,8 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
             return
 
         """ Set the relevant values """
-        x1[i]     = hdr['comin1'] - 1
-        y1[i]     = hdr['comin2'] - 1
+        x1[i]     = int(hdr['comin1'] - 1)
+        y1[i]     = int(hdr['comin2'] - 1)
         bkgd[i]   = hdr['backmean']
         fscal[i]  = hdr['flxscale']
         gain[i]   = orighdr['gain']
@@ -235,7 +231,13 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(), \
              rmssky.mean()*fscal.mean())
 
+    """ Set up the weight file associated with the median-stacked image """
+    if medwhtfile == 'default':
+        medwhtfile = medfile.replace('.fits','_wht.fits')
+
     """ Open up the median file and its associated weight image"""
+    medall = pf.getdata(medfile)
+    medwhtall = pf.getdata(medwhtfile)
 
     """ Loop through the input files """
     epsil = 1.e-20
@@ -249,6 +251,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         outwhtfile = f.replace('.fits',outwht_suff)
 
         """ Load input resamp.fits file """
+        print 'Loading individual exposure: %s' % f
         try:
             indat,hdr = pf.getdata(f,header=True)
         except:
@@ -268,15 +271,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
 
         """ Set up the relevant region to be examined """
-        x2 = x1[i] + indat.shape[1]
-        y2 = y1[i] + indat.shape[0]
+        x2 = int(x1[i] + indat.shape[1])
+        y2 = int(y1[i] + indat.shape[0])
 
         """ 
         Make the cutout of the median-stack image and then take the 
         difference between this file and the scaled input individual file
         """
-        meddat = (pf.getdata(medfile))[y1[i]:y2,x1[i]:x2]
-        medwht = (pf.getdata(medwhtfile))[y1[i]:y2,x1[i]:x2]
+        #meddat = (pf.getdata(medfile))[y1[i]:y2,x1[i]:x2]
+        #medwht = (pf.getdata(medwhtfile))[y1[i]:y2,x1[i]:x2]
+        #meddat = medhdu[0].section[y1[i]:y2,x1[i]:x2]
+        #medwht = medwhthdu[0].section[y1[i]:y2,x1[i]:x2]
+        print 'Selecting data from full stacked median file'
+        meddat = medall[y1[i]:y2,x1[i]:x2]
+        medwht = medwhtall[y1[i]:y2,x1[i]:x2]
+        print 'Calculating difference image'
         diff = n.zeros(indat.shape)
         whtmask = inwht>0
         diff[whtmask] = indat[whtmask] * fscal[i] - meddat[whtmask]
@@ -303,17 +312,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
                 expects any input weight file to not include the Poisson noise.
 
         """
+        print 'Masking and then calculating variance from stacked median'
         medvar = n.zeros(indat.shape)
         medmask = (inwht>0) & (n.absolute(medwht>epsil))
         medvar[medmask] = 1. / medwht[medmask]
         del medmask
+        print 'Masking and then adding Poisson noise from stacked median'
         medmask = meddat > n.sqrt(medvar)
         medvar[medmask] += meddat[medmask] / gainmean
-        del medmask,medwht,meddat
-
+        del medmask
+        #del medwht,meddat
+        print 'Masking and then calculating variance in individual image'
         indvar = n.zeros(indat.shape)
         mask = (inwht>0) & ((indat + bkgd[i]) > 0.)
         indvar[mask] = fscal[i]**2 * (indat[mask]+bkgd[i])/gain[i]
+        print 'Calculating combined rms'
         rms = n.sqrt(medvar + indvar)
         del medvar,indvar,mask,indat
 
@@ -321,6 +334,8 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         Flag pixels that deviate by more than nsig sigma from the 
         median-stacked image
         """
+        print 'Flagging pixels that differ by more than %d sigma from median'\
+            % nsig
         if flag_posonly:
             blotmask = diff > nsig*rms
         else:
@@ -338,12 +353,12 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         #rmsname = f.replace('.fits','_rms.fits')
         #pf.PrimaryHDU(rms,hdr).writeto(rmsname,clobber=True)
 
-        snr = n.zeros(diff.shape)
-        rmsmask = rms>0
-        snr[rmsmask] = diff[rmsmask] / rms[rmsmask]
-        snrname = f.replace('.fits','_snr.fits')
-        pf.PrimaryHDU(snr,hdr).writeto(snrname,clobber=True)
-        del snr
+        #snr = n.zeros(diff.shape)
+        #rmsmask = rms>0
+        #snr[rmsmask] = diff[rmsmask] / rms[rmsmask]
+        #snrname = f.replace('.fits','_snr.fits')
+        #pf.PrimaryHDU(snr,hdr).writeto(snrname,clobber=True)
+        #del snr
 
         """ Write out a new weight file with the newly-flagged pixels """
         inwht[blotmask] = 0
@@ -352,5 +367,10 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
         """ Close the files for this loop """
         del diff,blotmask,rms,inwht
+
+    """ Clean up """
+    #medhdu.close()
+    #medwhthdu.close()
+    del medall,medwhtall
 
 
