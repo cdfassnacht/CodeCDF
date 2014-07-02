@@ -364,6 +364,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         inwht[blotmask] = 0
         print '%s -> %s' % (inwhtfile,outwhtfile)
         pf.PrimaryHDU(inwht,whthdr).writeto(outwhtfile,clobber=True)
+        print ''
 
         """ Close the files for this loop """
         del diff,blotmask,rms,inwht
