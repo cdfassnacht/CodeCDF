@@ -241,6 +241,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
     """ Loop through the input files """
     epsil = 1.e-20
+    count = 1
     print ''
     print 'Updating weight files, using diff > %d sigma' % nsig
     print '--------------------------------------------------------------------'
@@ -251,6 +252,8 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         outwhtfile = f.replace('.fits',outwht_suff)
 
         """ Load input resamp.fits file """
+        print '%s -- File %d of %d' % (f[:-5],count,len(tmplist))
+        print '-----------------------------------------'
         print 'Loading individual exposure: %s' % f
         try:
             indat,hdr = pf.getdata(f,header=True)
@@ -364,6 +367,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         inwht[blotmask] = 0
         print '%s -> %s' % (inwhtfile,outwhtfile)
         pf.PrimaryHDU(inwht,whthdr).writeto(outwhtfile,clobber=True)
+        count += 1
         print ''
 
         """ Close the files for this loop """
