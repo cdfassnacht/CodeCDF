@@ -361,7 +361,7 @@ def median_combine(input_files,output_file,x1=0,x2=0,y1=0,y2=0,
 
 #-----------------------------------------------------------------------
 
-def apply_rough_wcs(hdu, pixscale, phdu=None):
+def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
    """
    Takes the RA and Dec pointing info from the fits header, along with
    a pixel scale, and converts that information into the standard WCS
@@ -396,21 +396,22 @@ def apply_rough_wcs(hdu, pixscale, phdu=None):
       """
       wcsread = True
       try:
-         ra  = wcs.ra2deg(hdu.header['RA'].strip())
+         ra  = wcs.ra2deg(hdu.header[rakey].strip())
       except:
          try:
-            ra  = wcs.ra2deg(phdu.header['RA'].strip())
+            ra  = wcs.ra2deg(phdu.header[rakey].strip())
          except:
-            print 'ERROR. Attempts to read RA header card failed.'
+            print 'ERROR. Attempts to read RA header card (%s) failed.' % \
+                rakey.upper()
             print 'No wcs information'
             wcsread = False
       try:
-         dec = wcs.dec2deg(hdu.header['DEC'].strip())
+         dec = wcs.dec2deg(hdu.header[deckey].strip())
       except:
          try:
-            dec = wcs.dec2deg(phdu.header['DEC'].strip())
+            dec = wcs.dec2deg(phdu.header[deckey].strip())
          except:
-            print 'ERROR. Attempts to read RA header card failed.'
+            print 'ERROR. Attempts to read Dec header card failed.'
             print 'No wcs information'
             wcsread = False
 
@@ -668,7 +669,8 @@ def make_fringe_files(fringe_frames, in_prefix, indir=None,
 
 def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None, 
                  darksky=None, gain=-1.0, texp_key=None, skysub=False,
-                 flip=0, pixscale=0.0, x1=0, x2=0, y1=0, y2=0):
+                 flip=0, pixscale=0.0, rakey='ra', deckey='dec',
+                 x1=0, x2=0, y1=0, y2=0):
 
    """ This function applies calibration corrections to the passed HDU.  All
         of the calbration steps are by default turned off (keywords set to None).
@@ -691,6 +693,10 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
                       3 => flip x-axis
           pixscale    If >0, apply a rough WCS using this pixel scale (RA and
                        Dec come from telescope pointing info in fits header)
+          rakey       FITS header keyword for RA of telescope pointing.
+                      Default = 'ra'
+          deckey      FITS header keyword for Dec of telescope pointing.
+                      Default = 'dec'
       
        Required inputs:
         in_frames   - list of input file names
@@ -863,18 +869,19 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
    # Add a very rough WCS if requested
    if pixscale > 0.0:
       if hdunum>0:
-         apply_rough_wcs(tmp,pixscale,hdulist[0])
+         apply_rough_wcs(tmp,pixscale,rakey,deckey,hdulist[0])
       else:
-         apply_rough_wcs(tmp,pixscale)
+         apply_rough_wcs(tmp,pixscale,rakey,deckey)
 
 #   return hdu
 
 #-----------------------------------------------------------------------
 
 def apply_calib(in_frames, in_prefix, out_prefix, split=False,
-        biasfile=None, flatfile=None, fringefile=None, darkskyfile=None,
-        skysub=False, gain=-1.0, texp_key=None, flip=0, pixscale=0.0,
-        rawdir="../Raw", rawext='fits', x1=0, x2=0, y1=0, y2=0):
+                biasfile=None, flatfile=None, fringefile=None, darkskyfile=None,
+                skysub=False, gain=-1.0, texp_key=None, 
+                flip=0, pixscale=0.0, rakey='ra', deckey='dec',
+                rawdir="../Raw", rawext='fits', x1=0, x2=0, y1=0, y2=0):
    """ This function applies calibration corrections to the input files,
         which are designated by an array of frame numbers.  All of the
         calbration steps are by default turned off (keywords set to None).
@@ -897,6 +904,10 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
                       3 => flip x-axis
           pixscale    If >0, apply a rough WCS using this pixel scale (RA and
                        Dec come from telescope pointing info in fits header)
+          rakey       FITS header keyword for RA of telescope pointing.
+                      Default = 'ra'
+          deckey      FITS header keyword for Dec of telescope pointing.
+                      Default = 'dec'
       
        Required inputs:
         in_frames   - list of input file names
@@ -1004,7 +1015,8 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
          # Process the data
          k = j-1
          process_data(hdulist,j,bias,flat,fringe,darksky,gain[k],texp_key,
-                      skysub,flip[k],pixscale,x1[k],x2[k],y1[k],y2[k])
+                      skysub,flip[k],pixscale,rakey,deckey,
+                      x1[k],x2[k],y1[k],y2[k])
 
          # If multiple extensions, append the current extension to the HDU list
          if hdulen>1:
