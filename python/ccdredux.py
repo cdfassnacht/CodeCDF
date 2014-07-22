@@ -445,7 +445,7 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
 
 #-----------------------------------------------------------------------
 
-def make_bias(bias_frames, raw_prefix, rawdir="../Raw", rawext='fits',
+def make_bias(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
       outfile="Bias.fits", x1=0,x2=0,y1=0,y2=0,hdu0only=False):
    """ 
 
@@ -478,7 +478,7 @@ def make_bias(bias_frames, raw_prefix, rawdir="../Raw", rawext='fits',
 
 #-----------------------------------------------------------------------
 
-def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='fits',
+def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
       outfile="Flat.fits", biasfile=None, gain=-1.0, normalize=True,
       x1=0, x2=0, y1=0, y2=0, framesig=0):
    """ 
@@ -492,7 +492,7 @@ def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='fits',
 
        Optional inputs:
         rawdir      - directory with raw files (default="../Raw")
-        rawext      - extension for raw filenames (default = 'fits')
+        rawext      - extension for raw filenames (default = '.fits')
         outfile     - output filename (default="Flat.fits")
         biasfile    - input bias file to subtract before combining. 
                       (default=None)
@@ -516,13 +516,13 @@ def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='fits',
    filenames = []
    for i in flat_frames:
       if framesig == 2:
-         filenames.append('%s/%s%02d.%s'%(rawdir,raw_prefix,i,rawext))
+         filenames.append('%s/%s%02d%s'%(rawdir,raw_prefix,i,rawext))
       elif framesig == 3:
-         filenames.append('%s/%s%03d.%s'%(rawdir,raw_prefix,i,rawext))
+         filenames.append('%s/%s%03d%s'%(rawdir,raw_prefix,i,rawext))
       elif framesig == 4:
-         filenames.append('%s/%s%04d.%s'%(rawdir,raw_prefix,i,rawext))
+         filenames.append('%s/%s%04d%s'%(rawdir,raw_prefix,i,rawext))
       else:
-         filenames.append('%s/%s%d.%s'%(rawdir,raw_prefix,i,rawext))
+         filenames.append('%s/%s%d%s'%(rawdir,raw_prefix,i,rawext))
 
    # Call median_combine
    median_combine(filenames,outfile,biasfile=biasfile,gain=gain,
@@ -881,7 +881,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
                 biasfile=None, flatfile=None, fringefile=None, darkskyfile=None,
                 skysub=False, gain=-1.0, texp_key=None, 
                 flip=0, pixscale=0.0, rakey='ra', deckey='dec',
-                rawdir="../Raw", rawext='fits', x1=0, x2=0, y1=0, y2=0):
+                rawdir="../Raw", rawext='.fits', x1=0, x2=0, y1=0, y2=0):
    """ This function applies calibration corrections to the input files,
         which are designated by an array of frame numbers.  All of the
         calbration steps are by default turned off (keywords set to None).
@@ -916,7 +916,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
        Optional inputs (in addition to those listed above in the keyword list):
         rawdir      - directory with raw files (default="../Raw")
-        rawext      - extension for raw filenames (default = 'fits')
+        rawext      - extension for raw filenames (default = '.fits')
         x1          - to set a trim section that is smaller than the full frame
         x2          - to set a trim section that is smaller than the full frame
         y1          - to set a trim section that is smaller than the full frame
@@ -966,7 +966,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
    write_one_output_file = True
    for i in in_frames:
-      filename = '%s/%s%s.%s'%(rawdir,in_prefix,i,rawext)
+      filename = '%s/%s%s%s'%(rawdir,in_prefix,i,rawext)
       print "%s:" % filename
 
       # Open the input file.  Read in this way in order to be able to handle
