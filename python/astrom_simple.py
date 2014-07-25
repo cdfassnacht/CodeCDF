@@ -10,6 +10,7 @@ Generic functions
 """
 
 import numpy as n
+import pyfits as pf
 import imfuncs as im
 import wcs, coords 
 from ccdredux import sigma_clip
@@ -34,7 +35,7 @@ class Secat:
 
    """
 
-   def __init__(self, infile, verbose=True, namecol=None):
+   def __init__(self, infile, catformat='ascii', verbose=True, namecol=None):
       """
       This method gets called when the user types something like
          secat = Secat(infile)
@@ -44,37 +45,59 @@ class Secat:
       """
 
       """
+      Define a flag for successful reading of input catalog
+      """
+
+      read_success = True
+
+      """
       Start by loading the catalog information
       """
       if verbose:
          print ""
          print "Loading data from catalog file %s" % infile
          print "-----------------------------------------------"
-      try:
-         foo = n.loadtxt(infile,dtype='S30')
-         ncols = foo.shape[1]
-         del foo
-         coltypes = n.ones(ncols,dtype='S3')
-         coltypes[:] = 'f8'
-         if namecol is not None:
-            print "Object name column: %d" % namecol
-            coltypes[namecol] = 'S30'
-         colstr = ''
-         for i in range(ncols):
-            colstr = '%s,%s' % (colstr,coltypes[i])
-         colstr = colstr[1:]
-         dt = n.dtype(colstr)
-         self.data = n.loadtxt(infile,dtype=dt)
-      except:
-         print "  ERROR. Problem in loading file %s" % infile
-         print "  Check to make sure filename matches an existing file."
-         print "  "
-         print "  This may have also failed if there is a string column in"
-         print "   the input catalog (e.g., for an object name).  "
-         print "  If this is the case, use the namecol to indicate which column"
-         print "   contains the string values (column numbers are zero-indexed)"
-         print ""
-         return
+      if catformat=='ascii':
+         try:
+            foo = n.loadtxt(infile,dtype='S30')
+            ncols = foo.shape[1]
+            del foo
+            coltypes = n.ones(ncols,dtype='S3')
+            coltypes[:] = 'f8'
+            if namecol is not None:
+               print "Object name column: %d" % namecol
+               coltypes[namecol] = 'S30'
+            colstr = ''
+            for i in range(ncols):
+               colstr = '%s,%s' % (colstr,coltypes[i])
+            colstr = colstr[1:]
+            dt = n.dtype(colstr)
+            self.data = n.loadtxt(infile,dtype=dt)
+         except:
+            print "  ERROR. Problem in loading file %s" % infile
+            print "  Check to make sure filename matches an existing file."
+            print "  "
+            print "  This may have failed if there is a string column in"
+            print "   the input catalog (e.g., for an object name).  "
+            print "  If this is the case, use the namecol to indicate which "
+            print "   column contains the string values (column numbers are "
+            print "   zero-indexed)"
+            print ""
+            print "  This also may have failed if the input file is in the"
+            print "   SExtractor FITS LDAC format.  Checking that..."
+            print ""
+            read_success = False
+      if catformat.lower()=='ldac' or read_success==False:
+         try:
+            hdu = pf.open(infile)
+         except:
+            print "  ERROR. Problem in loading file %s" % infile
+            print "  Check to make sure filename matches an existing file."
+            print "  "
+            return
+         tdat = hdu[2].data
+         rafield = 'alpha_j2000'
+         decfield = 'delta_j2000'
       if verbose:
          print "Number of columns: %d" % ncols
          print "Number of rows:    %d" % self.data.shape[0]
