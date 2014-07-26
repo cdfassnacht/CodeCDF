@@ -1337,7 +1337,7 @@ def make_sky_model(wavelength, smoothKernel=25., verbose=True):
 
 #-----------------------------------------------------------------------
 
-def apply_wavecal(infile,outfile,lambda0,dlambda):
+def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
    """
    Given an input file containing 2 columns (x and flux), and the y-intercept
    and slope of the x-lambda transformation, convert x to wavelength units
@@ -1345,17 +1345,20 @@ def apply_wavecal(infile,outfile,lambda0,dlambda):
    """
 
    """ Read the input file """
-   xspec = np.loadtxt(infile)
+   x,flux,var = read_spectrum(infile,varspec=varspec)
 
    """ Convert x from pixels to wavelength units """
-   wavelength = lambda0 + dlambda * xspec[:,0]
+   wavelength = lambda0 + dlambda * x
 
-   """ Plot the results """
-   plot_spectrum_array(wavelength,xspec[:,1])
-   plt.title("Wavelength-calibrated spectrum")
+   """ Plot and save the results """
+   if varspec == True:
+      plot_spectrum_array(wavelength,flux,var=var,
+                          title="Wavelength-calibrated spectrum")
+      save_spectrum(outfile,wavelength,flux,var)
+   else:
+      plot_spectrum_array(wavelength,flux,title="Wavelength-calibrated spectrum")
+      save_spectrum(outfile,wavelength,flux)
 
-   """ Save the results """
-   save_spectrum(outfile,wavelength,xspec[:,1])
 
 #-----------------------------------------------------------------------
 
@@ -1803,7 +1806,8 @@ def mark_spec_emission(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,showz=
 
 #-----------------------------------------------------------------------
 
-def mark_spec_absorption(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,showz=True):
+def mark_spec_absorption(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,
+                         showz=True):
    """
    Marks the location of expected absorption lines in a spectrum, given
     a redshift (z).  The default behavior is just to mark the lines with
@@ -1829,7 +1833,7 @@ def mark_spec_absorption(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,show
    linename = [
       "CN bandhead","CaII K","CaII H","H-delta","G-band","H-gamma","Fe4383","Ca4455","Fe4531","H-beta","Mg I (b)","Na I (D)"]
 
-   lineinfo = n.array([\
+   lineinfo = np.array([\
        ("CN bandhead",   3883,       "CN red",1,True),\
        ("CaII K",        3933.667,   "CaII K",1,True),\
        ("CaII H",        3968.472,   "CaII H",1,True),\
