@@ -123,7 +123,7 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
       plt.setp(ax4.get_yticklabels(), visible=False)
 
    """ Clean up """
-   del ra1,dec1,ra2,dec2
+   #del ra1,dec1,ra2,dec2
    del ramatch,decmatch
 
    return indmatch,nmatch,dxmatch,dymatch
@@ -229,37 +229,43 @@ def match_xy(x1, y1, x2, y2, rmatch, dx2=0., dy2=0., doplot=True):
 
 #-----------------------------------------------------------------------
 
-def find_match(catfile1, catfile2, rmatch, racol1, deccol1, racol2, deccol2,
+def find_match(catfile1, catfile2, rmatch, catformat1='ascii', 
+               catformat2='ascii', 
+               racol1=None, deccol1=None, racol2=None, deccol2=None,
                namecol1=None, namecol2=None, dra2=0., ddec2=0., doplot=True):
    """
    The main function to match catalogs contained in two input files.  The
    input files are expected (for now) to have RA and Dec in decimal degrees
    Inputs:
-      catfile1 - file containing the first catalog
-      catfile2 - file containing the second catalog
-      rmatch   - max distance for a valid match
-      racol1   - column containing RA in the first file
-      deccol1  - column containing Dec in the first file
-      racol2   - column containing RA in the second file
-      deccol2  - column containing Dec in the second file
-      dra2     - Offset in ARCSEC to add to ra2 in case of known shifts 
-                 between cats
-      ddec2    - Offset in ARCSEC to add to dec2 in case of known shifts
-                 between cats
+      catfile1    - file containing the first catalog
+      catfile2    - file containing the second catalog
+      rmatch      - max distance for a valid match
+      catformat1  - Format for first catalog file: 'ascii' (default) or 'ldac'
+      catformat2  - Format for second catalog file: 'ascii' (default) or 'ldac'
+      racol1      - column containing RA in the first file
+      deccol1     - column containing Dec in the first file
+      racol2      - column containing RA in the second file
+      deccol2     - column containing Dec in the second file
+      dra2        - Offset in ARCSEC to add to ra2 in case of known shifts 
+                    between cats
+      ddec2       - Offset in ARCSEC to add to dec2 in case of known shifts
+                    between cats
    """
 
    """ Read inputs """
    import astrom_simple as astsimp
    try:
-      cat1 = astsimp.Secat(catfile1,namecol=namecol1)
-      cat1.get_radec(racol1,deccol1)
+      cat1 = astsimp.Secat(catfile1,catformat=catformat1,racol=racol1,
+                           deccol=deccol1,namecol=namecol1)
+      cat1.get_radec()
    except:
       print ""
       print "ERROR: Could not read RA and Dec from %s" % catfile1
       return
    try:
-      cat2 = astsimp.Secat(catfile2,namecol=namecol2)
-      cat2.get_radec(racol2,deccol2)
+      cat2 = astsimp.Secat(catfile2,catformat=catformat2,racol=racol2,
+                           deccol=deccol2,namecol=namecol2)
+      cat2.get_radec()
    except:
       print ""
       print "ERROR: Could not read RA and Dec from %s" % catfile2

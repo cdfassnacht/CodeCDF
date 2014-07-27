@@ -29,13 +29,17 @@ class Secat:
    array, which has the same number of rows as the old 2D float array, but
    which stores each row as a single tuple.  It is thus a 1D array, sort of
    like a structure array in C.  The columns can be accessed by field name,
-   which for now is just 'f0', 'f1', etc.  
+   which for now is just 'f0', 'f1', etc., unless the input catalog is in
+   SExtractor's FITS LDAC format, in which case the field names actually
+   correspond to the SExtractor variable names.
+
    The code used to expect the old 2D float array format.  It should have
    all been updated, but there may still be some issues.
 
    """
 
-   def __init__(self, infile, catformat='ascii', verbose=True, namecol=None):
+   def __init__(self, infile, catformat='ascii', verbose=True, namecol=None,
+                racol=None, deccol=None):
       """
       This method gets called when the user types something like
          secat = Secat(infile)
@@ -57,6 +61,10 @@ class Secat:
          print ""
          print "Loading data from catalog file %s" % infile
          print "-----------------------------------------------"
+         print "Expected catalog format: %s" % catformat
+         print ""
+
+      """ ASCII format """
       if catformat=='ascii':
          try:
             foo = n.loadtxt(infile,dtype='S30')
@@ -73,6 +81,17 @@ class Secat:
             colstr = colstr[1:]
             dt = n.dtype(colstr)
             self.data = n.loadtxt(infile,dtype=dt)
+
+            """ Set the field names """
+            if racol is not None:
+               self.rafield = 'f%d' % racol
+            else:
+               self.rafield = None
+            if deccol is not None:
+               self.decfield = 'f%d' % deccol
+            else:
+               self.decfield = None
+
          except:
             print "  ERROR. Problem in loading file %s" % infile
             print "  Check to make sure filename matches an existing file."
@@ -87,6 +106,8 @@ class Secat:
             print "   SExtractor FITS LDAC format.  Checking that..."
             print ""
             read_success = False
+
+      """ FITS LDAC format """
       if catformat.lower()=='ldac' or read_success==False:
          try:
             hdu = pf.open(infile)
@@ -95,17 +116,21 @@ class Secat:
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
-         tdat = hdu[2].data
-         rafield = 'alpha_j2000'
-         decfield = 'delta_j2000'
+         self.data = hdu[2].data.copy()
+         ncols = hdu[2].header['tfields']
+
+         """ Set the field names """
+         self.rafield = 'alpha_j2000'
+         self.decfield = 'delta_j2000'
+
       if verbose:
-         print "Number of columns: %d" % ncols
          print "Number of rows:    %d" % self.data.shape[0]
+         print "Number of columns: %d" % ncols
       self.infile = infile
 
    #-----------------------------------------------------------------------
 
-   def get_radec(self, racol, deccol):
+   def get_radec(self):
       """
       Extracts the RA and Dec information from the data container.  This
       is not necessary, and some of the data containers may not even have
@@ -113,13 +138,13 @@ class Secat:
       later tasks.
       """
 
-      """ Set the field names """
-      rafield  = 'f%d' % racol
-      decfield = 'f%d' % deccol
-
       """ Extract the information into the new containers """
-      self.ra  = self.data[rafield].copy()
-      self.dec = self.data[decfield].copy()
+      self.ra = None
+      self.dec = None
+      if self.rafield is not None:
+         self.ra  = self.data[self.rafield].copy()
+      if self.decfield is not None:
+         self.dec = self.data[self.decfield].copy()
 
    #-----------------------------------------------------------------------
 
