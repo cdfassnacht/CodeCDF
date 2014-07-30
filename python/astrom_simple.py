@@ -67,6 +67,7 @@ class Secat:
       """ ASCII format """
       if catformat=='ascii':
          try:
+            """ Set up the data format in the catalog """
             foo = n.loadtxt(infile,dtype='S30')
             ncols = foo.shape[1]
             del foo
@@ -80,6 +81,9 @@ class Secat:
                colstr = '%s,%s' % (colstr,coltypes[i])
             colstr = colstr[1:]
             dt = n.dtype(colstr)
+
+            """ Actually read in the data """
+            self.informat = 'ascii'
             self.data = n.loadtxt(infile,dtype=dt)
 
             """ Set the field names """
@@ -116,6 +120,8 @@ class Secat:
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
+
+         self.informat = 'ldac'
          self.data = hdu[2].data.copy()
          ncols = hdu[2].header['tfields']
 
@@ -127,6 +133,62 @@ class Secat:
          print "Number of rows:    %d" % self.data.shape[0]
          print "Number of columns: %d" % ncols
       self.infile = infile
+
+   #-----------------------------------------------------------------------
+
+   def make_reg_file(self, outfile, labcol=None, fluxcol=None, 
+                     fluxerrcol=None, plot_high_snr=False):
+      """
+      Uses the RA and Dec info in the catalog to make a region file that
+      can be used with ds9.
+      """
+
+      """ 
+      Start by putting the RA and Dec info into a somewhat more convenient
+      format
+      """
+
+      self.get_radec()
+      if self.ra is None:
+         print ""
+         print "ERROR: No columns for RA or Dec given."
+         print "Cannot make region file unless those columns are specified."
+         return
+
+      """ 
+      If the flux information is given, then report on high SNR detections
+      """
+
+      ngood = 0
+      if fluxcol is not None and fluxerrcol is not None:
+         if self.informat == 'ldac':
+            snr = self.data[fluxcol] / self.data[fluxerrcol]
+         else:
+            snr = self.data['f%d' %fluxcol] / self.data['f%d' % fluxerrcol]
+         ragood  = self.ra[snr>10.]
+         decgood = self.dec[snr>10.]
+         ntot = self.ra.size
+         ngood = ragood.size
+         print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
+
+      """ Write the output region file """
+      f = open(outfile,'w')
+      f.write('global color=green\n')
+      for i in range(self.ra.size):
+         f.write('fk5;circle(%10.6f,%+10.6f,0.0007)\n'% (self.ra[i],self.dec[i]))
+      if plot_high_snr and ngood>0:
+         f.write('global color=red\n')
+         for i in range(ragood.size):
+            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+                       %(ragood[i],decgood[i]))
+
+      """ Add labels if requested """
+      """ *** Need to add code here *** """
+
+      """ Wrap up """
+      print "Wrote region file %s" % outfile
+      f.close()
+
 
    #-----------------------------------------------------------------------
 
