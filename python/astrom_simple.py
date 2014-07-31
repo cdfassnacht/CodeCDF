@@ -23,7 +23,7 @@ class Secat:
 
    """
 
-   ****** NB: Right now this code may be broken ******
+   ****** NB: Right now this code may be partially broken ******
 
    The __init__ method has been changed to return something like a record
    array, which has the same number of rows as the old 2D float array, but
@@ -162,9 +162,16 @@ class Secat:
       ngood = 0
       if fluxcol is not None and fluxerrcol is not None:
          if self.informat == 'ldac':
-            snr = self.data[fluxcol] / self.data[fluxerrcol]
+            if type(fluxcol) is int:
+               flux = self.data.field(fluxcol)
+               fluxerr = self.data.field(fluxerrcol)
+            else:
+               flux = self.data[fluxcol]
+               fluxerr = self.data[fluxerrcol]
          else:
-            snr = self.data['f%d' %fluxcol] / self.data['f%d' % fluxerrcol]
+            flux = self.data['f%d' %fluxcol]
+            fluxerr = self.data['f%d' % fluxerrcol]
+         snr = flux / fluxerr
          ragood  = self.ra[snr>10.]
          decgood = self.dec[snr>10.]
          ntot = self.ra.size
@@ -183,7 +190,21 @@ class Secat:
                        %(ragood[i],decgood[i]))
 
       """ Add labels if requested """
-      """ *** Need to add code here *** """
+      if labcol is not None:
+         if self.informat == 'ldac':
+            if type(labcol) is int:
+               lab = self.data.field(labcol)
+            else:
+               lab = self.data[labcol]
+         else:
+            lab = self.data['f%d' % labcol]
+         cosdec = n.cos(pi * self.dec / 180.)
+         xx = self.ra + 0.0012 * cosdec
+         yy = self.dec + 0.0012
+         f.write('global color=green\n')
+         for i in range(self.ra.size):
+            f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
+                       (xx[i],yy[i],str(lab[i])))
 
       """ Wrap up """
       print "Wrote region file %s" % outfile
