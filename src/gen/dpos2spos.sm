@@ -1,0 +1,30 @@
+getcent 1	# Gets central position in RA, Dec format
+	# Input 1 is the file containing the central position
+	data $1
+	read {hr 4 min 5 sec 6 deg 7 amin 8 asec 9}
+	define chr (hr[0])
+	define cmin (min[0])
+	define csec (sec[0])
+	define cdeg (deg[0])
+	define camin (amin[0])
+	define casec (asec[0])
+	#
+getoffset 1	# Reads offsets
+	# Input 1 is the filename
+	data $1
+	read {xoff 1 yoff 2}
+	#
+calc	# Calculates new positions
+	#
+	define delta (PI * ($cdeg + ($camin/60.0) + ($casec/3600.0))/ 180.0)
+	set da = -1.0 * xoff / (15.0 * cos($delta))
+	set dd = yoff
+	set newhr = 0.0 * da + $chr
+	set newmin = 0.0 * da + $cmin
+	set newsec = da + $csec
+	set newdeg = 0.0 * da + $cdeg
+	set newamin = 0.0 * da + $camin
+	set newasec = dd + $casec
+	print '%02.0f %02.0f %07.4f +%02.0f %02.0f %06.3f\n' \
+	   {newhr newmin newsec newdeg newamin newasec}
+	#

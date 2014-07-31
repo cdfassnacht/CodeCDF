@@ -1,0 +1,102 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the general programs
+#  makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the general programs directory
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu). 
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: distcalc hms2degs degs2hms abmags2flux cosmocalc catsort catdistcalc catcoords catcomb
+
+add_offsets: add_offsets.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/add_offsets add_offsets.o $(CDFUTIL) -lm $(CCLIB)
+
+distcalc: distcalc.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/distcalc distcalc.o $(CDFUTIL) -lm $(CCLIB)
+
+hms2degs: hms2degs.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/hms2degs hms2degs.o $(CDFUTIL) -lm $(CCLIB)
+
+degs2hms: degs2hms.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/degs2hms degs2hms.o $(CDFUTIL) -lm $(CCLIB)
+
+xy2spos: xy2spos.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/xy2spos xy2spos.o $(CDFUTIL) -lm $(CCLIB)
+
+abmags2flux: abmags2flux.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/abmags2flux abmags2flux.o $(CDFUTIL) -lm $(CCLIB)
+
+randgen: randgen.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/randgen randgen.o $(CDFUTIL) -lm $(CCLIB)
+
+fitline: fitline.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/fitline fitline.o $(CDFUTIL) -lm $(CCLIB)
+
+group_select: group_select.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/group_select group_select.o $(CDFUTIL) -lm $(CCLIB)
+
+cosmocalc: cosmocalc.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/cosmocalc cosmocalc.o $(CDFUTIL) -lm $(CCLIB)
+
+cosmo_multiz: cosmo_multiz.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/cosmo_multiz cosmo_multiz.o $(CDFUTIL) -lm $(CCLIB)
+
+optmags: optmags.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/optmags optmags.o $(CDFUTIL) -lm $(CCLIB)
+
+sel_gscstars: sel_gscstars.o $(CDFUTIL) 
+	$(FC) -o $(BINDIR)/sel_gscstars sel_gscstars.o $(CDFUTIL) -lm $(CCLIB)
+
+exptime_spec: exptime_spec.o 
+	$(FC) -o $(BINDIR)/exptime_spec exptime_spec.o -lm $(CCLIB)
+
+specindx: specindx.o
+	$(CC) -o $(BINDIR)/specindx specindx.c -lm
+
+matchcat: matchcat.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/matchcat matchcat.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+catsort: catsort.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/catsort catsort.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+sext2reg: sext2reg.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/sext2reg sext2reg.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+catcomb: catcomb.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/catcomb catcomb.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+catdistcalc: catdistcalc.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/catdistcalc catdistcalc.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+catcoords: catcoords.o $(CDFUTIL)
+	$(FC) -o $(BINDIR)/catcoords catcoords.o -L$(LIBDIR) $(CDFUTIL) -lm $(CCLIB)
+
+clean:
+	rm *.o
+
+

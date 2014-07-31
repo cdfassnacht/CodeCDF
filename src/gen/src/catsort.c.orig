@@ -1,0 +1,206 @@
+/*
+ * catsort.c
+ *
+ * Usage: catsort [input_filename] [output_filename] [calcmethod] ([format])
+ *
+ * This program sorts a SExtractor catalog in terms of increasing distance
+ *  from the lens system.
+ * The calcmethod parameter sets whether offsets are calculated based
+ *  on (x,y) coordinates (calcmethod=xy) or (RA,Dec) coordinates
+ *  (calcmethod=radec). 
+ * The input catalog is probably produced by the run_sext_*.sh scripts.
+ *
+ * 29Jul03 CDF
+ * v13Aug03 CDF, Added purge_cat call to eliminate catalog members with
+ *                SExtractor fit flag values > MASTERLIM
+ *
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include "structdef.h"
+#include "dataio.h"
+#include "catlib.h"
+
+
+/*.......................................................................
+ *
+ * Main program
+ *
+ */
+
+int main(int argc, char *argv[])
+{
+  int i;                   /* Looping variable */
+  int no_error=1;          /* Flag set to 0 on error */
+  int ninit;               /* Number of lines in the input catalog */
+  int ncat;                /* Number of lines in the final catalog */
+  int format;              /* Format of input/output files */
+  int lensindex;           /* Catalog index of closest match to lens pos */
+  char catfile[MAXC];      /* Filename for input catalog */
+  char outfile[MAXC];      /* Filename for input catalog */
+  char calcmethod[MAXC];   /* Sets method of calculating offsets */
+  Pos *offsets=NULL;       /* Array to hold offsets */
+  Pos *pptr;               /* Pointer to navigate offsets */
+  Skypos centpos;          /* Central position for distance calculations */
+  Skypos *skypos=NULL;     /* Array of sky positions */
+  Skypos *skptr;           /* Pointer to navigate skypos */
+  Secat *initcat=NULL;     /* Data array from input catalog */
+  Secat *secat=NULL;       /* Data array from catalog, after purging */
+  Secat *sptr;             /* Pointer to navigate secat */
+
+  /*
+   * Check the command line invocation
+   */
+
+  if(argc < 4) {
+    fprintf(stderr,"\nUsage: catsort [infile] [outfile] [calcmethod] ");
+    fprintf(stderr,"([format])\n\n");
+    fprintf(stderr,"  calcmethod sets the method for calculating the offsets.");
+    fprintf(stderr,"\n");
+    fprintf(stderr,"    For calcmethod = xy distances are based on");
+    fprintf(stderr," (x,y) coordinates.\n");
+    fprintf(stderr,"    For calcmethod = radec distances are based on");
+    fprintf(stderr," (RA,Dec) coordinates.\n");
+    return 1;
+  }
+  printf("\n");
+
+  /*
+   * Get the inputs from the command line.
+   */
+
+  strcpy(catfile,argv[1]);
+  strcpy(outfile,argv[2]);
+  strcpy(calcmethod,argv[3]);
+  if(argc == 5) {
+    if(sscanf(argv[4],"%d",&format) != 1)
+      no_error = 0;
+  }
+  else
+    format = 2;
+
+  /*
+   * Fill the data structure
+   */
+
+  if(no_error)
+    if(!(initcat = read_secat(catfile,'#',&ninit,format)))
+      no_error = 0;
+
+  /*
+   * Purge input catalog of entries with SExtractor flags greater than 
+   *  MASTERLIM to create the final catalog.
+   */
+
+  if(no_error)
+    if(!(secat = purge_cat(initcat,ninit,catfile,&ncat,MASTERLIM)))
+      no_error = 0;
+
+  /*
+   * Find lens system in catalog and calculate distances (x,y) from it.
+   */
+
+  if(no_error) {
+    if(find_lens(secat,ncat,&lensindex))
+      no_error = 0;
+    else {
+      printf("lensindex = %d, pos = %7.2f %7.2f\n",lensindex,
+	     (secat+lensindex)->x,(secat+lensindex)->y);
+    }
+  }
+
+  /*
+   * Calculate (RA,Dec) offsets if calcmethod == radec
+   */
+
+  if(strcmp(calcmethod,"radec") == 0 && no_error) {
+
+    /*
+     * Allocate memory for the skypos array
+     */
+
+    if(!(skypos = new_skypos(ncat)))
+      no_error = 0;
+
+    /*
+     * Load the skypos values into the skypos array
+     */
+
+    else {
+      for(i=0,sptr=secat,skptr=skypos; i<ncat; i++,sptr++,skptr++) {
+	*skptr = sptr->skypos;
+	sprintf(skptr->label,"%04d",sptr->id);
+      }
+
+    /*
+     * Calculate the offsets
+     */
+
+      if(!(offsets = dspos2xy((secat+lensindex)->skypos,skypos,ncat)))
+	no_error = 0;
+    }
+
+    /*
+     * Put the offsets into the catalog structure
+     */
+
+    if(no_error) {
+      for(i=0,sptr=secat,pptr=offsets; i<ncat; i++,sptr++,pptr++) {
+	sptr->dx = pptr->x;
+	sptr->dy = pptr->y;
+	sptr->dpos = sqrt(pptr->x * pptr->x + pptr->y * pptr->y);
+      }
+    }
+  }
+
+  /*
+   * Sort the catalog in order of
+   *  increasing distance from the lens.
+   */
+
+  if(no_error) {
+    printf("\nSorting the catalog in order of increasing distance ");
+    printf("from lens...");
+    qsort(secat,ncat,sizeof(secat[0]),dposcmp);
+    printf(" Done.\n");
+  }
+
+  /*
+   * Renumber the sources
+   */
+
+  if(no_error) {
+    for(i=0,sptr=secat; i<ncat; i++,sptr++)
+      sptr->id = i + 1;
+  }
+
+  /*
+   * Write output file
+   */
+
+  if(no_error)
+     if(write_secat(secat,ncat,outfile,format))
+       no_error = 0;
+
+  /*
+   * Clean up and exit
+   */
+
+  initcat = del_secat(initcat);
+  secat = del_secat(secat);
+  skypos = del_skypos(skypos);
+  offsets = del_pos(offsets);
+
+  if(no_error) {
+    printf("\nProgram catsort finished.\n\n");
+    return 0;
+  }
+  else {
+    fprintf(stderr,"\nERROR.  Exiting catsort.\n\n");
+    return 1;
+  }
+}
+
