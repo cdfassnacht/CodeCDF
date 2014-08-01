@@ -276,8 +276,11 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
    
    """ Do the matching """
    cat1.indmatch,cat1.nmatch,cat1.matchdx,cat1.matchdy = \
-       match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec,
+       match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec, \
                     rmatch,dra2,ddec2,doplot)
+
+   cat1.mask = cat1.indmatch>-1
+   cat2.mask = cat1.indmatch[cat1.mask]
    
    return cat1,cat2
 
