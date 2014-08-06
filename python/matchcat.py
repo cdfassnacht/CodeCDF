@@ -253,18 +253,18 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
    """
 
    """ Read inputs """
-   import astrom_simple as astsimp
+   import catfuncs
    try:
-      cat1 = astsimp.Secat(catfile1,catformat=catformat1,racol=racol1,
-                           deccol=deccol1,namecol=namecol1)
+      cat1 = catfuncs.Secat(catfile1,catformat=catformat1,racol=racol1,
+                            deccol=deccol1,namecol=namecol1)
       cat1.get_radec()
    except:
       print ""
       print "ERROR: Could not read RA and Dec from %s" % catfile1
       return
    try:
-      cat2 = astsimp.Secat(catfile2,catformat=catformat2,racol=racol2,
-                           deccol=deccol2,namecol=namecol2)
+      cat2 = catfuncs.Secat(catfile2,catformat=catformat2,racol=racol2,
+                            deccol=deccol2,namecol=namecol2)
       cat2.get_radec()
    except:
       print ""
@@ -286,6 +286,43 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
 
 #--------------------------------------------------------------------------
 
+def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
+              coloraxis='y', doplot=True):
+   """
+   Given catalogs that have been matched by the find_match function,
+   calculate the colors for the matched object
+
+   Inputs:
+      cat1      - a Secat catalog produced by find_match 
+      cat2      - a Secat catalog produced by find_match 
+      magcol1   - string describing the column containing the magnitude in
+                  the first catalog
+      magcol1   - string describing the column containing the magnitude in
+                  the first catalog
+      lab1      - label for the first magnitude, e.g. 'B'.  Default='mag1'
+      lab2      - label for the first magnitude, e.g. 'V'.  Default='mag2'
+      coloraxis - axis on which to plot the color. 
+                  Set this to 'x' for a HR diagram.   Default='y'
+      doplot    - set to True to make a plot.  Default=True
+   """
+
+   """ Compute the color """
+   mag2 = cat2.data[cat2.mask][magcol2]
+   magdiff = cat1.data[cat1.mask][magcol1] - mag2
+
+   """ Plot the results if desired """
+   if doplot:
+      if coloraxis == 'x':
+         plt.plot(magdiff,mag2,'bo')
+         plt.xlabel('%s - %s (mag)' % (lab1,lab2))
+         plt.ylabel('%s (mag)' % lab2)
+      else:
+         plt.plot(mag2,magdiff,'bo')
+         plt.xlabel('%s (mag)' % lab2)
+         plt.ylabel('%s - %s (mag)' % (lab1,lab2))
+
+#--------------------------------------------------------------------------
+
 def write_matchcat(cat1,cat2,outfile,rmatch,c1fluxcol,c2fluxcol):
    """
    Writes an output file in the format of the file produced by catcomb.c.
@@ -300,21 +337,17 @@ def write_matchcat(cat1,cat2,outfile,rmatch,c1fluxcol,c2fluxcol):
                 into the output file.
    """
 
-   """ Get the mask for the matches """
-   mask = cat1.indmatch>-1
-
    """ Get info on the matched objects """
    c1d  = cat1.data
    c1id = n.arange(1,c1d.size+1)
    c1mi = cat1.indmatch.copy()
-   indm = cat1.indmatch[mask]
    ra1  = cat1.ra
-   dec1 = cat1.dec[mask]
-   ct1  = (n.arange(1,cat1.data.size+1))[mask]
-   c1m  = cat1.data[mask]
-   c2m  = cat2.data[indm]
-   dx   = cat1.matchdx[mask]
-   dy   = cat1.matchdy[mask]
+   dec1 = cat1.dec[cat1.mask]
+   ct1  = (n.arange(1,cat1.data.size+1))[cat1.mask]
+   c1m  = cat1.data[cat1.mask]
+   c2m  = cat2.data[cat2.mask]
+   dx   = cat1.matchdx[cat1.mask]
+   dy   = cat1.matchdy[cat1.mask]
    dpos = n.sqrt(dx**2 + dy**2)
 
    """ Write match info to output file """

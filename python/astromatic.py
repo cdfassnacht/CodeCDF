@@ -27,46 +27,48 @@ Instrument-specific functions
 import os
 import numpy as n
 import pyfits as pf
+import catfuncs
 
 #-----------------------------------------------------------------------
-
-def make_reg_file(infile, outfile, informat='ascii', racol=1, deccol=2, 
-                  fluxcol=17,fluxerrcol=18, plot_high_snr=False):
-
-   if informat == 'ldac':
-      hdulist=pf.open(infile)
-      tbdata = hdulist[2].data
-      ra      = tbdata.field(racol)
-      dec     = tbdata.field(deccol)
-      snr     = tbdata.field(fluxcol) / tbdata.field(fluxerrcol)
-      hdulist.close()
-   else:
-      ra,dec,flux,fluxerr = n.loadtxt(infile,unpack=True,
-                                      usecols=(racol,deccol,fluxcol,fluxerrcol))
-      snr = flux / fluxerr
-   ragood  = ra[snr>10.]
-   decgood = dec[snr>10.]
-   ntot = ra.size
-   ngood = ragood.size
-   print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
-   f = open(outfile,'w')
-   f.write('global color=green\n')
-   for i in range(ra.size):
-      f.write('fk5;circle(%10.6f,%+10.6f,0.0007)\n'% (ra[i],dec[i]))
-   if plot_high_snr and ngood>0:
-      f.write('global color=red\n')
-      for i in range(ragood.size):
-         f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
-                    %(ragood[i],decgood[i]))
-   f.close()
-
+#
+#def make_reg_file(infile, outfile, informat='ascii', racol=1, deccol=2, 
+#                  fluxcol=17,fluxerrcol=18, plot_high_snr=False):
+#
+#   if informat == 'ldac':
+#      hdulist=pf.open(infile)
+#      tbdata = hdulist[2].data
+#      ra      = tbdata.field(racol)
+#      dec     = tbdata.field(deccol)
+#      snr     = tbdata.field(fluxcol) / tbdata.field(fluxerrcol)
+#      hdulist.close()
+#   else:
+#      ra,dec,flux,fluxerr = n.loadtxt(infile,unpack=True,
+#                                      usecols=(racol,deccol,fluxcol,fluxerrcol))
+#      snr = flux / fluxerr
+#   ragood  = ra[snr>10.]
+#   decgood = dec[snr>10.]
+#   ntot = ra.size
+#   ngood = ragood.size
+#   print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
+#   f = open(outfile,'w')
+#   f.write('global color=green\n')
+#   for i in range(ra.size):
+#      f.write('fk5;circle(%10.6f,%+10.6f,0.0007)\n'% (ra[i],dec[i]))
+#   if plot_high_snr and ngood>0:
+#      f.write('global color=red\n')
+#      for i in range(ragood.size):
+#         f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+#                    %(ragood[i],decgood[i]))
+#   f.close()
+#
 #-----------------------------------------------------------------------
 
 def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
                   gain=1.0, texp=1.0, ncoadd=1, satur=64000., zeropt=None,
                   catformat='ldac', det_area=-1, det_thresh=-1., seeing=0.0, 
                   weight_file=None, weight_type='MAP_WEIGHT', weight_thresh=None,
-                  regfile=None, flag_file=None, logfile=None, verbose=True):
+                  regfile=None, flag_file=None, logfile=None, verbose=True,
+                  racol=None, deccol=None, fluxcol=None,fluxerrcol='fluxerr_auto'):
    """
    Runs SExtractor to create the LDAC catalog for the file that the astrometry
    will be applied to.
@@ -153,12 +155,25 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
          return
    if verbose:
       print ""
-      print "Ran SExtractor on %s to produce output catalog %s" % (fitsfile,outcat)
+      print "Ran SExtractor on %s to produce output catalog %s" % \
+          (fitsfile,outcat)
 
    if regfile is not None:
       if verbose:
          print "Creating ds9 regions file %s from SExtractor catalog." % regfile
-      make_reg_file(outcat,regfile,catformat)
+      if catformat=='ascii':
+         if racol is None:
+            racol = 1
+            namecol = 0
+         if deccol is None:
+            racol = 2
+            namecol = 0
+         tmpcat = catfuncs.Secat(outcat,catformat,racol=racol,deccol=deccol,
+                                 namecol=namecol)
+      else:
+         tmpcat = catfuncs.Secat(outcat,catformat)
+      tmpcat.make_reg_file(regfile,fluxcol,fluxerrcol)
+      #make_reg_file(outcat,regfile,catformat)
    if verbose:
       print ""
 
@@ -714,7 +729,7 @@ def do_photom(infiles, photocat, magcol, photzp=30., incats='default',
    median zero-point for the image will be determined.
    """
 
-   import astrom_simple as astsimp
+   import catfuncs
 
    """ Set up for running the task """
    if type(infiles) is str:
@@ -758,7 +773,7 @@ def do_photom(infiles, photocat, magcol, photzp=30., incats='default',
          fitscat = tmpcat[i]
 
       """ Find matches between the image and the photometric catalog """
-      secat = astsimp.Secat(fitscat,verbose=verbose)
+      secat = catfuncs.Secat(fitscat,verbose=verbose)
       secat.match_fits_to_ast(f,photocat,max_offset=max_offset,racol=racol,
                               deccol=deccol,xcol=xcol_fits,ycol=ycol_fits,
                               doplot=doplot,verbose=True)
