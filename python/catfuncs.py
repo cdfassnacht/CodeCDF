@@ -228,6 +228,28 @@ class Secat:
 
    #-----------------------------------------------------------------------
 
+   def plot_fwhm(self, fwhmcol='fwhm_image', magcol='mag_auto', 
+                 xlim=(0,15), ylim=(28,16)):
+      """
+      Plots FWHM vs. magnitude.  This can be used to find the stellar locus
+      and, thus, determine the seeing.
+
+      Inputs:
+         fwhmcol - column name for the FWHM data.  Default = 'fwhm_image'
+         magcol  - column name for the magnitude data.  Default = 'mag_auto'
+         xlim    - initial limits for FWHM axis on plot.  Default = (0,15)
+         ylim    - initial limits for mag axis on plot.  Default = (28,16)
+      """
+
+      plt.plot(self.data[fwhmcol],self.data[magcol],'bo')
+      plt.xlim(xlim)
+      plt.ylim(ylim)
+      plt.xlabel('FWHM (pixels)')
+      plt.ylabel('Magnitude')
+      plt.show()
+
+   #-----------------------------------------------------------------------
+
    def print_ccmap(self, outfile, verbose=True):
       """
       Prints out a file that can be used as the input for the pyraf ccmap
