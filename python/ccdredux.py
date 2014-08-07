@@ -1055,6 +1055,87 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
 #-----------------------------------------------------------------------
 
+def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
+                         goodval=1, hdunum=0):
+   """
+   Creates a weight file that is essentially a bad pixel mask, where the
+   bad pixels are defined by their pixel values.  This function can be used,
+   for example, to flag cosmic rays and saturated pixels.
+
+   The user can either pass an existing weight file, in which case that file
+   will be modified to incorporate the new information, or can create a
+   new weight file from scratch.
+
+   Inputs:
+      infile    - input science file
+      maxgood   - maximum good pixel value. Pixels with values greater than
+                  maxgood are flagged as bad.
+      inwhtfile - optional input weight file.  This file will get modified to
+                  include information about the bad pixels by this function.
+                  If inwhtfile is None (the default), then a new weight file
+                  will be created from scratch.
+      outsuff   - suffix for brand new weight file if inwhtfile is None.
+                  Default = '_wht', so if infile is foo.fits the new weight
+                  file will be foo_wht.fits
+      goodval   - Pixel value in the weight file indicating a good pixel.
+                  This can either be goodval=1 (the default), in which case
+                  bad pixels will be marked with 0, or goodval=0, in which
+                  case bad pixels will be marked with 1 (as in a bad pixel mask)
+   """
+
+   """ Get science data """
+   try:
+      indat = pf.getdata(infile,hdunum)
+   except:
+      print ''
+      print 'ERROR: Could not open input file %s' % infile
+      print ''
+      return
+
+   """ 
+   Open input weight file, if one has been requested.  If not, then create
+   an array to be used as the basis for the new weight file.
+   """
+   if inwhtfile is not None:
+      try:
+         whthdu = pf.open(inwhtfile,mode='update')
+      except:
+         del indat
+         print ''
+         print 'ERROR. Could not open input weight file %s' % inwhtfile
+         print ''
+         return
+      whtdat = whthdu[hdunum].data
+   else:
+      if goodval == 1:
+         whtdat = n.ones(indat.shape)
+      else:
+         whtdat = n.zeros(indat.shape)
+
+   """ Flag the bad pixels """
+   if goodval == 1:
+      whtdat[indat>maxgood] = 0
+   else:
+      whtdat[indat>maxgood] = 1
+
+   """ Save the result """
+   if inwhtfile is not None:
+      whthdu.flush()
+   else:
+      try:
+         objname = 'foo' # FIX THIS
+      except:
+         objname = 'Weight file for %s' % infile
+      outname = infile.replace('.fits','%s.fits' % outsuff)
+      pf.PrimaryHDU(whtdat).writeto(outname)
+      del whtdat
+
+   """ Clean up """
+   del indat
+
+
+#-----------------------------------------------------------------------
+
 def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
                 oformat='pix', hext=0, verbose=True):
    """
