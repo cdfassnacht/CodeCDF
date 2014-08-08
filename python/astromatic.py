@@ -403,7 +403,7 @@ def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
 #-----------------------------------------------------------------------
 
 def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
-                        configfile='sext_suprimecam.config', 
+                        configfile='sext_scam.config', 
                         ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
                         weight_file=None, weight_type='MAP_WEIGHT', 
                         flag_file=None, det_thresh=-1, det_area=-1, 
