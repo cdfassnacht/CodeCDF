@@ -358,8 +358,29 @@ class Image:
       """ Create the postage stamp data """
       self.def_subim_radec(ra,dec,xsize,ysize,scale,hext,dext,verbose)
 
+      """ 
+      Put the new WCS information into the original header, along with some
+      additional info.
+      """
+      newhdr = self.hdu[hext].header.copy()
+      newhdr.update('RA',self.subimhdr['ra'])
+      newhdr.update('DEC',self.subimhdr['dec'])
+      newhdr.update('CTYPE1',self.subimhdr['ctype1'])
+      newhdr.update('CTYPE2',self.subimhdr['ctype2'])
+      newhdr.update('CRVAL1',self.subimhdr['crval1'])
+      newhdr.update('CRPIX1',self.subimhdr['crpix1'])
+      newhdr.update('CRVAL2',self.subimhdr['crval2'])
+      newhdr.update('CRPIX2',self.subimhdr['crpix2'])
+      newhdr.update('CDELT1',self.subimhdr['cdelt1'])
+      newhdr.update('CDELT2',self.subimhdr['cdelt2'])
+      newhdr.update('PC1_1',self.subimhdr['pc1_1'])
+      newhdr.update('PC1_2',self.subimhdr['pc1_2'])
+      newhdr.update('PC2_1',self.subimhdr['pc2_1'])
+      newhdr.update('PC2_2',self.subimhdr['pc2_2'])
+      newhdr.update('ORIG_IM',self.infile)
+
       """ Write the postage stamp to the output file """
-      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
+      pf.PrimaryHDU(self.subim,newhdr).writeto(outfile,clobber=True)
       print "Wrote postage stamp cutout to %s" % outfile
 
    #-----------------------------------------------------------------------
