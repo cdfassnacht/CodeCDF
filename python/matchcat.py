@@ -287,7 +287,7 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
 #--------------------------------------------------------------------------
 
 def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
-              coloraxis='y', doplot=True):
+              coloraxis='y', savematch=True, doplot=True):
    """
    Given catalogs that have been matched by the find_match function,
    calculate the colors for the matched object
@@ -303,12 +303,15 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
       lab2      - label for the first magnitude, e.g. 'V'.  Default='mag2'
       coloraxis - axis on which to plot the color. 
                   Set this to 'x' for a HR diagram.   Default='y'
+      savematch - Set this to True (the default) to return the matched magnitude
+                  vectors
       doplot    - set to True to make a plot.  Default=True
    """
 
    """ Compute the color """
+   mag1 = cat1.data[cat1.mask][magcol1]
    mag2 = cat2.data[cat2.mask][magcol2]
-   magdiff = cat1.data[cat1.mask][magcol1] - mag2
+   magdiff = mag1 - mag2
 
    """ Plot the results if desired """
    if doplot:
@@ -320,6 +323,10 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
          plt.plot(mag2,magdiff,'bo')
          plt.xlabel('%s (mag)' % lab2)
          plt.ylabel('%s - %s (mag)' % (lab1,lab2))
+
+   """ Return the matched magnitudes if requested """
+   if savematch:
+      return mag1,mag2
 
 #--------------------------------------------------------------------------
 

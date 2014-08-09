@@ -3,8 +3,7 @@ imfuncs.py - A library of functions to do various basic image processing
              operations
 
 NB: Some of these functions are (slowly) being incorporated into the
-under-constructioin Image class, the code for which is at the end of this
-file.
+Image class, the code for which is at the beginning of this file.
 
 Functions:
    open_fits         - opens a fits file, incorporating the possibility of
@@ -341,7 +340,7 @@ class Image:
       Given a central coordinate (RA,Dec), a size in pixels, and a pixel scale,
       creates an output cutout image
 
-      The vast majority of the code is Matt Auger's (his image_cutout in 
+      The majority of the code is Matt Auger's (his image_cutout in 
       imagelib.py).
       Some modifications have been made by Chris Fassnacht.
 
@@ -517,6 +516,62 @@ class Image:
       #del data
 
    #-----------------------------------------------------------------------
+
+#-----------------------------------------------------------------------
+
+def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
+                makerms=False, rmssuff='_rms', hext=0, dext=0, verbose=True):
+   """
+   Makes a cutout from an input image, based on a requested (RA,Dec) center
+   and an image size in arcsec.
+   Additional, optional functionality:
+      - Makes the same-sized cutout for the associated weight file.  Done if
+        whtsuff is not None
+      - Makes an RMS image following Matt Auger's recipe for the NIRC2 data
+        This only happens if BOTH whtsuff is not None AND makerms is True
+
+   Inputs:
+      infile  - input file
+      ra      - RA of cutout center, in decimal degrees
+      dec     - Dec of cutout center, in decimal degrees
+      imsize  - output image size, in arcsec
+      scale   - pixel scale of output image, in arcsec/pix
+      outfile - output file name
+      whtsuff - suffix for input weight file, if a cutout of the weight file
+                is also desired.  If whtsuff is None (the default) then no
+                weight-file cutout is made.
+                Example: whtsuff='_wht' means that for infile='foo.fits' the
+                  weight file is called 'foo_wht.fits'
+      makerms - Set to True to make, in addition, an output rms file following
+                Matt Auger's prescription for the NIRC2 data.  Default is False
+                NB: Both whtsuff being something other than None and 
+                 makerms=True are required for an output rms file to be created.
+      rmssuff - Suffix for output rms file.  Default='_rms' means that for
+                infile='foo.fits', the output file will be 'foo_rms.fits'
+      hext    - Input file HDU number that contains the WCS info (default 0)
+      dext    - Input file HDU number that contains the image data (default 0)
+   """
+
+   """ Make the input file cutout """
+   infits = Image(infile)
+   infits.poststamp_radec(ra,dec,imsize,imsize,scale,outfile,hext,dext,verbose)
+
+   """ Make the weight file cutout, if requested """
+   if whtsuff is not None:
+      whtfile = infile.replace('.fits','%s.fits' % whtsuff)
+      outwht  = outfile.replace('.fits','%s.fits' % whtsuff)
+      whtfits = Image(whtfile)
+      whtfits.poststamp_radec(ra,dec,imsize,imsize,scale,outwht,hext,dext,
+                              verbose)
+
+   """ Make output RMS file, if requesed """
+   # CODE STILL TO COME
+
+   """ Clean up """
+   infits.close()
+   if whtsuff is not None:
+      whtfits.close()
+   
 
 #-----------------------------------------------------------------------
 
