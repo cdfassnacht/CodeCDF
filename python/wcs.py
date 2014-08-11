@@ -82,7 +82,19 @@ def sky2pix(header,ra,dec):
 	return x,y
 
 # Create a wcs header given a central RA/DEC and image size and scale
-def make_header(ra,dec,xsize,ysize,xscale,yscale=-1):
+def make_header(ra,dec,xsize,ysize,xscale,yscale=-1,docdmatx=True):
+	"""
+	Inputs:
+	  ra
+	  dec
+	  xsize
+	  ysize
+	  xscale
+	  yscale
+	  docdmatx - If set to True (the default), then put the image scale
+	             in terms of a CD matrix.  If False, then use the
+		     CDELT and PC matrix formalism
+	"""
 	if yscale==-1:
 		yscale = xscale
 	hdr = pyfits.PrimaryHDU(scipy.empty((ysize,xsize))).header.copy()
@@ -98,12 +110,18 @@ def make_header(ra,dec,xsize,ysize,xscale,yscale=-1):
 	hdr.update("CRPIX1",xsize/2.)
 	hdr.update("CRVAL2",dec)
 	hdr.update("CRPIX2",ysize/2.)
-	hdr.update("CDELT1",xscale/3600.)
-	hdr.update("CDELT2",yscale/3600.)
-	hdr.update("PC1_1",-1.)
-	hdr.update("PC1_2",0.)
-	hdr.update("PC2_1",0.)
-	hdr.update("PC2_2",1.)
+	if docdmatx:
+		hdr.update('cd1_1',-xscale/3600.)
+		hdr.update('cd1_2',0.)
+		hdr.update('cd2_1',0.)
+		hdr.update('cd2_2',yscale/3600.)
+	else:
+		hdr.update("CDELT1",xscale/3600.)
+		hdr.update("CDELT2",yscale/3600.)
+		hdr.update("PC1_1",-1.)
+		hdr.update("PC1_2",0.)
+		hdr.update("PC2_1",0.)
+		hdr.update("PC2_2",1.)
 
 	return hdr
 

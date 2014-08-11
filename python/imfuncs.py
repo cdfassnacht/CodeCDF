@@ -172,8 +172,8 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def def_subim_radec(self, ra, dec, xsize, ysize, outscale=None, hext=0, 
-                       dext=0, verbose=True):
+   def def_subim_radec(self, ra, dec, xsize, ysize, outscale=None, 
+                       docdmatx=True, hext=0, dext=0, verbose=True):
       """
       Selects the data in the subimage defined by ra, dec, xsize, and ysize.
 
@@ -187,6 +187,9 @@ class Image:
          xsize    - Output image x size in arcsec
          ysize    - Output image y size in arcsec
          outscale - Output image pixel scale, in arcsec/pix
+         docdmatx - If set to True (the default), then put the output image scale
+	            in terms of a CD matrix.  If False, then use the
+		    CDELT and PC matrix formalism instead.
          hext     - Input file HDU number that contains the WCS info (default 0)
          dext     - Input file HDU number that contains the image data (default 
                     0)
@@ -261,7 +264,8 @@ class Image:
       """ 
       Set up the output header and do the coordinate transform preparation 
       """
-      outheader = wcs.make_header(ra,dec,self.subsizex,self.subsizey,outscale)
+      outheader = wcs.make_header(ra,dec,self.subsizex,self.subsizey,outscale,
+                                  docdmatx=docdmatx)
       coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
       skycoords = wcs.pix2sky(outheader,coords[1],coords[0])
       ccdcoords = wcs.sky2pix(inhdr,skycoords[0],skycoords[1])
@@ -335,7 +339,7 @@ class Image:
    #-----------------------------------------------------------------------
 
    def poststamp_radec(self, ra, dec, xsize, ysize, scale, outfile, 
-                       hext=0, dext=0, verbose=True):
+                       docdmatx=True, hext=0, dext=0, verbose=True):
       """
       Given a central coordinate (RA,Dec), a size in pixels, and a pixel scale,
       creates an output cutout image
@@ -345,38 +349,53 @@ class Image:
       Some modifications have been made by Chris Fassnacht.
 
       Inputs:
-         ra      - Central right ascension in decimal degrees
-         dec     - Central declination in decimal degrees
-         xsize   - Output image x size in arcsec
-         ysize   - Output image y size in arcsec
-         scale   - Output image pixel scale, in arcsec/pix
-         outfile - Output file name
-         hext    - Input file HDU number that contains the WCS info (default 0)
-         dext    - Input file HDU number that contains the image data (default 0)
+         ra       - Central right ascension in decimal degrees
+         dec      - Central declination in decimal degrees
+         xsize    - Output image x size in arcsec
+         ysize    - Output image y size in arcsec
+         scale    - Output image pixel scale, in arcsec/pix
+         outfile  - Output file name
+         docdmatx - If set to True (the default), then put the output image scale
+	            in terms of a CD matrix.  If False, then use the
+		    CDELT and PC matrix formalism instead.
+         hext     - Input file HDU number that contains the WCS info (default 0)
+         dext     - Input file HDU number that contains the image data 
+                    (default 0)
       """
 
       """ Create the postage stamp data """
-      self.def_subim_radec(ra,dec,xsize,ysize,scale,hext,dext,verbose)
+      self.def_subim_radec(ra,dec,xsize,ysize,scale,docdmatx,hext,dext,verbose)
 
       """ 
       Put the new WCS information into the original header, along with some
       additional info.
       """
       newhdr = self.hdu[hext].header.copy()
-      newhdr.update('RA',self.subimhdr['ra'])
-      newhdr.update('DEC',self.subimhdr['dec'])
-      newhdr.update('CTYPE1',self.subimhdr['ctype1'])
-      newhdr.update('CTYPE2',self.subimhdr['ctype2'])
-      newhdr.update('CRVAL1',self.subimhdr['crval1'])
-      newhdr.update('CRPIX1',self.subimhdr['crpix1'])
-      newhdr.update('CRVAL2',self.subimhdr['crval2'])
-      newhdr.update('CRPIX2',self.subimhdr['crpix2'])
-      newhdr.update('CDELT1',self.subimhdr['cdelt1'])
-      newhdr.update('CDELT2',self.subimhdr['cdelt2'])
-      newhdr.update('PC1_1',self.subimhdr['pc1_1'])
-      newhdr.update('PC1_2',self.subimhdr['pc1_2'])
-      newhdr.update('PC2_1',self.subimhdr['pc2_1'])
-      newhdr.update('PC2_2',self.subimhdr['pc2_2'])
+      wcskeys = \
+          ['ra','dec','ctype1','ctype2','crval1','crpix1','crval2','crpix2']
+      if docdmatx:
+         for i in ('cd1_1','cd1_2','cd2_1','cd2_2'):
+            wcskeys.append(i)
+      else:
+         for i in ('cdelt1', 'cdelt2', 'pc1_1','pc1_2','pc2_1','pd2_2'):
+            wcskeys.append(i)
+
+      for i in wcskeys:
+         newhdr.update(i,self.subimhdr[i])
+      #newhdr.update('RA',self.subimhdr['ra'])
+      #newhdr.update('DEC',self.subimhdr['dec'])
+      #newhdr.update('CTYPE1',self.subimhdr['ctype1'])
+      #newhdr.update('CTYPE2',self.subimhdr['ctype2'])
+      #newhdr.update('CRVAL1',self.subimhdr['crval1'])
+      #newhdr.update('CRPIX1',self.subimhdr['crpix1'])
+      #newhdr.update('CRVAL2',self.subimhdr['crval2'])
+      #newhdr.update('CRPIX2',self.subimhdr['crpix2'])
+      #newhdr.update('CDELT1',self.subimhdr['cdelt1'])
+      #newhdr.update('CDELT2',self.subimhdr['cdelt2'])
+      #newhdr.update('PC1_1',self.subimhdr['pc1_1'])
+      #newhdr.update('PC1_2',self.subimhdr['pc1_2'])
+      #newhdr.update('PC2_1',self.subimhdr['pc2_1'])
+      #newhdr.update('PC2_2',self.subimhdr['pc2_2'])
       newhdr.update('ORIG_IM',self.infile)
 
       """ Write the postage stamp to the output file """
@@ -575,15 +594,16 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
 
    """ Make the input file cutout """
    infits = Image(infile)
-   infits.poststamp_radec(ra,dec,imsize,imsize,scale,outfile,hext,dext,verbose)
+   infits.poststamp_radec(ra,dec,imsize,imsize,scale,outfile,hext=hext,
+                          dext=dext,verbose=verbose)
 
    """ Make the weight file cutout, if requested """
    if whtsuff is not None:
       whtfile = infile.replace('.fits','%s.fits' % whtsuff)
       outwht  = outfile.replace('.fits','%s.fits' % whtsuff)
       whtfits = Image(whtfile)
-      whtfits.poststamp_radec(ra,dec,imsize,imsize,scale,outwht,hext,dext,
-                              verbose)
+      whtfits.poststamp_radec(ra,dec,imsize,imsize,scale,outwht,hext=hext,
+                              dext=dext,verbose=verbose)
 
    """ Make output RMS file, if requesed """
    # CODE STILL TO COME
