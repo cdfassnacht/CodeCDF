@@ -250,6 +250,36 @@ class Secat:
 
    #-----------------------------------------------------------------------
 
+   def plot_nhist(self, magcol='mag_auto', fwhmmin=0., fwhmcol='fwhm_image', 
+                  magmin=15, magmax=28):
+      """
+      Plots a histogram of galaxy magnitudes (similar to a log N-log S plot)
+      that can be used to determine the magnitude to which the catalog is 
+      complete.  A minimum FWHM can be set in order to select objects that
+      are likely to be galaxies, but this is not required.
+
+      Inputs:
+         magcol  - column containing the magnitudes. Default = 'mag_auto'
+         fwhmmin - minimum FWHM to be used as a proxy for a star-galaxy
+                   separation.  The default (0.) selects all object in the
+                   catalog.
+         fwhmcol - column containing the fwhm info. Default = 'fwhm_image'
+         magmin  - minimum magnitude to use for the plot. Default=15
+         magmax  - maximum magnitude to use for the plot. Default=28
+      """
+
+      """ Get the magnitudes to be plotted """
+      if fwhmmin>0.:
+         mag = self.data[magcol][self.data[fwhmcol]>fwhmmin]
+      else:
+         mag = self.data[magcol]
+
+      """ Plot the histogram """
+      nbins = int(2 * (magmax - magmin))
+      plt.hist(mag,range=(magmin,magmax),bins=nbins)
+
+   #-----------------------------------------------------------------------
+
    def print_ccmap(self, outfile, verbose=True):
       """
       Prints out a file that can be used as the input for the pyraf ccmap
