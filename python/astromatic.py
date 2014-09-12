@@ -322,7 +322,7 @@ def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 
 def make_cat_niri(fitsfile, outcat='tmp.cat', regfile=None,
                   configfile='sext_astfile.config', gain=12.3, texp=1., 
-                  ncoadd=1, satur=200000., zeropt=None,catformat='ascii',
+                  ncoadd=1, satur=200000., zeropt=None,catformat='ldac',
                   weight_file=None, weight_type='MAP_WEIGHT', flag_file=None,
                   det_thresh=-1, det_area=-1, logfile=None, verbose=True):
    """
