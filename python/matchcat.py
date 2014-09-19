@@ -1,10 +1,22 @@
 """
 A set of functions to match sources in two input catalogs
+
+Top-level functions
+-------------------
+ find_match     - finds matches between two catalogs, based on WCS coordinates
+ color_mag      - given catalogs matched by find_match, computes colors for
+                  matched objects
+ find_zp        - essentially a focused version of color_mag.  Uses the magnitude
+                  differences between one catalog and a photometric catalog to
+                  determine the zero-point needed for the first catalog
+ write_matchcat - writes an output catalog in the format of the output that
+                  is produced by catcomb.c
 """
 
 import numpy as n
 import coords
 from matplotlib import pyplot as plt
+from math import sqrt
 
 #------------------------------------------------------------------------------
 
@@ -297,8 +309,8 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
       cat2      - a Secat catalog produced by find_match 
       magcol1   - string describing the column containing the magnitude in
                   the first catalog
-      magcol1   - string describing the column containing the magnitude in
-                  the first catalog
+      magcol2   - string describing the column containing the magnitude in
+                  the second catalog
       lab1      - label for the first magnitude, e.g. 'B'.  Default='mag1'
       lab2      - label for the first magnitude, e.g. 'V'.  Default='mag2'
       coloraxis - axis on which to plot the color. 
@@ -311,6 +323,11 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
    """ Compute the color """
    mag1 = cat1.data[cat1.mask][magcol1]
    mag2 = cat2.data[cat2.mask][magcol2]
+
+   """ Get rid of crazy points """
+   mask = (mag1<35.) & (mag2<35.)
+   mag1 = mag1[mask]
+   mag2 = mag2[mask]
    magdiff = mag1 - mag2
 
    """ Plot the results if desired """
@@ -325,8 +342,86 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
          plt.ylabel('%s - %s (mag)' % (lab1,lab2))
 
    """ Return the matched magnitudes if requested """
+   del mask,magdiff
    if savematch:
       return mag1,mag2
+   else:
+      del mag1,mag2
+
+#--------------------------------------------------------------------------
+
+def find_zp(datacat, photcat, magcol1, magcol2, lab1='mag_data', lab2='mag_phot',
+            magmin=12., magmax=23., diffmin=-5., diffmax=5.,
+            doplot=True, startfig=3):
+   """
+   Given an input catalog and a photometric catalog that have been matched by 
+   position, find the magnitude offset between the matched objects.  This can
+   be used to find the zero point for the first catalog.
+   This is essentially a specialized version of color_mag.
+
+   Inputs:
+      datacat   - a Secat catalog produced by find_match 
+      photcat   - a Secat catalog produced by find_match 
+      magcol1   - string describing the column containing the magnitude in
+                  the data catalog
+      magcol2   - string describing the column containing the magnitude in
+                  the photometric catalog
+      lab1      - label for the first magnitude.  Default='mag_data'
+      lab2      - label for the first magnitude.  Default='mag_phot'
+      magmin    - minimum magnitude for "good" data points
+      magmax    - maximum magnitude for "good" data points
+      diffmin   - minimum magnitude difference for "good" data points
+      diffmax   - minimum magnitude difference for "good" data points
+      doplot    - set to True to make a plot.  Default=True
+      startfig  - two figures will be produced if doplot==True.  This
+                  parameter sets the figure number for the first one
+   """
+
+   """ Get the magnitude matches and plot them """
+   if doplot:
+      plt.figure(startfig)
+   mdat,mphot = color_mag(datacat,photcat,magcol1,magcol2,lab1,lab2,
+                          doplot=doplot)
+   mdiff = mdat - mphot
+   if mphot.max() > 35.:
+      plt.xlim(10.,27.)
+   if mdiff.max() > 20.:
+      plt.ylim(-5.,5.)
+   if magmin>plt.xlim()[0] and magmin<plt.xlim()[1]:
+      plt.axvline(magmin,color='r',lw=2)
+   if magmax>plt.xlim()[0] and magmax<plt.xlim()[1]:
+      plt.axvline(magmax,color='r',lw=2)
+   if diffmin>plt.ylim()[0] and diffmin<plt.ylim()[1]:
+      plt.axhline(diffmin,color='r',lw=2)
+   if diffmax>plt.ylim()[0] and diffmax<plt.ylim()[1]:
+      plt.axhline(diffmax,color='r',lw=2)
+
+   """ Get magnitude difference info """
+   print ''
+   print 'Statistics on magnitude differences (all points)'
+   print '------------------------------------------------'
+   print 'N_sources %d' % mdiff.size
+   print 'Range:    %6.3f to %6.3f' % (mdiff.min(),mdiff.max())
+   print 'Mean:     %6.3f' % mdiff.mean()
+   print 'Median:   %6.3f' % n.median(mdiff)
+   print 'Sigma:    %6.3f' % mdiff.std()
+   print 'Sigma_mu: %6.3f' % (mdiff.std() / sqrt(mdiff.size))
+
+   mask = (mphot>magmin)&(mphot<magmax)&(mdiff>diffmin)&(mdiff<diffmax)
+   diffgood = mdiff[mask]
+   if doplot:
+      plt.figure(startfig+1)
+      plt.hist(diffgood,bins=20)
+   print ''
+   print 'Statistics on magnitude differences (good sources)'
+   print '--------------------------------------------------'
+   print 'N_sources %d' % diffgood.size
+   print 'Range:    %6.3f to %6.3f' % (diffgood.min(),diffgood.max())
+   print 'Mean:     %6.3f' % diffgood.mean()
+   print 'Median:   %6.3f' % n.median(diffgood)
+   print 'Sigma:    %6.3f' % diffgood.std()
+   print 'Sigma_mu: %6.3f' % (diffgood.std() / sqrt(diffgood.size))
+   print ''
 
 #--------------------------------------------------------------------------
 
