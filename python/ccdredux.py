@@ -1133,6 +1133,49 @@ def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
    """ Clean up """
    del indat
 
+#-----------------------------------------------------------------------
+
+def split_imext(infits, next, outroot=None):
+   """
+   Splits a multi-extension fits file into its separate images.
+   The assumption, for now, is that the file has the following structure:
+      HDU0 - General information
+      HDU1 - Image HDU 1
+      ...
+      HDUN - Image HDU N
+
+   Inputs:
+      infits  - input multiextension fits file
+      next    - number of extensions to split out
+      outroot - keep at the default (None) to have the output files have the
+                same root as the input.  If this is not None, the output
+                files will have a different root.
+                Example: split_imext('myfile.fits',2) will produce output files
+                    myfile_1.fits and myfile_2.fits
+                Example: split_imext('myfile.fits',2,'foo') will produce
+                    foo_1.fits and foo_2fits
+   Output:
+      the N individual fits files
+   """
+
+   """ Set up the output naming scheme """
+   if outroot is None:
+      outroot = infits[:-5]
+
+   """ Open the input file and split it """
+   hdu = pf.open(infits)
+   print ''
+   print 'Splitting input file: %s' % infits
+   print '-------------------------------------------------------------'
+   for i in range(1,next+1):
+      data = hdu[i].data.copy()
+      outfile = '%s_%d.fits' % (outroot,i)
+      pf.PrimaryHDU(data,hdu[i].header).writeto('%s' % outfile)
+      del data
+      print ' Split %s' % outfile
+
+   """ Close """
+   hdu.close()
 
 #-----------------------------------------------------------------------
 
