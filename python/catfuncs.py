@@ -35,7 +35,7 @@ class Secat:
 
    """
 
-   def __init__(self, infile, catformat='ascii', verbose=True, namecol=None,
+   def __init__(self, infile, catformat='ldac', verbose=True, namecol=None,
                 racol=None, deccol=None):
       """
       This method gets called when the user types something like
