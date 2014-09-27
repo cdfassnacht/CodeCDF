@@ -402,6 +402,42 @@ def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
 
 #-----------------------------------------------------------------------
 
+def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
+                   configfile='sext_astfile.config', 
+                   ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
+                   weight_file=None, weight_type='MAP_WEIGHT', 
+                   flag_file=None, det_thresh=-1, det_area=-1, 
+                   logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but gets gain first from the fits file
+
+   Note that readnoise for the SuprimeCam chips is 10 e-
+   """
+
+   """ Get gain and exposure time from header """
+   hdr = pf.getheader(fitsfile)
+   try:
+      gain = hdr['gain']
+   except:
+      gain = 1.0
+   try:
+      texp = hdr['exptime']
+   except:
+      texp = 1.0
+   if verbose:
+      print ""
+      print "File: %s has gain=%6.3f and t_exp = %7.1f" % (fitsfile,gain,texp)
+
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
+                 catformat,
+                 weight_file=weight_file, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+
+#-----------------------------------------------------------------------
+
 def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
                         configfile='sext_scam.config', 
                         ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
