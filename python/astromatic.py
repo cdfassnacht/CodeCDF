@@ -5,14 +5,6 @@ A library containing functions that run files to prepare for or to invoke
 the cataloging and astrometry programs provided by astromatic.net (formerly
 terapix).  
 
-Generic functions
-------------------
- make_fits_cat   - the workhorse catalog-generating function (uses SExtractor)
- make_reg_file   - converts a catalog into a ds9 region file
- run_scamp       - runs the Astromatic scamp code to solve for the WCS
- run_swarp       - runs the Astromatic swarp code to resample onto a new WCS
- do_photom       - NOT YET IMPLEMENTED.
-
 Instrument-specific functions
 -----------------------------
  make_cat_irac
@@ -21,6 +13,16 @@ Instrument-specific functions
  make_cat_isaac
  make_cat_niri
  make_cat_suprimecam
+ make_cat_hawki
+ make_cat_vircam (use for VISTA VHS)
+
+Generic functions
+------------------
+ make_fits_cat   - the workhorse catalog-generating function (uses SExtractor)
+ make_reg_file   - converts a catalog into a ds9 region file
+ run_scamp       - runs the Astromatic scamp code to solve for the WCS
+ run_swarp       - runs the Astromatic swarp code to resample onto a new WCS
+ do_photom       - NOT YET IMPLEMENTED.
 
 """
 
@@ -66,7 +68,7 @@ import catfuncs
 def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
                   gain=1.0, texp=1.0, ncoadd=1, satur=64000., zeropt=None,
                   catformat='ldac', det_area=-1, det_thresh=-1., seeing=0.0, 
-                  weight_file=None, weight_type='MAP_WEIGHT', weight_thresh=None,
+                  whtfile=None, weight_type='MAP_WEIGHT', weight_thresh=None,
                   regfile=None, flag_file=None, logfile=None, verbose=True,
                   racol=None, deccol=None, fluxcol=None,fluxerrcol='fluxerr_auto'):
    """
@@ -119,8 +121,8 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
       sopts += '-MAG_ZEROPOINT %5.2f ' % zeropt
    if seeing>0.0:
       sopts += '-SEEING_FWHM %6.3f ' % seeing
-   if weight_file is not None:
-      sopts += '-WEIGHT_TYPE %s -WEIGHT_IMAGE %s ' % (weight_type,weight_file)
+   if whtfile is not None:
+      sopts += '-WEIGHT_TYPE %s -WEIGHT_IMAGE %s ' % (weight_type,whtfile)
    if weight_thresh is not None:
       sopts += '-WEIGHT_THRESH %9.2f ' % weight_thresh
    if flag_file is not None:
@@ -222,7 +224,7 @@ def make_cat_irac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 def make_cat_acs(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
                  gain=2.0, texp=1., ncoadd=1, satur=65535., det_area=30,
                  det_thresh=2.5, seeing=0.105, obsfilt=None, magsys='ab', 
-                 weight_file=None, weight_type='MAP_RMS', 
+                 whtfile=None, weight_type='MAP_RMS', 
                  catformat='ldac',
                  logfile=None):
    """
@@ -242,7 +244,7 @@ def make_cat_acs(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
    """ Call SExtractor """
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,magzp,
                  catformat,
-                 det_area,det_thresh,seeing=seeing,weight_file=weight_file,
+                 det_area,det_thresh,seeing=seeing,whtfile=whtfile,
                  weight_type=weight_type,logfile=logfile)
 
 #-----------------------------------------------------------------------
@@ -259,7 +261,7 @@ def make_cat_wfc3(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 
 #-----------------------------------------------------------------------
 
-def make_cat_wfpc2(fitsfile, weight_file, outcat='tmp.cat', 
+def make_cat_wfpc2(fitsfile, whtfile, outcat='tmp.cat', 
                    configfile='sext_astfile.config', gain=7., texp=None, 
                    ncoadd=1, satur=65535., catformat='ldac', 
                    weight_type='MAP_WEIGHT', weight_thresh=None,
@@ -287,35 +289,35 @@ def make_cat_wfpc2(fitsfile, weight_file, outcat='tmp.cat',
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
                  catformat,
-                 weight_file=weight_file,weight_type=weight_type,
+                 whtfile=whtfile,weight_type=weight_type,
                  weight_thresh=weight_thresh,logfile=logfile)
 
 #-----------------------------------------------------------------------
 
 def make_cat_fors2(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
                    gain=1.25, texp=1., ncoadd=1, satur=64000., catformat='ldac',
-                   weight_file=None, weight_type='MAP_WEIGHT', logfile=None):
+                   whtfile=None, weight_type='MAP_WEIGHT', logfile=None):
    """
    Calls make_fits_cat, but with gain preset for FORS2
    """
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type,
+                 whtfile=whtfile, weight_type=weight_type,
                  logfile=logfile)
 
 #-----------------------------------------------------------------------
 
 def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
                    gain=4.5, texp=1., ncoadd=1, satur=40000., catformat='ldac',
-                   weight_file=None, weight_type='MAP_WEIGHT', logfile=None):
+                   whtfile=None, weight_type='MAP_WEIGHT', logfile=None):
    """
    Calls make_fits_cat, but with gain preset for VLT/ISAAC
    """
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type,
+                 whtfile=whtfile, weight_type=weight_type,
                  logfile=logfile)
 
 #-----------------------------------------------------------------------
@@ -323,7 +325,7 @@ def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 def make_cat_niri(fitsfile, outcat='tmp.cat', regfile=None,
                   configfile='sext_astfile.config', gain=12.3, texp=1., 
                   ncoadd=1, satur=200000., zeropt=None,catformat='ldac',
-                  weight_file=None, weight_type='MAP_WEIGHT', flag_file=None,
+                  whtfile=None, weight_type='MAP_WEIGHT', flag_file=None,
                   det_thresh=-1, det_area=-1, logfile=None, verbose=True):
    """
 
@@ -337,7 +339,7 @@ def make_cat_niri(fitsfile, outcat='tmp.cat', regfile=None,
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type, 
+                 whtfile=whtfile, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
 
@@ -346,7 +348,7 @@ def make_cat_niri(fitsfile, outcat='tmp.cat', regfile=None,
 def make_cat_wirc(fitsfile, outcat='tmp.cat', regfile=None,
                   configfile='sext_astfile.config', gain=5.467, texp=1., 
                   ncoadd=1, satur=50000., zeropt=None, catformat='ascii',
-                  weight_file=None, weight_type='MAP_WEIGHT', flag_file=None,
+                  whtfile=None, weight_type='MAP_WEIGHT', flag_file=None,
                   det_thresh=-1, det_area=-1, logfile=None, verbose=True):
    """
 
@@ -359,7 +361,7 @@ def make_cat_wirc(fitsfile, outcat='tmp.cat', regfile=None,
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type, 
+                 whtfile=whtfile, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
 
@@ -368,7 +370,7 @@ def make_cat_wirc(fitsfile, outcat='tmp.cat', regfile=None,
 def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
                   configfile='sext_kait.config', 
                   ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
-                  weight_file=None, weight_type='MAP_WEIGHT', flag_file=None,
+                  whtfile=None, weight_type='MAP_WEIGHT', flag_file=None,
                   det_thresh=-1, det_area=-1, logfile=None, verbose=True):
    """
 
@@ -396,7 +398,7 @@ def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type, 
+                 whtfile=whtfile, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
 
@@ -405,7 +407,7 @@ def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
 def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
                    configfile='sext_astfile.config', 
                    ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
-                   weight_file=None, weight_type='MAP_WEIGHT', 
+                   whtfile=None, weight_type='MAP_WEIGHT', 
                    flag_file=None, det_thresh=-1, det_area=-1, 
                    logfile=None, verbose=True):
    """
@@ -431,7 +433,7 @@ def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type, 
+                 whtfile=whtfile, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
 
@@ -441,7 +443,7 @@ def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
 def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
                         configfile='sext_scam.config', 
                         ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
-                        weight_file=None, weight_type='MAP_WEIGHT', 
+                        whtfile=None, weight_type='MAP_WEIGHT', 
                         flag_file=None, det_thresh=-1, det_area=-1, 
                         logfile=None, verbose=True):
    """
@@ -467,7 +469,7 @@ def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
-                 weight_file=weight_file, weight_type=weight_type, 
+                 whtfile=whtfile, weight_type=weight_type, 
                  det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
                  logfile=logfile,regfile=regfile, verbose=verbose)
 
@@ -477,7 +479,7 @@ def make_cat_suprimecam(fitsfile, outcat='tmp.cat', regfile=None,
 def run_suprimecam_full(inroot, regroot=None, 
                         configfile='sext_suprimecam.config', 
                         ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
-                        weight_file=None, weight_type='MAP_WEIGHT', 
+                        whtfile=None, weight_type='MAP_WEIGHT', 
                         flag_file=None, det_thresh=-1, det_area=-1, 
                         logfile=None, verbose=True):
    """
@@ -507,6 +509,51 @@ def run_suprimecam_full(inroot, regroot=None,
       make_cat_suprimecam(fitsfile,outcat,regfile=regfile,configfile=configfile,
                           catformat=catformat)
       
+
+#-----------------------------------------------------------------------
+
+def make_cat_vircam(fitsfile, outcat='tmp.cat', regfile=None,
+                    configfile='sext_astfile.config', 
+                    ncoadd=1, satur=50000., catformat='ldac',
+                    whtfile=None, weight_type='MAP_RMS', 
+                    flag_file=None, det_thresh=-1, det_area=-1, 
+                    logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but gets some relevant info first from the fits file
+   """
+
+   """ Get information from header """
+   hdr = pf.getheader(fitsfile)
+   """
+   For gain use median value from VISTA/VHS web site
+    http://casu.ast.cam.ac.uk/surveys-projects/vista/technical/vista-gain
+   """
+   try:
+      gain = hdr['gain']
+   except:
+      gain = 4.19
+   try:
+      texp = hdr['texptime'] # NB: different from most
+   except:
+      texp = 1.0
+   try:
+      zeropt = hdr['magzpt']
+   except:
+      zeropt = 30.0
+   if verbose:
+      print ""
+      print 'Information from file header'
+      print '----------------------------'
+      print 'Exposure time: %7.1f' % texp
+      print 'Zero point:    %6.3f' % zeropt
+
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
+                 catformat,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
 
 #-----------------------------------------------------------------------
 
