@@ -323,7 +323,7 @@ def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 #-----------------------------------------------------------------------
 
 def make_cat_niri(fitsfile, outcat='tmp.cat', regfile=None,
-                  configfile='sext_astfile.config', gain=12.3, texp=1., 
+                  configfile='sext_niri.config', gain=12.3, texp=1., 
                   ncoadd=1, satur=200000., zeropt=None,catformat='ldac',
                   whtfile=None, weight_type='MAP_WEIGHT', flag_file=None,
                   det_thresh=-1, det_area=-1, logfile=None, verbose=True):
@@ -413,7 +413,8 @@ def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
    """
    Calls make_fits_cat, but gets gain first from the fits file
 
-   Note that readnoise for the SuprimeCam chips is 10 e-
+   Note that readnoise for the HAWK-I chips is 12 e-, or 5 e- if doing
+   a non-destructive read of more than 10 samples.
    """
 
    """ Get gain and exposure time from header """
@@ -426,10 +427,22 @@ def make_cat_hawki(fitsfile, outcat='tmp.cat', regfile=None,
       texp = hdr['exptime']
    except:
       texp = 1.0
+   if zeropt == 'header':
+      try:
+         zeropt = hdr['magzpt']
+      except:
+         print ''
+         print 'WARNING: MAGZPT not found in header.'
+         zeropt = float(raw_input('Enter zero point to use: '))
+
    if verbose:
       print ""
-      print "File: %s has gain=%6.3f and t_exp = %7.1f" % (fitsfile,gain,texp)
-
+      print 'Information from file header: %s' % fitsfile
+      print '------------------------------------------------------------------'
+      print 'Exposure time: %7.1f' % texp
+      print 'Gain:          %6.3f' % gain
+      if zeropt == 'header':
+         print 'Zero point:    %6.3f' % zeropt
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
                  catformat,
@@ -512,12 +525,12 @@ def run_suprimecam_full(inroot, regroot=None,
 
 #-----------------------------------------------------------------------
 
-def make_cat_vircam(fitsfile, outcat='tmp.cat', regfile=None,
-                    configfile='sext_astfile.config', 
-                    ncoadd=1, satur=50000., catformat='ldac',
-                    whtfile=None, weight_type='MAP_RMS', 
-                    flag_file=None, det_thresh=-1, det_area=-1, 
-                    logfile=None, verbose=True):
+def make_cat_vhs(fitsfile, outcat='tmp.cat', regfile=None,
+                 configfile='sext_vhs.config', 
+                 ncoadd=1, satur=50000., catformat='ldac',
+                 whtfile=None, weight_type='MAP_RMS', 
+                 flag_file=None, det_thresh=-1, det_area=-1, 
+                 logfile=None, verbose=True):
    """
    Calls make_fits_cat, but gets some relevant info first from the fits file
    """
@@ -537,9 +550,11 @@ def make_cat_vircam(fitsfile, outcat='tmp.cat', regfile=None,
    except:
       texp = 1.0
    try:
-      zeropt = hdr['magzpt']
+      zeropt = hdr['photzp']
    except:
-      zeropt = 30.0
+      print ''
+      print 'Warning: PHOTZP not found in header. '
+      zeropt = float(raw_input('Enter zero point to use: '))
    if verbose:
       print ""
       print 'Information from file header'
