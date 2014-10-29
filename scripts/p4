@@ -1,0 +1,52 @@
+#!/bin/csh
+# Assemble PostScript portrait pages "four up" (2 x 2, 45% reduction).
+# Arguments required: input filenames.
+# Output to stdout.
+# TJP 15-Jul-94 for A4
+# STM 24-Aug-94 for 8.5x11
+# CDF 11-Sep-94 Modify for "nine up" (3 x 3)
+# CDF 02-Dec-94 Modify for "four up" (2 x 2)
+#----------------------------------------------------------------------
+set SCALE  = 0.45
+set HEIGHT = 10.0
+set WIDTH  = 7.75
+set HOFF   = 1.70
+set VOFF   = 1.0
+set NX     = 2
+set NY     = 2
+set DONE   = 0
+@ IX = 0
+@ IY = $NY - 1
+cat <<EOF
+%!
+/begininclude{/level0 save def /showpage {} def} bind def
+/endinclude{level0 restore} bind def
+/inch{72 mul} bind def
+EOF
+
+while ($1 != "")
+    echo
+    echo "%%>>>" $IX $IY $1
+    echo begininclude
+    echo ${SCALE} ${SCALE} scale
+    echo ${WIDTH} ${IX} mul ${HOFF} add inch ${HEIGHT} ${IY} mul ${VOFF} add inch translate
+    cat $1; shift
+    echo endinclude
+    @ DONE = $DONE + 1
+    @ IX = $IX + 1
+    if ($IX == $NX) then
+        @ IX = 0
+        @ IY = $IY - 1
+    endif
+    if ($IY < 0 ) then
+        echo
+        echo showpage
+        @ IY = $NY - 1
+        set DONE = 0
+    endif
+end
+
+if ($DONE > 0) then
+   echo 
+   echo showpage
+endif

@@ -1,0 +1,19 @@
+#! /usr/local/bin/ksh
+
+
+read -r x0?"Enter x coordinate: "
+read -r y0?"Enter y coordinate: "
+#
+integer f=0
+#
+for a in 1 2 3 4 5
+do
+        let x=$x0-3+$a
+        for b in 1 2 3 4 5
+        do
+                let y=$y0+3-$b
+                f=f+1
+                echo "cir $x $y 5 & pie $x $y 0 90 180 270 0" > file_$f.reg
+                echo "file_$f.reg created with center $x $y"
+        done
+done

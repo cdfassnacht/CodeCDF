@@ -1,0 +1,11 @@
+#!/bin/sh
+set -a
+OBS_DEF="/home/anduril/cdf/vla/"
+OBS_CALIBDBC=$OBS_DEF/data/observe.dbc.sol
+OBS_DEFAULT=$OBS_DEF/data/observe.def
+OBS_HELP=$OBS_DEF/data/observe.hlb.sol
+TERMINFO=$OBS_DEF/terminfo
+OBS_LEAPS=30
+OBS_PRINT="psprint -l"
+$OBS_DEF/bin/observe.sol
+

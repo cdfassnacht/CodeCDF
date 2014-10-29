@@ -1,0 +1,446 @@
+#! /bin/ksh
+
+integer modmax=0	# Number of components to be included in model
+
+rcmin=0			# Initialize min and max values of each parameter to
+rcmax=0			#  0 in case that parameter is not included in the
+Skmin=0			#  model
+Skmax=0			# The parameters are:
+Spmin=0			#  rc	-  King model core radius
+Spmax=0			#  Sk	-  King model normalization
+pimin=0			#  Sp	-  Point source normalization
+pimax=0			#  pi	-  Power law index
+Spowmin=0		#  Spow	-  Power law normalization
+Spowmax=0		#  rp	-  Power law core radius
+rpmin=0			#  bkgd	-  Constant background
+rpmax=0
+bkgdmin=0
+bkgdmax=0
+
+integer rcn=1		# Initialize number of parameter values to 1 in
+integer Skn=1		#   case that parameter is not included in the model
+integer Spn=1
+integer pin=1
+integer Spown=1
+integer rpn=1
+integer bkgdn=1
+
+integer inclbkgd=1	# Include a background component
+
+modtype2="null"		# This is set to the model type if compressed models
+			#  are desired
+
+##############################################
+# This function will write the model generating part of the cl script
+function model_gen
+{
+if ((count != 0))
+then
+	print -u3 "immodel (\"tmp_$f""_$count.imh\","
+fi
+
+((count = count + 1))
+print -n -u3 "\"tmp_$f""_$count.imh\","
+print -u3 "\"$1\", $2, $3, \"\", no, 1., \"$4 $5 $6\", clobber=no," 
+print -u3 "display=0)" 
+print -u3 
+}
+# End of function
+###############################################
+###############################################
+function check_start_big
+{
+if [[ $1 = $bigsep ]]
+then
+	((bigno = bigno + 1))
+	exec 3> goo_$bigno
+fi
+}
+# End of function
+###############################################
+###############################################
+function check_end_big
+{
+if [[ $1 = $bigsep ]]
+then
+	print -u3 "!date"
+	print -u3 "logout" 
+	exec 3>&-
+	cat foo_$bigno goo_$bigno > mg_$bigno.cl
+	print "Finished with mg_$bigno.cl"
+	print
+	rm foo_$bigno goo_$bigno
+fi
+}
+# End of function
+###############################################
+
+print "This program generates a set of IRAF cl scripts that build models"
+print "  and find their radial profiles.  There are six different models from"
+print "  which to choose."
+print
+print "  king\t\t-\t King model only"
+print "  kpow\t\t-\t King + power law model"
+print "  kpt\t\t-\t King + central point source model"
+print "  kpowpt\t-\t King + power law + point source model"
+print "  powpt\t\t-\t Power law + point source model"
+print "  power\t\t-\t Power law only"
+print
+
+read ellp?"Are these models going to be fit to the elliptical isophotes? (y/n)"
+
+print
+read compress?"Are these models going to be compared to the compressed image? (y/n)"
+
+if [[ $ellp = y* ]]
+then
+	plext="_ellp.pl"
+elif [[ $compress = y* ]]
+then
+	plext="_compress.pl"
+else
+	plext=".pl"
+fi
+print
+print "CHOOSE MODEL"
+for modtype in king kpt kpow kpowpt powpt power
+do
+	read ans?"$modtype""? (y/n)"
+	if [[ $ans = y* ]]
+	then
+		break
+	fi
+done
+print
+
+if [[ $modtype = k* ]]
+then
+	((modmax = modmax + 1))
+	print "KING MODEL CORE RADIUS"
+	print "Enter r_c(min)  r_c(max)  number of values, separated by SPACES"
+	read -r rcmin rcmax rcn
+	print
+	print "KING MODEL CENTRAL INTENSITY"
+	print "Enter min  max  number of values, separated by SPACES"
+	read -r Skmin Skmax Skn
+	bigsep="Sk"
+fi
+
+if [[ $modtype = *pow* ]]
+then
+	((modmax = modmax + 1))
+	print
+	print "POWER LAW INDEX"
+	print "Enter min  max  number of values, separated by SPACES"
+	read -r pimin pimax pin
+	print
+	print "POWER LAW INTENSITY"
+	print "Enter min  max  number of values, separated by SPACES"
+	read -r Spowmin Spowmax Spown
+	print
+	print "POWER LAW CORE RADIUS"
+	print "Enter r_pow(min)  r_pow(max)  number of values, separated by SPACES"
+	read -r rpmin rpmax rpn
+	if [[ $modtype = k* ]]
+	then
+		bigsep="Sk"
+	else
+		bigsep="pi"
+	fi
+fi
+
+if [[ $modtype = *pt ]]
+then
+	((modmax = modmax + 1))
+	print
+	print "POINT SOURCE INTENSITY"
+	print "Enter min  max  number of values, separated by SPACES"
+	read -r Spmin Spmax Spn
+	if [[ $modtype = k* ]]
+	then
+		bigsep="pi"
+	else
+		bigsep="Sp"
+	fi
+fi
+
+print
+print "CONSTANT BACKGROUND"
+print "Enter min  max  number of values, separated by SPACES"
+print "  (Enter \"0 0 1\" to have NO background component)"
+read -r bkgdmin bkgdmax bkgdn
+
+if [[ $bkgdmin = 0 ]] && ((bkgdn == 1))
+then
+	((inclbkgd = 0))	# Don't include a background component
+fi
+
+print
+print "IMCNTS REGION DESIGNATOR"
+print "Enter galaxy/filter code, ie. 101, 103, 201, etc."
+read -r galfil
+
+while read seqn xcent ycent psftype
+do
+	if ((seqn == galfil))
+	then
+		((x0 = xcent))
+		((y0 = ycent))
+		psft=$psftype
+	fi
+done < modgen.dat
+
+if [[ $galfil = 5* ]]
+then
+	plext="_nodust.pl"
+fi
+
+print "$x0 $y0 $psft"
+
+# Create the files mg_?.cl which generate the models used by xspat.immod
+# in IRAF
+#
+integer f=0
+integer bigno=0
+integer bigmax=1
+integer divfactor
+integer indx=0
+integer i=0	# Counting variables
+integer q=0
+
+print
+for ptnm in "/data/pepi/fassnach/stwork" "/data/fassnach" "/pool7/fassnach"
+do
+	pat[$indx]=$ptnm
+	((indx = indx + 1))
+done
+
+for bigmaxfactor in rcn Skn Spn pin Spown
+do
+	eval bigmax=$bigmax*$bigmaxfactor
+	if [[ $bigmaxfactor = $bigsep""n ]]
+	then
+		break
+	fi
+done
+print $bigmax
+
+if ((bigmax % 3 == 0))
+then
+	((divfactor = bigmax / 3))
+else
+	((divfactor = (bigmax / 3) + 1))
+fi
+
+while ((q < bigmax))
+do
+	((indx = q / divfactor))
+	pathnm=${pat[$indx]}
+	((q = q + 1))
+	print " mg_$q will be done on $pathnm"
+	exec 3> foo_$q
+	print -u3 "xray"
+	print -u3 "xspatial"
+	print -u3 "ximages"
+	print -u3 "cd $pathnm"
+	print -u3 "set uparm=\"$pathnm""/uparm$q""/\""
+	exec 3<&-
+done
+print
+#
+if [[ $compress = [yY]* ]]
+then
+	modtype2=$modtype
+	modtype="compress"
+fi
+
+exec 4> models/$modtype""/mod/x$galfil.modlog
+
+
+while ((i < rcn))
+do
+	print "$i $rcmin $rcmax $rcn" > rctmp.tab 
+	rc=`awk -f realmath.awk rctmp.tab`
+	check_start_big rc
+	integer j=0
+	while ((j < Skn))
+	do
+	   print "$j $Skmin $Skmax $Skn" > Sktmp.tab 
+	   Sk=`awk -f realmath.awk Sktmp.tab`
+	   check_start_big Sk
+	   integer k=0
+	   while ((k < Spn))
+	   do
+		print "$k $Spmin $Spmax $Spn" > Sptmp.tab 
+		Sp=`awk -f realmath.awk Sptmp.tab`
+		check_start_big Sp
+		integer l=0
+		while ((l < pin))
+		do
+		   print "$l $pimin $pimax $pin" > pitmp.tab
+		   pi=`awk -f realmath.awk pitmp.tab`
+		   check_start_big pi
+		   integer m=0
+		   while ((m < Spown))
+		   do
+			print "$m $Spowmin $Spowmax $Spown" > Spowtmp.tab
+			Spow=`awk -f realmath.awk Spowtmp.tab`
+			check_start_big Spow
+			integer n=0
+			while ((n < rpn))
+			do
+			   print "$n $rpmin $rpmax $rpn" > rptmp.tab
+			   rp=`awk -f realmath.awk rptmp.tab`
+			   integer p=0
+			   while ((p < bkgdn))
+			   do
+				if ((inclbkgd == 1))
+				then
+				   print "$p $bkgdmin $bkgdmax $bkgdn" > bkgdtmp.tab
+				   bkgd=`awk -f realmath.awk bkgdtmp.tab`
+				else
+				   ((bkgd = 0))
+				fi
+				(( f = f + 1))
+				integer count=0
+
+##########################
+# UNINDENTED FOR SPACE REASONS.  STILL PART OF p LOOP
+
+# Test to see if model already exists
+
+if [[ -a models/$modtype""/mod/x$galfil.mod.$rc"_"$Sk"_"$Sp"_"$pi"_"$Spow"_"$rp"_"$bkgd.dat ]]
+then
+	print "*** Model $f ($rc $Sk $Sp $pi $Spow $rp $bkgd) already exists"
+	print -u4 "$f $rc $Sk $Sp $pi $Spow $rp $bkgd"
+	((p = p + 1))
+	continue
+fi
+
+if [[ $modtype = compress ]]
+then
+	print -u3 "immodel (\"384 384\","
+	modtmp=$modtype2
+else
+	print -u3 "immodel (\"512 512\"," 
+	modtmp=$modtype
+fi
+
+if [[ $modtmp = k* ]]
+then
+	model_gen king $rc 1. $x0 $y0 $Sk	# Include King model
+fi
+
+if [[ $modtmp = *pt ]]
+then
+	model_gen impulse 1. 1. $x0 $y0 $Sp	# Include point source
+fi
+
+if [[ $modtmp = *pow* ]]
+then
+	model_gen power $rp $pi $x0 $y0 $Spow	# Include power law
+fi
+
+if [[ $modtype = compress ]]
+then					# Compress the model
+	print -u3 "unlearn imcompress"
+	print -u3
+
+	print -u3 "imcompress (\"tmp_$f""_$count.imh\","
+	((count = count + 1))	# Increment counting variable so that the output 
+				#  file has a different name than the input file  
+	print -u3 "\"tmp_$f""_$count.imh\", \"none\", \"none\", 2, clobber=no)" 
+	print -u3 
+
+	print -u3 "unlearn imcompress"
+	print -u3
+fi
+
+#########################
+#     CONVOLUTION       #
+#########################
+
+print -u3 "imsmooth (\"tmp_$f""_$count\","
+
+((count = count + 1))	# Increment counting variable so that the output file
+			#  has a different name than the input file
+if [[ $modtype = compress ]]
+then
+	print -u3 "\"mod_$f""_kc.imh\", \"file\", 2., 0, arg2=1., model_file=\"point_spread_fns/psf$psft\","
+ 
+else
+
+	print -u3 "\"tmp_$f""_$count.imh\", \"file\", 2., 0, arg2=1., model_file=\"point_spread_fns/psf$psft\"," 
+
+fi
+
+print -u3 "block=1, padding=0, clobber=no, errors=no, errarray=\"none\", error_out=\"none\"," 
+print -u3 "display=0, adjust_cente=no, xcen=0., ycen=0., display_mode=no," 
+print -u3 "examine_mode=no, display_imag=no, examine_imag=no, examine_conv=no," 
+print -u3 "examine_comp=no)" 
+print -u3 
+
+if ((inclbkgd == 1)) && [[ $modtype != compress ]]
+then
+	model_gen boxcar 511 511 256 256 $bkgd	# Include background component
+fi
+
+if [[ $modtype != compress ]]
+then
+	print -u3 "imcopy (\"tmp_$f""_$count.imh[1:384,1:384]\","
+	print -u3 "\"mod_$f""_kc.imh\", verbose=yes)"
+	print -u3
+fi
+
+print -u3 "imdel (\"tmp_$f""_*h\"," 
+print -u3 "yes, verify=no, default_acti=yes)" 
+print -u3 
+
+print -u3 "imcnts (\"mod_$f""_kc\"," 
+print -u3 "\"regions/x$galfil""$plext\", \"NONE\", \"\", \"mod_$f""_kc\", exposure=\"NONE\", expthresh=0.," 
+print -u3 "err=\"NONE\", matchbkgd=no, bkgdexposure=\"NONE\", bkgdthresh=0., addbkgderr=yes," 
+print -u3 "bkgderr=\"NONE\", timenorm=no, normfactor=1., clobber=no, display=0)" 
+print -u3 
+
+print -u3 "tdump (\"mod_$f""_kc_cnt\"," 
+print -u3 "cdfile=\"\", pfile=\"\", datafile=\"mod$f""_kc.tab\", columns=\"rad2 raw pixels\"," 
+print -u3 "rows=\"-\", pwidth=80)" 
+print -u3 
+
+print -u3 "imdel (\"mod_$f""_kc\"," 
+print -u3 "yes, verify=no, default_acti=yes)" 
+print -u3 
+
+print -u3 "delete (\"mod_$f""_kc_cnt.tab\"," 
+print -u3 "yes, verify=no, default_acti=yes, allversions=yes, subfiles=yes)" 
+print -u3 
+
+# END OF UNINDENTED SECTION
+#######################
+				print "$f $rc $Sk $Sp $pi $Spow $rp $bkgd"
+				print -u4 "$f $rc $Sk $Sp $pi $Spow $rp $bkgd"
+				((p = p + 1))
+			   done
+			   ((n = n + 1))
+			done
+			check_end_big Spow
+			((m = m + 1))
+		   done
+		   check_end_big pi
+		   ((l = l + 1))
+		done
+		check_end_big Sp
+		((k = k + 1))
+	   done
+	   check_end_big Sk
+	   ((j = j + 1))
+	done
+	check_end_big rc
+	((i = i + 1))
+done
+exec 4>&-
+
+rm *tmp.tab
+date
+
+

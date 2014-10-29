@@ -1,0 +1,49 @@
+#!/bin/csh -f
+# Assemble PostScript portrait pages "three up" (1 x 3, 35% reduction).
+# Arguments required: input filenames.
+# Output to stdout.
+# TJP 15-Jul-94 for A4
+# STM 24-Aug-94 for 8.5x11
+# CDF 11-Sep-94 Modify for "nine up" (3 x 3)
+# CDF 02-Dec-94 Modify for "four up" (2 x 2)
+# CDF 06-Nov-96 Modify for "three up" (1 x 3)
+#----------------------------------------------------------------------
+set SCALE  = 0.45
+set HEIGHT = 10.0
+set WIDTH  = 7.75
+set HOFF   = 1.70
+set VOFF   = 2
+set NY     = 3
+set DONE   = 0
+@ IY = $NY - 1
+cat <<EOF
+%!
+/begininclude{/level0 save def /showpage {} def} bind def
+/endinclude{level0 restore} bind def
+/inch{72 mul} bind def
+EOF
+
+while ($1 != "")
+    echo
+    echo "%%>>>" 0 $IY $1
+    echo begininclude
+    @ VOFF = $VOFF + 2
+    echo ${SCALE} ${SCALE} scale
+    echo ${WIDTH} 0 mul ${HOFF} add inch ${HEIGHT} ${IY} mul ${VOFF} add inch translate -90 rotate
+    cat $1; shift
+    echo endinclude
+    @ DONE = $DONE + 1
+    @ IY = $IY - 1
+    if ($IY < 0 ) then
+        echo
+        echo showpage
+        @ IY = $NY - 1
+        set DONE = 0
+	set VOFF = 2
+    endif
+end
+
+if ($DONE > 0) then
+   echo 
+   echo showpage
+endif

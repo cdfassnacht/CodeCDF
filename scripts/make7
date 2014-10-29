@@ -1,0 +1,29 @@
+#!/bin/csh
+# Arguments required: input filenames.
+# spit out groups of 7 files to run 16up
+# CDF09Apr2003 CDF, A simple modification of make16
+#----------------------------------------------------------------------
+set NXY = 7
+@ IXY = 0
+@ IP = 1
+rm foo
+while ($1 != "")
+  echo $1 >>! foo"\n"
+  shift
+  @ IXY = $IXY + 1
+  if ($IXY == $NXY) then
+    @ IXY = 0
+    echo `cat foo` > list.""$IP
+    echo Done with list.""$IP
+    @ IP = $IP + 1
+    rm foo
+  endif
+end
+
+if ($IXY != 0) then
+    echo `cat foo` > list.""$IP
+    echo Done with list.""$IP
+    rm foo
+endif
+
+  

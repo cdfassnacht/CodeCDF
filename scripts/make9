@@ -1,0 +1,33 @@
+#!/bin/csh
+# Arguments required: input filenames.
+# spit out groups of 16 files to run 16up
+# STM 16Jul94
+# v.20Jul94 CDF, Add line to let the user monitor progress
+# v.15Aug94 stm, version for caltech suns
+# v.11Sep94 cdf, Modify to make groups of 9 files to run p9
+#----------------------------------------------------------------------
+unalias rm
+set NXY = 9
+@ IXY = 0
+@ IP = 1
+if ( -d foo ) rm foo
+while ($1 != "")
+  echo $1 >>! foo
+  shift
+  @ IXY = $IXY + 1
+  if ($IXY == $NXY) then
+    @ IXY = 0
+    echo `cat foo` > ps.$IP.list
+    echo Done with ps.$IP.list
+    @ IP = $IP + 1
+    rm foo
+  endif
+end
+
+if ($IXY != 0) then
+    echo `cat foo` > ps.$IP.list
+    echo Done with ps.$IP.list
+    rm foo
+endif
+
+  

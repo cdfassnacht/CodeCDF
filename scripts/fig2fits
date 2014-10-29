@@ -1,0 +1,31 @@
+#! /bin/csh -f
+#
+# Read a list of VMS DST files and convert each to Sun Disk FITS format.
+#
+# Originally written by Nick Weir.
+# Revised to write a proper FITS header by Keith Thompson, Martin Shepherd,
+# and Todd Small.
+#
+	source /usr/local/opt/fig24/figaro/dev/figaro.com
+
+	if ($#argv == 0 || $1 == -h) then
+		echo "Usage:  `basename $0` files..."
+		exit 1
+	endif
+
+	echo "Convert VMS/Sun HDS Images to Sun Disk FITS"
+	echo " "
+	foreach infile ($*)
+		set file1 = $infile:r 
+		set file2 = ${file1}.fits
+		echo $file1 $file2
+		source ~/bin/fits_head $file1
+		wdfits im=$file1 fi=$file2
+		rm ${file1}.dst
+	end
+
+exit
+
+#
+
+

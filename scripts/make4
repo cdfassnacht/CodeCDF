@@ -1,0 +1,29 @@
+#!/bin/csh
+# Arguments required: input filenames.
+# spit out groups of 4 files to run 4
+# CDF 18Nov97 -- Modification of make16
+#----------------------------------------------------------------------
+set NXY = 4
+@ IXY = 0
+@ IP = 1
+rm foo
+while ($1 != "")
+  echo $1 >>! foo
+  shift
+  @ IXY = $IXY + 1
+  if ($IXY == $NXY) then
+    @ IXY = 0
+    echo `cat foo` > ps.$IP.list
+    echo Done with ps.$IP.list
+    @ IP = $IP + 1
+    rm foo
+  endif
+end
+
+if ($IXY != 0) then
+    echo `cat foo` > ps.$IP.list
+    echo Done with ps.$IP.list
+    rm foo
+endif
+
+  

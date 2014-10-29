@@ -1,0 +1,104 @@
+#
+#  This program creates a Figaro .fits structure that can be used with
+#  the Figaro command wdfits to write data in FITS format with a
+#  proper header.
+# 
+#  input filename (without .dst extension) on command line
+#
+#  Original:  Keith L. Thompson
+#  Revised:  Martin C. Shepherd, Todd A. Small
+#
+#
+#  First, the "constants" to be used:
+#  (These may be modified.)
+#
+set OBSERVAT = "Palomar/60-inch"
+set INSTRUME = "Spectrograph"
+set OBSERVER = "CDF"
+echo "Input structure = $file1.obs  output structure = $file1.fits"
+#
+#  Create the temporary file containing the .obs structure,
+#  delete the original FITS header, and create a new one:
+#
+exam $file1.obs > temp.obs
+cat temp.obs
+delobj $file1.fits
+crobj $file1.fits, type ""
+#
+#  Make direct copies of entries in the .obs structure:
+#
+let ${file1}.fits.date-obs = ${file1}.obs.date
+let ${file1}.fits.object = ${file1}.obs.object
+let ${file1}.fits.night = ${file1}.obs.night
+let ${file1}.fits.frame = ${file1}.obs.frame
+let ${file1}.fits.filter = ${file1}.obs.filter
+let ${file1}.fits.erase = ${file1}.obs.erase
+let ${file1}.fits.dewar = ${file1}.obs.dewar
+let ${file1}.fits.port = ${file1}.obs.port
+let ${file1}.fits.chip = ${file1}.obs.chip
+let ${file1}.fits.exptime = ${file1}.obs.time
+let ${file1}.fits.airmass = ${file1}.obs.secz
+let ${file1}.fits.epoch = ${file1}.obs.epoch
+let ${file1}.fits.ccdtemp = ${file1}.obs.temp
+let ${file1}.fits.casspa = ${file1}.obs.casspa
+let ${file1}.fits.slit = ${file1}.obs.slit
+let ${file1}.fits.grating = ${file1}.obs.grating
+#
+#  Create new entries for the .fits structure: 
+#  
+let ${file1}.fits.observer = \"$OBSERVER\"
+let ${file1}.fits.observat = \"$OBSERVAT\"
+let ${file1}.fits.instrume = \"$INSTRUME\"
+#
+set TELE=`nawk  '$1 == ".TELESCOPE" { printf("P%s\n",$3) }' temp.obs`
+let ${file1}.fits.telescop = \"$TELE\"
+#
+set FILENAME = ${file1}.dst
+let ${file1}.fits.filename = \"$FILENAME\"
+let ${file1}.fits.irafname = \"${file1}\"
+#
+#  Finally, the difficult stuff: dec, ra, ut, ha, and lst:
+#
+#  Declination
+set DECS=`nawk  '$1 == ".DECS" { printf("%s\n",$3) }' temp.obs`
+set DEC=`nawk  '$1 == ".DEC[4]" {printf("%s:%s:%s.%s\n",$3,$4,$5,$6)}' temp.obs`
+set DEC=`echo ${DECS}$DEC`
+let ${file1}.fits.dec = \"$DEC\"
+#  Right Ascension
+set RA=`nawk  '$1==".RA[4]" {printf("%s:%s:%s.%s\n", $3, $4, $5, $6)}'  temp.obs`
+let ${file1}.fits.ra = \"$RA\"
+#  Universal Time
+set UT=`nawk  '$1 == ".UT[4]" { printf("%s:%s:%s.%s\n",$3,$4,$5,$6)}' temp.obs`
+let ${file1}.fits.ut = \"$UT\"
+#  Hour Angle
+set HAS=`nawk  '$1==".HAS" { printf("%s\n",$3)}' temp.obs`
+set HA=`nawk  '$1 == ".HA[4]" { printf("%s:%s:%s.%s\n",$3,$4,$5,$6)}' temp.obs`
+set HA=`echo ${HAS}$HA`
+let ${file1}.fits.ha = \"$HA\"
+#  Local Sideral Time
+set LST=`nawk '$1 ==".LST[4]" {printf("%s:%s:%s.%s\n",$3,$4,$5,$6)}' temp.obs`
+let ${file1}.fits.lst = \"$LST\"
+#  Grating Angle
+set ANGLE = `nawk '$1 == ".ANGLE[2]"{printf("%5.2f\n",$3+$4/60)}' temp.obs`
+let ${file1}.fits.angle = \"$ANGLE\"
+#
+#  The Norris Spectrograph object information
+#
+
+if ("$INSTRUME" == "The Norris Spectrograph") then
+	nexam ${file1} > temp.dat
+	set i = 1
+	set base = .NORRIS
+	while ($i <= 500)
+		set result = `lines $i < temp.dat`
+		if ("$result" == "No more NORRIS records") break
+		let ${file1}.fits$base$i = \"$result\"
+		@ i++
+		end
+	\rm temp.dat
+endif
+	
+#
+#  Delete the temporary file containing the .obs structure:
+#
+\rm temp.obs
