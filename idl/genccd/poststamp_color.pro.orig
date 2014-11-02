@@ -1,0 +1,203 @@
+pro poststamp_color, bfits, gfits, rfits, centx, centy, nx, ny, $
+                     lsig=lsig, hsig=hsig, display=display, $
+                     psfile=psfile, jpfile=jpfile
+;
+; Function poststamp_color
+;
+; Description: Takes 3 input registered fits files that contain data
+; in 3 bands and displays a "truecolor" version of a smaller "postage
+;  stamp" image of size nx by ny centered at (centx, centy).  
+;
+; Inputs:
+;         bfits      (string)      name of shortest wavelength fits file
+;         gfits      (string)      name of middle wavelength fits file
+;         rfits      (string)      name of longest wavelength fits file
+;         centx      (float)       x position (in input image) to be
+;                                   used as the center of the postage stamp
+;         centy      (float)       y position (in input image) to be
+;                                   used as the center of the postage stamp
+;         nx         (int)         output size in x dimension
+;         ny         (int)         output size in y dimension
+;         [lsig=]     (float)      number of sigma below mean to set lower
+;                                   display limit (default = 1.0)
+;         [hsig=]     (float)      number of sigma above mean to set upper
+;                                   display limit (default = 15.0)
+;         [/display]               set this flag to display the extracted image
+;
+; Output: cutout     (floatarray)  cutout image
+;
+; Revision history:
+;  2006Feb02 Chris Fassnacht -- First rough version.
+;
+
+; Check input format
+
+if n_params() lt 5 then begin
+    print, ''
+    print, 'syntax:  poststamp_color, bfits, gfits, rfits, centx, centy, nx, ny'
+    print, '         [lsig=lsig,hsig=hsig,psfile=psfile,jpfile=jpfile,/display])'
+    print, ''
+    print, '  Set the display flag to display the cutout'
+    nullim = fltarr(1)
+    return
+endif
+
+; Set defaults
+
+if not keyword_set(lsig) then lsig=1.0
+if not keyword_set(hsig) then hsig=15.0
+
+; Create a blank images of the appropriate size to store the cutouts.
+
+bim = fltarr(nx,ny)
+gim = fltarr(nx,ny)
+rim = fltarr(nx,ny)
+
+; Get dimensions of input images
+
+inhead=headfits(bfits)
+sz=fxpar(inhead,'NAXIS*')
+nx0 = sz[0]
+ny0 = sz[1]
+print, ''
+print, 'poststamp_color: Input image dimensions: ', nx0, ny0
+
+; Make sure that the postage stamp is smaller than the input image
+
+if ((nx gt nx0) or (ny gt ny0)) then begin
+    print, 'poststamp_color: One or more output dimensions are larger than '
+    print, 'poststamp_color:  input dimensions.'
+    return
+endif
+
+; Make everything an integer
+
+cx = round(centx)
+cy = round(centy)
+inx = round(nx)
+iny = round(ny)
+halfx = round(inx/2)
+halfy = round(iny/2)
+print, 'poststamp_color: Centering postage stamp at ', $
+    strtrim(cx,1),',',strtrim(cy,1)
+print, 'poststamp_color: Requested postage stamp dimensions are ', $
+    strtrim(inx,1),',',strtrim(iny,1)
+
+; Set limits for copying, checking for edges of input image.
+
+x10 = cx - halfx
+x20 = x10 + inx - 1
+y10 = cy - halfy
+y20 = y10 + iny - 1
+x1 = cx - halfx > 0
+x2 = x10 + inx - 1 < (nx0 - 1)
+y1 = cy - halfy > 0
+y2 = y10 + iny - 1 < (ny0 - 1)
+xsize = x2 - x1 + 1
+ysize = y2 - y1 + 1
+if x10 lt 0 then ox1 = inx - xsize else ox1 = 0
+if y10 lt 0 then oy1 = iny - ysize else oy1 = 0
+if x20 gt (nx0-1) then ox2 = xsize - 1 else ox2 = inx - 1
+if y20 gt (ny0-1) then oy2 = ysize - 1 else oy2 = iny - 1
+
+; Read in selected portion of input images and copy into appropriate
+;  range of output image
+; Copy input image to output image
+
+print, 'poststamp_color: Using ranges ',strtrim(x1,1),'-',strtrim(x2,1), $
+    ' and ',strtrim(y1,1),'-',strtrim(y2,1)
+
+fxread,bfits,imgtmp,hd,x1,x2,y1,y2
+bim[ox1:ox2,oy1:oy2] = imgtmp
+fxread,gfits,imgtmp,hd,x1,x2,y1,y2
+gim[ox1:ox2,oy1:oy2] = imgtmp
+fxread,rfits,imgtmp,hd,x1,x2,y1,y2
+rim[ox1:ox2,oy1:oy2] = imgtmp
+
+; Get information from first file's header
+
+cd1 = fxpar(hd, 'cd1_*', count=count1)
+cd2 = fxpar(hd, 'cd2_*', count=count2)
+
+if (count1 lt 2) then begin
+   pixscale=0.05 
+endif else begin
+    pixscale=sqrt(cd1[0]*cd1[0] + cd1[1]*cd1[1])*3600.0
+endelse
+print, 'pixscale = ',pixscale
+
+; Set up scaled versions of the input files
+
+hssz = size(hsig,/dimen)
+if(hssz ne 3) then imhs=[hsig, hsig, hsig] else imhs = hsig
+
+imscal, rim, rimsc, rstat, hsig=imhs[2], nsig=3.0
+imscal, gim, gimsc, gstat, hsig=imhs[1], nsig=3.0
+imscal, bim, bimsc, bstat, hsig=imhs[0], nsig=3.0
+
+; Set up 3-plane array for inputs to true-color images
+
+rgb=bytarr(3,nx,ny)
+rgb[0,*,*] = rimsc
+rgb[1,*,*] = gimsc
+rgb[2,*,*] = bimsc
+
+; Set displayed image size
+
+angxsz = nx*pixscale/2.
+angysz = ny*pixscale/2.
+print, ''
+print, 'Native image size is ',angxsz*2.,' arcsec x',angysz*2.,' arcsec'
+if n_elements(imgsz) gt 0 then begin
+   imgxsz = imgsz / 2.
+   imgysz = imgsz / 2.
+endif else begin
+   imgxsz = angxsz
+   imgysz = angysz
+endelse
+print, 'Displayed image size will be:',imgxsz*2.,' arcsec x',imgysz*2.,' arcsec'
+print, 'Upper value of display ranges are:'
+print, '   ',bfits,': ',imhs[0],' sigma above the clipped mean'
+print, '   ',gfits,': ',imhs[1],' sigma above the clipped mean'
+print, '   ',rfits,': ',imhs[2],' sigma above the clipped mean'
+
+; Set up viewport window
+
+subcellarray, [1],[1], newpan, newsubpan
+
+; Plot images
+
+print, ''
+print, 'Plotting truecolor image'
+print, ''
+
+plotimage,rgb,/preserve,_extra=_extra,panel=newpan[0,0,*], $
+   subpan=newsubpan[0,0,*],imgxr=[-1,1]*angxsz,imgyr=[-1,1]*angysz, $
+   xrange=[-1,1]*imgxsz,yrange=[-1,1]*imgysz, $
+   xtit='arcsec',ytit='arcsec',title=bigroot
+;xyouts,-0.9*sz[0]*pixscale/2.,0.8*sz[1]*pixscale/2.,'BVI',/data, $
+;   charsize=3.0, font=1
+
+; Plot to a postscript file
+
+if n_elements(psfile) gt 0 then begin
+   print,' Saving image in postscript file '+psfile+'.ps.'
+   ps_open,psfile,/color,/ps_fonts
+   device,xsize=6,ysize=6,/inches,/portrait,/times
+   plotimage,rgb,/preserve,_extra=_extra,panel=newpan[0,0,*], $
+      subpan=newsubpan[0,0,*],imgxr=[-1,1]*angxsz,imgyr=[-1,1]*angysz, $
+      xrange=[-1,1]*imgxsz,yrange=[-1,1]*imgysz, $
+      xtit='arcsec',ytit='arcsec',title=bigroot
+;   xyouts,-0.9*sz[0]*pixscale/2.,0.8*sz[1]*pixscale/2.,'BVI',/data, $
+;      charsize=3.0, font=0, color=255
+   ps_close
+endif
+
+; Plot to a jpeg file (no border or labels)
+
+if n_elements(jpfile) gt 0 then begin
+   write_jpeg,jpfile,rgb,true=1
+   print,' Image saved in JPEG file '+jpfile+'.'
+endif
+
+end

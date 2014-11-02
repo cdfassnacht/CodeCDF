@@ -1,0 +1,282 @@
+pro gopost, image, inhead, xcent, ycent, nx, ny, outbase, $
+            shape=shape, dofitell=dofitell, dodisplay=dodisplay
+;
+; Procedure gopost
+;
+; Description: A driver to cut out a postage stamp image, fit a
+;               galaxy profile to it and then do the median-filtering
+;               fit.
+;
+; Inputs: image      (floatarray)  input image
+;         inhead     (strarray)    FITS header of original image
+;         xcent      (float)       x position (in input image) to be
+;                                   used as the center of the postage stamp
+;         ycent      (float)       y position (in input image) to be
+;                                   used as the center of the postage stamp
+;         nx         (int)         output size in x dimension
+;         ny         (int)         output size in y dimension
+;         outbase    (string)      base name for output files
+;         [shape=]   (floatarray)  a four element vector describing
+;                                   the shape of the image, as found
+;                                   by SExtractor.  The elements are:
+;                                   shape[0] = a (semimajor axis)
+;                                   shape[1] = b (semiminor axis)
+;                                   shape[2] = PA (PA of major axis,
+;                                    astronomical convention)
+;                                   shape[3] = sfac (multipicative
+;                                    factor -- all pixels with
+;                                    elliptical distances more than
+;                                    sfac*a will be masked out before
+;                                    doing the curve fitting)
+;         [/dofitell]              use fitell procedures to determine
+;                                   galaxy center, ellipticity, and
+;                                   PA.  Otherwise, just use
+;                                   SExtractor values, which have been
+;                                   passed to this procedure in the
+;                                   "shape" array.
+;         [/dodisplay]             display images if set
+;
+;
+; Revision history:
+;  2002Apr18 Chris Fassnacht -- First working version.
+;  2002Apr24 Chris Fassnacht -- Added the optional shape keyword,
+;                                which, if set, will mask out pixels
+;                                larger than a certain factor times the
+;                                semimajor axis.
+;  2002Apr25 Chris Fassnacht -- Added cropping of the image before it
+;                                gets passed to fitell.  The cropping
+;                                will trim the image to the minimum
+;                                rectangle containing the good region
+;                                defined by the shape mask.
+;  2002May07 Chris Fassnacht -- Added fit to image as one of output
+;                                files.
+;  2002Aug06 Chris Fassnacht -- Moved cropping of postage-stamp image
+;                                and first call to fitell into
+;                                separate functions called imcrop and
+;                                run_fitell, respectively.
+;                               Started implementing choice of method
+;                                to determine ellipticity and PA of
+;                                galaxy.
+;  2003Mar18 Chris Fassnacht -- Changed to reflect new version of sigclip
+;
+
+; Check input format
+
+if n_params() lt 6 then begin
+    print, ''
+    print, 'syntax: gopost, image, inhead, xcent, ycent, nx, ny, outbase '
+    print, '          [, shape=shape, /dofitell, /dodisplay]'
+    print, ''
+    return
+endif
+
+; Initialize some variables
+
+nbad = 0
+
+; Cut out postage stamp image
+
+print, ''
+print, 'gopost: Creating postage stamp image.'
+print, 'gopost: -------------------------------------------------------'
+stamp = poststamp(image,xcent,ycent,nx,ny,inhead=inhead,outhead=outhead)
+
+; Guess at noise level for galaxy-model fits by doing a 3-sigma
+;  clipping on the image.
+
+print, 'gopost: Estimating noise in new image.'
+print, 'gopost: -------------------------------------------------------'
+sigclip, stamp, stampstat, 3.0
+stamprms = stampstat.rms
+print, 'gopost: Estimated RMS noise in postage stamp image is',stamprms
+
+print, ''
+if keyword_set(dodisplay) then begin
+    print, '*** Displaying postage stamp image.  Hit DONE to continue. ***'
+    display, stamp, dmin=-10*stamprms, dmax=20*stamprms
+endif else begin
+    dodisplay = 0
+endelse
+
+; Make a mask of good pixels based on the optional shape parameters.
+; If the shape keyword has not been used, then keep all pixels in
+;  the postage stamp as good (i.e., mask value = 1).
+; If the keyword has been set, then set the mask pixels to bad where
+;  their elliptical distance is more than sfac (shape[3]) times the
+;  semimajor axis (shape[0]).
+
+print, ''
+print, 'gopost: Setting up area mask.'
+print, 'gopost: ------------------------------------------------------'
+goodmask = 0.0 * stamp + 1.0
+if n_elements(shape) gt 0 then begin
+    if n_elements(shape) ge 4 then begin
+        ner = [nx, ny]
+        stampx0 = round(nx / 2)
+        stampy0 = round(ny / 2)
+        shaperatio = shape[0] / shape[1]
+        dist_ellipse, er, ner, stampx0, stampy0, shaperatio, shape[2]
+        if shape[3]*shape[0] gt 20 then emax = shape[3]*shape[0] else emax = 20
+        wbad = where(er gt emax, nbad)
+        if nbad gt 0 then goodmask[wbad]=0
+    endif else begin
+        print, ''
+        print, '*** Warning -- incorrect number of shape parameters. ***'
+        print, '    (should be 4 parameters: a, b, PA, sfac)'
+        print, '*** No area masking done! ***'
+        print, ''
+    endelse
+endif
+wgood = where(goodmask gt 0, ngood)
+if ngood eq 0 then begin
+    print, ''
+    print, '*** ERROR: gopost.  No good pixels in area mask! ***'
+    print, '           Cannot continue!'
+    return
+endif
+print, 'gopost: Mask set with ',ngood,' good pixels and ',nbad,' bad pixels.'
+
+; Create and display (if requested) the masked image.
+
+maskim = stamp * goodmask
+if keyword_set(dodisplay) then begin
+    print, ''
+    print, '*** Displaying masked image.  Hit DONE to continue. ***'
+    display, maskim, dmin=-10*stamprms, dmax=20*stamprms
+endif
+
+; Crop the image to its minimum size in x and y to get rid of possible
+;  confusing emission from nearby objects.  
+
+imcrop, maskim, goodmask, cropim, cropmask, xmin, xmax, ymin, ymax
+
+; If the dofitell flag is set, then get model parameters by running
+;  fitell on the input image.
+
+if keyword_set(dofitell) then begin
+
+   ; Run fitell to find best-fit parameters, either from a r^(1/4)-law or
+   ;  exponential-disk fit.
+
+    run_fitell, cropim, cropmask, stamprms, mpar, doellip, fitstring, $
+      dodisplay=dodisplay
+
+; If dofitell flag is not set, then just use parameters from
+;  SExtractor, which are contained in the shape parameter.
+
+endif else begin
+
+    ; Get the x and y centroids by running gauss2dfit on the cropped image
+    ; par0 is the result vector: (see index assignments in fitell.pro).
+    gaussianfit = GAUSS2DFIT (cropim, par0)
+    mpar = fltarr(7)
+    mpar[1] = par0[4]             ; x location of center
+    mpar[2] = par0[5]             ; y location of center
+    mpar[5] = shape[1] / shape[0] ; axis ratio (b/a)
+    mpar[6] = shape[2]            ; PA
+    print, 'gopost: Using SExtractor values as inputs to medfilt.'
+    print, 'gopost: ',mpar[1],mpar[2],mpar[5],mpar[6]
+    print, ''
+endelse
+
+; *** NB: The x and y positions returned by fitell or gauss2dfit 
+;     need to be corrected since both procedures were run on the 
+;     cropped image.
+
+mpar[1] = mpar[1] + xmin
+mpar[2] = mpar[2] + ymin
+
+; Call medfit to get median-filtered fit to data.
+
+print, 'gopost: Doing median filtering of image'
+print, 'gopost: -------------------------------------------------------'
+mask1 = 0 * stamp + 1
+; medfit, stamp, mf1, mpar, outmask=mask1, rkeep=7
+medfit, stamp, mf1, mpar, outmask=mask1
+resid1 = stamp - mf1
+
+; If the dofitell flag is set, then re-do model fitting with combined 
+;  mask, then re-do the median filtering with the better
+;  determinations of the fit parameters.
+
+if keyword_set(dofitell) then begin
+    combmask = goodmask < mask1
+    cropcombmask = combmask[xmin:xmax,ymin:ymax]
+    print, ''
+    print, 'gopost: Re-fitting galaxy models (takes a while...)'
+    print, 'gopost: -------------------------------------------------------'
+    print, fitstring
+    if doellip then begin
+        fit2 = fitell(cropim,par2,err2,mask=cropcombmask,noise=stamprms)
+    endif else begin
+        fit2 = fitell(cropim,par2,err2,mask=cropcombmask,noise=stamprms, $
+                      /exponential)
+    endelse
+
+   ; *** NB: The x and y positions returned by fitell need to be
+   ;     corrected since fitell was run on the cropped image.
+
+    par2[1] = par2[1] + xmin
+    par2[2] = par2[2] + ymin
+
+   ; Now re-do median-filtering
+
+    print, ''
+    print, 'gopost: Doing median filtering of image'
+    print, 'gopost: -------------------------------------------------------'
+    mask2 = 0 * stamp + 1
+    ; medfit, stamp, mf2, par2, outmask=mask2, rkeep=7
+    medfit, stamp, mf2, par2, outmask=mask2
+    resid2 = stamp - mf2
+    sigclip, resid2, stat2, 3.0
+    residmean = stat2.mean
+    residrms = stat2.rms
+
+; Otherwise, just copy over previous fit and residual images
+
+endif else begin
+
+    mf2 = mf1
+    resid2 = resid1
+
+endelse
+
+; Display the original postage stamp image and the final residual image
+
+if keyword_set(dodisplay) then begin
+    print, ''
+    print, '*** Displaying postage stamp image.  Hit DONE to continue. ***'
+    display, stamp, dmin=-10*stamprms, dmax=20*stamprms
+    print, '*** Displaying final residual image.  Hit DONE to continue. ***'
+    display, resid2, dmin=residmean-10*residrms, dmax=residmean+20*residrms
+endif
+
+; Write out images as fits files
+
+print, ''
+print, 'gopost: Writing out fits files for ',outbase
+print, 'gopost: --------------------------------------------------------'
+stampfile = outbase + '.fits'
+fitfile   = outbase + '_fit.fits'
+residfile = outbase + '_resid.fits'
+maskfile  = outbase + '_mask.fits'
+fitname   = outbase + ' -- Fit to Data'
+residname = outbase + ' Residuals'
+maskname  = outbase + ' Mask'
+
+print, 'gopost:   Writing ',stampfile
+fxaddpar, outhead, 'object', outbase
+writefits, stampfile, stamp, outhead
+print, 'gopost:   Writing ',fitfile
+fxaddpar, outhead, 'object', fitname
+writefits, fitfile, mf2, outhead
+print, 'gopost:   Writing ',residfile
+fxaddpar, outhead, 'object', residname
+writefits, residfile, resid2, outhead
+; print, 'gopost:   Writing ',maskfile
+; fxaddpar, outhead, 'object', maskname
+; writefits, maskfile, mask2, outhead
+
+print, 'gopost: Finished for object ',outbase
+
+end

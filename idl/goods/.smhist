@@ -1,0 +1,77 @@
+data HDFS_wfpc_v2generic.cat
+read {x 3 y 4 a 23 b 24 class 42}
+print {x y a b class}
+set size = a*b
+print {x y size class}
+sort {size x y class}
+print {x y size class}
+sort {x y size class}
+print {x y size class}
+sort {size x y class}
+print {x y size class}
+print '   %4.0f   %4.0f     %4.0f    d\n' {x y size class}
+print '   %4.0f   %4.0f     %4.0f    %d\n' {x y size class}
+print '   %4.0f   %4.0f     %4.0f    d\n' {x y size class}
+print '   %4.0f   %4.0f     %4.0f    %d\n' {x y size class}
+set xsearch = x if(size >= 50 && class == 0)
+set ysearch = y if(size >= 50 && class == 0)
+set sizesearch = size if(size >= 50 && class == 0)
+sort {xsearch ysearch sizesearch}
+print {xsearch ysearch sizesearch}
+print test0.search '%4.0f %4.0f %4.0f\n' {xsearch ysearch sizesearch}
+quit
+data HDFS_f606_v2.cat
+read {n 1 class 8 mag 18}
+limits mag class expand 1.2 box
+ptype 20 0 expand 1.2 ctype magenta points mag class ctype black
+erase limits 15 30 class expand 1.2 box
+ptype 20 0 expand 1.2 ctype magenta points mag class ctype black
+help set
+set flag = (mag < 24 && class < 0.8) ? n : 0
+print {n flag}
+data HDFS_wfpc_v2generic.cat
+read {nxy 1 x 3 y 4}
+print {n nxy flag}
+echo $(dimen(n)) $(dimen(nxy))
+set searchx = x if(flag > 0)
+set searchy = y if(flag > 0)
+set searchn = n if(flag > 0)
+print {searchx searchy searchn
+}
+print {searchx searchy searchn}
+echo $(dimen(x)) $(dimen(y))
+echo $(dimen(searchx)) $(dimen(searchy))
+print HDFS_search_mlt24_clt0.8.txt {searchx searchy searchn}
+print HDFS_mlt24_clt0.8.txt {searchx searchy searchn}
+quit
+data HDFS_f606_v2.cat
+read {n 1 class 8 mag 18}
+erase limits 15 30 class expand 1.2 box
+ptype 20 0 expand 1.2 ctype magenta points mag class ctype black
+set flag = (mag < 23 && mag > 21 && class < 0.8) ? n : 0
+set magsearch = mag if(flag > 0)
+echo $(dimen(magsearch))
+data HDFS_wfpc_v2generic.cat
+read {nxy 1 x 3 y 4}
+set nsearch = n if(flag > 0)
+set xsearch = x if(flag > 0)
+set ysearch = y if(flag > 0)
+print HDFS_m21t23_clt0.8.list '%4.0f %4.0f  %5d  %4.1f\n' {xsearch ysearch nsearch magsearch}
+quit
+macro read getcat.sm
+in606
+sel606
+foo
+print {flag}
+print {flag misocor class}
+macro read getcat.sm
+sel606 hdfs_21m23.list
+macro read getcat.sm
+sel606 hdfs_21m23.list
+quit
+macro read getcat.sm
+in606
+sel606 hdfs_21m23.list
+macro read getcat.sm
+sel606 hdfs_21m23.list
+quit

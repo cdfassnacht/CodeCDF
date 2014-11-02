@@ -1,0 +1,238 @@
+pro cand_stack, candlist, prefix=prefix, rsddir=rsddir, fitdir=fitdir, $
+   imgsz=imgsz, hsig=hsig, rhsig=rhsig, psfile=psfile, _extra=_extra
+
+;
+; Procedure cand_stack
+;
+; Description: Makes a multi-panel plot containing true-color images of
+;               a galaxy and residual images created by subtracting off
+;               some form of fit to the galaxy light distribution.
+;               Based on cand_plot, but with N input galaxies, and
+;               producing a vertical stack of three of the cand_plot 4x1
+;               plots, so that the final output is a 4xN grid of panels.
+;
+; Inputs: candlist    (string)     file containing list of sources
+;         [prefix=]   (string)     optional source-name prefix, if candlist
+;                                   contains only id numbers
+;         [rsddir=]   (string)     name of directory containing residuals
+;                                   default is 'Resid'
+;         [fitdir=]   (string)     name of directory containing model fits
+;                                   default is 'Fit'
+;         [imgsz=]    (floatarr)   image size in arcsec.  If chosen, will
+;                                   produce an output image of imgsz x imgsz
+;         [psfile=]   (string)     name for output postscript file (if not set,
+;                                   no file is created)
+;         [hsig=]     (float)      upper limit for display range in units of
+;                                   the rms in the clipped image.  The
+;                                   upper limit wil be hsig*rms + mean.
+;                                   Default value is 30.0.
+;         [rhsig=]    (float)      same as hsig, but for the residual image
+;                                   only.  Default value is 10.0.
+;
+; Revision history:
+;  2003Mar20 Chris Fassnacht -- A slight modification of cand_plot.pro
+;  2003Mar23 Chris Fassnacht -- Changed residual hsigma to 15.
+;                               Changed name label to be just the ID
+;  2003Apr01 Chris Fassnacht -- Made the number of input files much more 
+;                                flexible, although 7 is the max that can
+;                                fit on one letter-sized page in postscript
+;                                format.
+;  2003Apr09 Chris Fassnacht -- Fixed bugs in setting plot size.
+;                               Properly locate image on page for postscript.
+;  2003Apr11 Chris Fassnacht -- Added hsig and rhsig as passed parameters
+;                                rather than hard-wiring the values.
+;                               Moved definition of the setup structure into
+;                                def_pltsetup
+;  2003Apr22 Chris Fassnacht -- Changed the passed "root" parameter into an
+;                                optional "prefix" parameter
+;  2003Apr27 Chris Fassnacht -- Fixed bug in plot labeling.
+;
+
+; Check input format
+
+if n_params() lt 1 then begin
+    print, ''
+    print, 'Description: Prints out a vertical stack of N '
+    print, '  plot_cand-like plots.  The input list (candlist) contains'
+    print, '  the ID numbers of the lens candidates to be plotted.'
+    print, '  If N>7 the output plot will not fit on a standard letter-sized '
+    print, '   page in postscript mode.'
+    print, ''
+    print, 'syntax: cand_stack, candlist [,prefix=prefix,,rsddir=rsddir,'
+    print, '           fitdir=fitdir,imgsz=imgsz,hsig=hsig,rhsig=rhsig,'
+    print, '           psfile=psfile]'
+    print, ''
+    print, " Default value for rsddir is 'Resid'"
+    print, " Default value for fitdir is 'Fit'"
+    print, ' hsig sets the upper limit (in units of the RMS) for all '
+    print, '   plots except the residual plot.  Default value is 30.0'
+    print, ' rhsig sets the upper limit for the residual plot.  Default '
+    print, '   value is 10.0'
+    print, ''
+    return
+endif
+
+; Create setup structure
+
+def_pltsetup, setup
+
+; Set directory names and other defaults
+
+bdir = 'b-band'
+vdir = 'v-band'
+idir = 'i-band'
+zdir = 'z-band'
+if not keyword_set(rsddir) then rsddir = 'Resid'
+if not keyword_set(fitdir) then fitdir = 'Fit'
+pixscale = 0.05
+if n_elements(hsig) eq 0 then hsig = 30.0
+if n_elements(rhsig) eq 0 then rhsig = 10.0
+psfigsz = 1.44
+psbordsz = 0.43
+xsize = 4.0 * psfigsz + psbordsz
+
+; Read in catalog with readcol and set number of sources.
+
+print, ''
+print, 'Reading candidate list from ',candlist
+readcol, candlist, id, format='A'
+neid=n_elements(id)
+
+; Set up viewport window 
+; ***NB: 7 is the max to fit on a standard letter page in postscript file.***
+
+ycells = replicate(1,neid)
+subcellarray, [1,1,1,1], ycells, newpan, newsubpan
+ysize = 1.0 * neid * psfigsz + psbordsz
+
+
+; Plot postscript if desired
+
+if n_elements(psfile) gt 0 then begin
+   print,'Saving image in postscript file '+psfile+'.ps.'
+   if (ysize lt 11.0) then yoff=0.5*(11.0-ysize) else yoff=0.5
+   ps_open,psfile,/color,/ps_fonts
+;   device,xsize=6,ysize=3,/inches,/portrait,/times
+   device,bits=8,/portrait,/times,xsize=xsize,ysize=ysize,yoffset=yoff,/inches
+   setup.namecolor = 0
+   loadct,0
+   invct
+endif
+
+; Start the loop
+
+for i=0,(neid-1) do begin
+
+   ; Set filenames
+   
+   if n_elements(prefix) gt 0 then bigroot = prefix+'_'+id[i] else $
+      bigroot = id[i]
+   bfits=bdir+'/'+bigroot+'_b.fits'
+   vfits=vdir+'/'+bigroot+'_v.fits'
+   ifits=idir+'/'+bigroot+'_i.fits'
+   zfits=zdir+'/'+bigroot+'_z.fits'
+   rsd1fits=rsddir+'/'+bigroot+'_z_resid.fits'
+   fitfits=fitdir+'/'+bigroot+'_z_fit.fits'
+   
+   ; Read in files
+   
+   print, ''
+   print, 'cand_stack: Reading input files:'
+   print, 'cand_stack:   ',bfits
+   bim = mrdfits(bfits, 0, bhead)
+   print, 'cand_stack:   ',vfits
+   vim = mrdfits(vfits, 0, vhead)
+   print, 'cand_stack:   ',ifits
+   iim = mrdfits(ifits, 0, ihead)
+   print, 'cand_stack:   ',zfits
+   zim = mrdfits(zfits, 0, zhead)
+   print, 'cand_stack:   ',rsd1fits
+   rsd1im = mrdfits(rsd1fits, 0, rsd1head)
+   print, 'cand_stack:   ',fitfits
+   fitim = mrdfits(fitfits, 0, fithead)
+   sz=size(zim,/dimen)
+   print, ''
+   
+   
+   ; Set up scaled versions of the input files
+   
+   imscal, bim, bimsc, bstat, lsig=1.5, hsig=hsig, nsig=3.0
+   imscal, vim, vimsc, vstat, lsig=1.5, hsig=hsig, nsig=3.0
+   imscal, iim, iimsc, istat, lsig=1.5, hsig=hsig, nsig=3.0
+   imscal, zim, zimsc, zstat, lsig=1.5, hsig=hsig, nsig=3.0
+   imscal, rsd1im, reimsc, restat, lsig=1.5, hsig=rhsig, nsig=3.0
+   fitsc = bytscl(fitim,min=zstat.min,max=zstat.max)
+   
+   ; Set up 3-plane array for inputs to true-color images
+   
+   bvi=bytarr(3,sz[0],sz[1])
+   bvi[0,*,*] = iimsc
+   bvi[1,*,*] = vimsc
+   bvi[2,*,*] = bimsc
+   
+   ; Set displayed image size and label locations
+   
+   doxlab=1
+   setup.fullxsz = sz[0]*pixscale / 2.
+   setup.fullysz = sz[1]*pixscale / 2.
+   print, ''
+   print, 'Native image size is ',setup.fullxsz*2.,' arcsec x',$
+   	 setup.fullysz*2.,' arcsec'
+   if n_elements(imgsz) gt 0 then begin
+        if n_elements(imgsz) lt neid then begin
+           setup.imgxsz = imgsz / 2.
+           setup.imgysz = imgsz / 2.
+        endif else begin
+           setup.imgxsz = imgsz[i] / 2.
+           setup.imgysz = imgsz[i] / 2.
+           doxlab = 0
+           setup.doylab = 0
+        endelse
+   endif else begin
+   	setup.imgxsz = setup.fullxsz
+   	setup.imgysz = setup.fullysz
+   endelse
+   print, 'Displayed image size will be:',setup.imgxsz*2., $
+   	 ' arcsec x',setup.imgysz*2.,' arcsec'
+   print, 'For these plots, hsig = ',hsig,' and rhsig = ',rhsig
+   
+   ; Fill in other setup parameters
+   
+   setup.row = neid - 1 - i
+   setup.labx = -0.9*setup.imgxsz
+   setup.laby = -0.8*setup.imgysz
+   setup.namex = 0.0
+   setup.namey = 0.8*setup.imgysz
+   setup.name = bigroot
+   setup.lab1 = 'BVi'
+   setup.lab2 = 'z'
+   setup.lab3 = 'Fit'
+   setup.lab4 = 'Resid'
+   if (i eq neid-1) then setup.doxlab = doxlab else setup.doxlab = 0
+   
+   ; Plot images
+   
+   print, ''
+   print, 'Plotting data for ',bigroot,'   --',i+1
+   print, ''
+   if (i eq 0) then begin
+      plot_4x, bvi, zimsc, fitsc, reimsc, $
+        setup, newpan, newsubpan
+   endif else begin
+      plot_4x, bvi, zimsc, fitsc, reimsc, $
+        setup, newpan, newsubpan, /noerase
+   endelse
+endfor
+
+
+; Plot postscript if desired
+
+if n_elements(psfile) gt 0 then begin
+   print, ''
+   print, 'Final postscript image occupies ',xsize,' x',ysize,' inches'
+   print,''
+   ps_close
+endif
+
+
+end 

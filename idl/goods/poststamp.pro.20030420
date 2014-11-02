@@ -1,0 +1,117 @@
+Function poststamp, image, centx, centy, nx, ny, inhead=inhead, $
+                    outhead=outhead
+;
+; Function poststamp
+;
+; Description: Takes an input image and cuts out a smaller "postage
+;  stamp" image of size nx by ny centered at (centx, centy).  Returns
+;  the postage stamp image.
+;
+; Inputs: image      (floatarray)  input image
+;         centx      (float)       x position (in input image) to be
+;                                   used as the center of the postage stamp
+;         centy      (float)       y position (in input image) to be
+;                                   used as the center of the postage stamp
+;         nx         (int)         output size in x dimension
+;         ny         (int)         output size in y dimension
+;         [inhead=]  (strarray)    FITS header of original image
+;
+; Output accessed through passed parameters:
+;         [outhead=] (strarray)    FITS header of output image
+;
+; Output: cutout     (floatarray)  cutout image
+;
+; Revision history:
+;  2002Apr05 Chris Fassnacht -- First rough version.
+;  2002Apr09 Chris Fassnacht -- Changed order of inputs to be more
+;                               logical.
+;  2002Apr12 Chris Fassnacht -- Added optional inhead and outhead
+;                               keywords to allow the creation of a
+;                               fits header for the postage stamp image. 
+;  2002Apr18 Chris Fassnacht -- Error checking against non-integer values. 
+;
+
+; Check input format
+
+if n_params() lt 5 then begin
+    print, ''
+    print, 'syntax: outim = poststamp(image, centx, centy, nx, ny'
+    print, '                         [, inhead=inhead, outhead=outhead])'
+    print, ''
+    nullim = fltarr(1)
+    return, nullim
+endif
+
+; Create a blank image of the appropriate size to store the cutout.
+
+cutout = fltarr(nx,ny)
+
+; Check dimensions of input image
+
+nx0 = (size(image,/dimen))[0]
+ny0 = (size(image,/dimen))[1]
+print, ''
+print, 'poststamp: Input image dimensions: ', nx0, ny0
+
+; Make sure that the postage stamp is smaller than the input image
+
+if ((nx gt nx0) or (ny gt ny0)) then begin
+    print, 'poststamp: One or more output dimensions are larger than '
+    print, 'poststamp:  input dimensions.  Returning the input image.'
+    cutout = image
+    return, cutout
+endif
+
+; Make everything an integer
+
+cx = round(centx)
+cy = round(centy)
+inx = round(nx)
+iny = round(ny)
+halfx = round(inx/2)
+halfy = round(iny/2)
+print, 'poststamp: Centering postage stamp at ', $
+    strtrim(cx,1),',',strtrim(cy,1)
+print, 'poststamp: Requested postage stamp dimensions are ', $
+    strtrim(inx,1),',',strtrim(iny,1)
+
+; Set limits for copying, checking for edges of input image.
+
+x10 = cx - halfx
+x20 = x10 + inx - 1
+y10 = cy - halfy
+y20 = y10 + iny - 1
+x1 = cx - halfx > 0
+x2 = x10 + inx - 1 < (nx0 - 1)
+y1 = cy - halfy > 0
+y2 = y10 + iny - 1 < (ny0 - 1)
+xsize = x2 - x1 + 1
+ysize = y2 - y1 + 1
+if x10 lt 0 then ox1 = inx - xsize else ox1 = 0
+if y10 lt 0 then oy1 = iny - ysize else oy1 = 0
+if x20 gt (nx0-1) then ox2 = xsize - 1 else ox2 = inx - 1
+if y20 gt (ny0-1) then oy2 = ysize - 1 else oy2 = iny - 1
+
+; Copy input image to output image
+
+print, 'poststamp: Using ranges ',strtrim(x1,1),'-',strtrim(x2,1), $
+    ' and ',strtrim(y1,1),'-',strtrim(y2,1)
+cutout[ox1:ox2,oy1:oy2] = image[x1:x2,y1:y2]
+
+; Create output header if requested
+
+if keyword_set(inhead) then begin
+    print, 'poststamp: Creating FITS header for postage stamp image.'
+    outhead = inhead
+    fxaddpar, outhead, 'naxis1', inx
+    fxaddpar, outhead, 'naxis2', iny
+    histstr = '  Postage stamp cutout centered at (' + strtrim(cx,1)
+    histstr = histstr + ',' + strtrim(cy,1) + ')'
+    fxaddpar, outhead, 'history', histstr
+endif
+
+print, ''
+
+return, cutout
+
+end

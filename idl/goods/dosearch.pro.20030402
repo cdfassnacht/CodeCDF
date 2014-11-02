@@ -1,0 +1,144 @@
+pro dosearch, fitsfile, catfile, outroot=outroot, stsize=stsize, $
+              wtfile=wtfile, mskfac=mskfac, dofitell=dofitell, $
+              dodisplay=dodisplay
+;
+; Procedure dosearch
+;
+; Description: A driver to read in an image from a fits file of a
+;  field and to read in a catalog of objects detected in that field.
+;  Then call the gopost procedure for each object in the catalog.
+;
+; Inputs: fitsfile    (string)     name of input FITS file
+;         catfile     (string)     name of catalog file.  The file is
+;                                   assumed to have (at least) five
+;                                   columns in the ff. order:
+;                                    [0]: x position of object
+;                                    [1]: y position of object
+;                                    [2]: semimajor axis of object
+;                                    [3]: semiminor axis of object
+;                                    [4]: PA of semimajor axis 
+;                                      (astronomical convention)
+;         [stsize=]   (int)        size for postage stamp image, in
+;                                   pixels -- default = 125
+;         [outroot=]  (string)     root name for output file --
+;                                   default is 'goods'
+;         [wtfile=]   (string)     name of optional file containing
+;                                   the weight image.  The weight
+;                                   image must be the same size as the
+;                                   input image contained in fitsfile.
+;                                   *** Not yet implemented. ***
+;         [mskfac=]   (float)      factor by which galaxy "size" is 
+;                                   multiplied to define region of
+;                                   "good" pixels for the mask in the
+;                                   gopost procedure.
+;         [/dofitell]              use fitell procedures to determine
+;                                   galaxy center, ellipticity, and
+;                                   PA.  Otherwise, just use
+;                                   SExtractor values, which this
+;                                   procedure obtains from the input catfile.
+;         [/dodisplay]             display images if set
+;
+; Revision history:
+;  2002Apr18 Chris Fassnacht -- First working version.
+;  2002Apr24 Chris Fassnacht -- Added optional inputs for object shape
+;                                parameters (a, b, PA) to be used in
+;                                doing area masking.
+;  2002Apr25 Chris Fassnacht -- Changed inputs from arrays and vectors
+;                                that have been read in from files to
+;                                the filenames themselves and put the
+;                                file-reading into this procedure.
+;  2002Jun12 Chris Fassnacht -- Added an outroot optional parameter
+;                                to control naming of output files.
+;  2002Jun13 Chris Fassnacht -- Added more optional parameters
+;                                controlling postage-stamp size and 
+;                                image-display toggle.
+;  2002Aug07 Chris Fassnacht -- Added optional dofitell parameter
+;                                which controls whether the gopost
+;                                procedure uses fitell to find the
+;                                ellipticity and PA or whether it uses
+;                                the SExtractor values from the input
+;                                catalog file.
+;                               Also added the option mskfac factor
+;                                to take away its hardwired value.
+;
+
+; Check input format
+
+if n_params() lt 2 then begin
+    print, ''
+    print, $
+      'syntax: dosearch, fitsfile, catfile [,outroot=outroot, stsize=stsize'
+    print, '            wtfile=wtfile, mskfac, /dofitell, /dodisplay]'
+    print, ''
+    print, '  Default values:'
+    print, "    outroot = 'goods'"
+    print, '    stsize  = 125'
+    print, '    mskfac  = 2.5'
+    print, ''
+    return
+endif
+
+; Read in fits file with mrdfits
+; ** NB: For now assume no errors
+
+print, ''
+print, 'dosearch: Reading image from ',fitsfile
+image = mrdfits(fitsfile, 0, inhead)
+
+; Read in catalog with readcol
+
+print, 'dosearch: Reading catalog from ',catfile
+readcol, catfile, x, y, a, b, pa
+
+; If optional input variables have not been set, use defaults
+
+if not keyword_set(outroot) then outroot = 'goods'
+if not keyword_set(stsize) then stsize = 125
+if not keyword_set(mskfac) then mskfac = 2.5
+if not keyword_set(dofitell) then dofitell = 0
+if not keyword_set(dodisplay) then dodisplay = 0
+
+; Loop on input list, calling gopost for each object
+
+print, ''
+if n_elements(x) gt 0 then begin
+    print, 'dosearch: Starting image loop.'
+    print, '---------------------------------------------------------------'
+    for i=1,n_elements(x) do begin
+        ixs = round(x[i-1])
+        iys = round(y[i-1])
+        basestrx = strtrim(ixs,1)
+        basestry = strtrim(iys,1)
+        case strlen(basestrx) of
+            1: strx = '000'+basestrx
+            2: strx = '00'+basestrx
+            3: strx = '0'+basestrx
+            else: strx = basestrx
+        endcase
+        case strlen(basestry) of
+            1: stry = '000'+basestry
+            2: stry = '00'+basestry
+            3: stry = '0'+basestry
+            else: stry = basestry
+        endcase
+        outname = outroot+'_'+strx+'_'+stry
+        print, ''
+        print, ' *** STARTING OBJECT #',strtrim(i,1),' (',outname,'). ***'
+        print, ''
+        gshape = [a[i-1], b[i-1], pa[i-1], mskfac]
+        gopost_old, image, inhead, x[i-1], y[i-1], stsize, stsize, outname, $
+          shape=gshape, dofitell=dofitell, dodisplay=dodisplay
+        print, ''
+        print, ' *** FINISHED WITH OBJECT #',strtrim(i,1),' (',outname,'). ***'
+        print, ''
+        print, '---------------------------------------------------------------'
+    endfor
+endif else begin
+    print, ''
+    print, '*** ERROR: dosearch.  No objects found in catalog list. ***'
+    print, ''
+endelse
+
+
+
+end

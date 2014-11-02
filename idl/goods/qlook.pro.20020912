@@ -1,0 +1,106 @@
+pro qlook,x,y,size=size,sub=sub,postscript=postscript
+
+  if n_elements(x) eq 0 or n_elements(y) eq 0 then begin
+      print,'need to specify coordinates'
+      return
+  endif 
+
+  if n_elements(size) eq 0 then size = 200 ; = 10'' for 0.05''/pix
+  if n_elements(sub)  eq 0 then sub = 4
+  print,'sub and size are',sub,size
+
+  mdir='/data/ubu1/goods/mosaics/'
+
+  if sub eq 4 then begin 
+      bimage = mdir+'s1b_mos4_blk.fits'
+      vimage = mdir+'s1v_mos4_blk.fits'
+      iimage = mdir+'s1i_mos4_blk.fits'
+      zimage = mdir+'s1z_mos4_blk.fits'
+      extend = 1
+  endif else if sub eq 1 then begin 
+      bimage = mdir+'s1b_mos1_drz.fits'
+      vimage = mdir+'s1v_mos1_drz.fits'
+      iimage = mdir+'s1i_mos1_drz.fits'
+      zimage = mdir+'s1z_mos1_drz.fits'
+      extend = 4
+  endif else begin
+      print,'i only can handle drz or blk4 atm'
+      return
+  endelse 
+
+  xstr=strcompress(string(x),/remove_all)
+  ystr=strcompress(string(y),/remove_all)
+  print,'starting x and y: '+xstr+' '+ystr
+  x=             long(x*extend)
+  y=20000l/sub - long(y*extend)
+  adjxstr=strcompress(string(x),/remove_all)
+  adjystr=strcompress(string(y),/remove_all)
+  print,'adjusted x and y: '+adjxstr+' '+adjystr
+
+  fxread,bimage,bim,bhd,x-size,x+size,y-size,y+size
+;  fxread,vimage,vim,vhd,x-size,x+size,y-size,y+size
+  fxread,iimage,iim,ihd,x-size,x+size,y-size,y+size
+  fxread,zimage,zim,zhd,x-size,x+size,y-size,y+size
+
+  literstat,bim,bst,/silent
+;  literstat,vim,vst,/silent
+  literstat,iim,ist,/silent
+  literstat,zim,zst,/silent
+
+  bimsc=bytscl(bim,min=bst.median-bst.sigma,max=bst.median+5.*bst.sigma)
+;  vimsc=bytscl(vim,min=ist.median-vst.sigma,max=vst.median+5.*vst.sigma)
+  iimsc=bytscl(iim,min=ist.median-ist.sigma,max=ist.median+5.*ist.sigma)
+  zimsc=bytscl(zim,min=zst.median-zst.sigma,max=zst.median+5.*zst.sigma)
+
+;   tvscl,zimsc,channel=1
+; ;  tvscl,vimsc,channel=2
+;   tvscl,iimsc,channel=2
+;   tvscl,bimsc,channel=3
+
+  imsz=size(zim,/dimensions)
+  
+  imcube = fltarr(3,imsz[0],imsz[1])
+  imcube[0,*,*]=zimsc
+  imcube[1,*,*]=iimsc
+  imcube[2,*,*]=bimsc
+  write_tiff,'lenscand_'+xstr+'_'+ystr+'_A_'+adjxstr+'_'+adjystr+'.tiff',imcube
+
+
+  bimsc=bytscl(bim,min=bst.median-bst.sigma,max=bst.median+15.*bst.sigma)
+;  vimsc=bytscl(vim,min=ist.median-vst.sigma,max=vst.median+15.*vst.sigma)
+  iimsc=bytscl(iim,min=ist.median-ist.sigma,max=ist.median+15.*ist.sigma)
+  zimsc=bytscl(zim,min=zst.median-zst.sigma,max=zst.median+15.*zst.sigma)
+
+  imcube[0,*,*]=zimsc
+  imcube[1,*,*]=iimsc
+  imcube[2,*,*]=bimsc
+  write_tiff,'lenscand_'+xstr+'_'+ystr+'_A_'+adjxstr+'_'+adjystr+'_15X.tiff',imcube
+
+; Result = GAUSS2DFIT( Z, A [, X, Y] [, /NEGATIVE] [, /TILT] )
+; A[0] = A(0) = constant term
+; A[1] = A(1) = scale factor
+; A[2] = a = width of Gaussian in the X direction
+; A[3] = b = width of Gaussian in the Y direction
+; A[4] = h = center X location
+; A[5] = k = center Y location.
+; A[6] = T = Theta, the rotation of the ellipse from the X axis in radians, 
+;            counter-clockwise. 
+
+;  imcrop, maskim, goodmask, cropim, cropmask, xmin, xmax, ymin, ymax
+
+;  imcube[0,*,*]=iimsc - zimsc
+;  imcube[1,*,*]=vimsc - zimsc
+;  imcube[2,*,*]=bimsc - zimsc
+;  write_tiff,'lenscand_'+xstr+'_'+ystr+'_A_'+adjxstr+'_'+adjystr+'_Zsub'+'.tiff',imcube
+
+;  ps_open,'testsc',/color,/ps_fonts
+;  device,xsize=6,ysize=6,/inches,/portrait,/times
+;  
+;  plotimage,zimsc,/pres,channel=1
+;  plotimage,iimsc,/pres,channel=1,/noerase
+;  plotimage,bimsc,/pres,channel=1,/noerase
+;
+;  ps_close
+  
+end 
+

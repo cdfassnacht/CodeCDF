@@ -1,0 +1,345 @@
+pro medsub, postfile, outbase, secat, datadir=datadir, maskfac=maskfac, $
+            usegauss=usegauss, dofitell=dofitell, dodisplay=dodisplay
+;
+; Procedure medsub
+;
+; Description: A driver to take a postage-stamp fits image that has been
+;               cut out of a larger fits file (perhaps) and do the
+;               median-filtering fit.
+;
+; Inputs: postfile   (string)      name of input postage stamp FITS file
+;         outbase    (string)      base name for output files
+;         secat      (structure)   catalog information structure.  The 
+;                                   important data in this structure concern
+;                                   the shape of the image.
+;                                   The elements are:
+;                                    a (semimajor axis)
+;                                    ellipticity (1 - b/a)
+;                                    PA of major axis, astronomical convention
+;         [datadir=] (string)      directory containing the input file --
+;                                   default is 'z-band'
+;         [maskfac=] (float)       multipicative factor -- all pixels with
+;                                    elliptical distances more than
+;                                    maskfac*a will be masked out before
+;                                    doing the curve fitting
+;         [/usegauss]              use results from gauss2dfit for
+;                                   shape parameters rather than passed
+;                                   parameters
+;         [/dofitell]              use fitell procedures to determine
+;                                   galaxy center, ellipticity, and
+;                                   PA.  Otherwise, just use
+;                                   SExtractor values, which have been
+;                                   passed to this procedure in the
+;                                   "shape" array.
+;         [/dodisplay]             display images if set
+;
+;
+; Revision history:
+;  2002Apr18 Chris Fassnacht -- First working version.
+;  2002Apr24 Chris Fassnacht -- Added the optional shape keyword,
+;                                which, if set, will mask out pixels
+;                                larger than a certain factor times the
+;                                semimajor axis.
+;  2002Apr25 Chris Fassnacht -- Added cropping of the image before it
+;                                gets passed to fitell.  The cropping
+;                                will trim the image to the minimum
+;                                rectangle containing the good region
+;                                defined by the shape mask.
+;  2002May07 Chris Fassnacht -- Added fit to image as one of output
+;                                files.
+;  2002Aug06 Chris Fassnacht -- Moved cropping of postage-stamp image
+;                                and first call to fitell into
+;                                separate functions called imcrop and
+;                                run_fitell, respectively.
+;                               Started implementing choice of method
+;                                to determine ellipticity and PA of
+;                                galaxy.
+;  2003Feb23 Chris Fassnacht -- Moved postage-stamp creation out of
+;                                this driver.  So, input is now the
+;                                postage-stamp fits file.
+;                               Moved maskfac to be an explicitly passed
+;                                parameter rather than part of the shape
+;                                array.
+;  2003Feb25 Chris Fassnacht -- Changed the shape array from [a, b, PA] 
+;                                to [size, ellipticity, PA]
+;  2003Feb28 Chris Fassnacht -- Modified I/O to read from an input
+;                                directory defined by the band name and
+;                                write to separate output directories
+;                                (hardwired for now)
+;  2003Mar18 Chris Fassnacht -- Changed to reflect new version of sigclip
+;  2003Mar31 Chris Fassnacht -- Added a check to make sure the GAUSS2DFIT
+;                                centroid hasn't gone off to another object.
+;  2003Apr02 Chris Fassnacht -- Moved correction from math orientation to
+;                                astronomy orientation up to calling procedure.
+;  2003Apr16 Chris Fassnacht -- Changed display of images from old display
+;                                routine to new dispim routine.
+;                               Added plots showing SExtractor and gauss2dfit
+;                                ellipses if the dodisplay flag is set.
+;                               Added option to use gauss2dfit PA by setting
+;                                usegauss flag.
+;  2003May07 Chris Fassnacht -- Made it possible to specify data directory 
+;                                through new optional input parameter datadir.
+;
+
+; Check input format
+
+if n_params() lt 2 then begin
+    print, ''
+    print, 'syntax: medsub, postfile, outbase, secat [, maskfac=maskfac, '
+    print, '          datadir=datadir, /usegauss, /dofitell, /dodisplay]'
+    print, ''
+    print, "  Default for datadir = 'z-band'"
+    return
+endif
+
+; Initialize some variables and set optional variables to defaults if
+;  not set by the function call
+
+nbad = 0
+if not keyword_set(maskfac) then begin
+   maskfac = 2.5
+   print, 'medsub: Setting maskfac = 2.5'
+endif
+if not keyword_set(datadir) then datadir = 'z-band'
+
+; Set directory names
+
+residdir = 'Resid/'
+fitdir = 'Fit/'
+maskdir = 'Mask/'
+
+; Read postage-stamp fits file into a float array called stamp
+; ** NB: For now assume no errors
+
+datafile = datadir+'/'+postfile
+print, ''
+print, 'medsub: Reading image from ',datafile
+stamp = mrdfits(datafile, 0, inhead)
+
+; Get size of input image
+
+nx = (size(stamp,/dimen))[0]
+ny = (size(stamp,/dimen))[1]
+print, ''
+print, 'medsub: Input image dimensions: ', nx, ny
+
+; Guess at noise level for galaxy-model fits by doing a 3-sigma
+;  clipping on the image.
+
+print, 'medsub: Estimating noise in new image.'
+print, 'medsub: -------------------------------------------------------'
+sigclip, stamp, stampstat, 3.0
+stamprms = stampstat.rms
+stampmean = stampstat.mean
+print, 'medsub: Estimated RMS noise in postage stamp image is',stamprms
+
+print, ''
+if keyword_set(dodisplay) then begin
+   dispim, stamp, inhead=inhead
+   print,'*** Displaying postage stamp image.'
+   print,'*** Hit any mouse button with the cursor inside the image to continue'
+   cursor,x,y,/wait
+   mousebutt = !mouse.button
+endif else begin
+   dodisplay = 0
+endelse
+
+; Make a mask of good pixels based on the shape parameters.
+
+print, ''
+print, 'medsub: Setting up area mask.'
+print, 'medsub: ------------------------------------------------------'
+goodmask = 0.0 * stamp + 1.0
+retval = 0
+setmask, nx, ny, secat, maskfac, goodmask, retval
+if retval eq 1 then return
+
+; Create and display (if requested) the masked image.
+
+maskim = stamp * goodmask
+if keyword_set(dodisplay) then begin
+   maskmin = stampmean - stamprms
+   maskmax = stampmean + 30.0 * stamprms
+   dispim, maskim, inhead=inhead, absmin=maskmin, absmax=maskmax
+   print, ''
+   print, '*** Displaying masked image.'
+   print,'*** Hit any mouse button with the cursor inside the image to continue'
+   cursor,x,y,/wait
+   mousebutt = !mouse.button
+endif
+
+; Crop the image to its minimum size in x and y to get rid of possible
+;  confusing emission from nearby objects.  
+
+imcrop, maskim, goodmask, cropim, cropmask, xmin, xmax, ymin, ymax
+
+; If the dofitell flag is set, then get model parameters by running
+;  fitell on the input image.
+
+if keyword_set(dofitell) then begin
+
+   ; Run fitell to find best-fit parameters, either from a r^(1/4)-law or
+   ;  exponential-disk fit.
+
+    run_fitell, cropim, cropmask, stamprms, mpar, doellip, fitstring, $
+      dodisplay=dodisplay
+
+; If dofitell flag is not set, then just use parameters from
+;  SExtractor, which are contained in the shape parameter.
+
+endif else begin
+
+    ; Get the x and y centroids by running gauss2dfit on the cropped image
+    ; par0 is the result vector: (see index assignments in fitell.pro).
+    gaussianfit = GAUSS2DFIT (cropim, par0, /tilt)
+    ag = par0[2] > par0[3]
+    bg = par0[2] < par0[3]
+    pag = par0[6] * 180.0 / !PI 
+    if par0[2] gt par0[3] then pag = (-1.0)*pag - 90.0 else pag = (-1.0)*pag
+    ;
+    ; Set the parameters for medfit depending on the usegauss flag
+    ;
+    mpar = fltarr(7)
+    mpar[1] = par0[4]             ; x location of center
+    mpar[2] = par0[5]             ; y location of center
+    mpar[5] = 1.0 - secat.ellip      ; axis ratio (b/a) = 1 - ellipticity
+    if keyword_set(usegauss) then begin
+       mpar[6] = pag             ; PA
+       print, ''
+       print, $
+          'medsub: Using GAUSS2DFIT + SExtractor values as inputs to medfit.'
+    endif else begin
+       mpar[6] = secat.pa             ; PA
+       print, ''
+       print, 'medsub: Using SExtractor values as inputs to medfit.'
+    endelse
+endelse
+
+; *** NB: The x and y positions returned by fitell or gauss2dfit 
+;     need to be corrected since both procedures were run on the 
+;     cropped image.
+
+mpar[1] = mpar[1] + xmin
+mpar[2] = mpar[2] + ymin
+print, 'medsub: ',mpar[1],mpar[2],mpar[5],mpar[6]
+
+; Make sure that these values are reasonable and haven't gone crazy
+
+adiff1 = abs(mpar[1] - (nx/2.0))
+adiff2 = abs(mpar[2] - (ny/2.0))
+if(adiff1 gt 10.0) then mpar[1] = nx/2.0
+if(adiff2 gt 10.0) then mpar[2] = ny/2.0
+print, 'medsub: ',mpar[1],mpar[2],mpar[5],mpar[6]
+print, ''
+
+if keyword_set(dodisplay) then begin
+   shaperatio = 1.0 / (1.0 - secat.ellip) ; a/b = 1 / (1 - ellipticity)
+   a = maskfac * secat.a / (1.0 - secat.ellip)
+   b = a / shaperatio
+   mathpa = secat.pa + 90.0
+   dispim, stamp
+   tvellipse, a, b, mpar[1], mpar[2], mathpa, /data, color=255
+   ; Look at gauss2dfit ellipse, too
+   mathpag = pag + 90.0
+   tvellipse, ag*maskfac, bg*maskfac, mpar[1], mpar[2], mathpag, /data, $
+     color=65280
+   print, ''
+   print,'*** Displaying postage stamp image with elliptical fits.'
+   print,'*** Hit any mouse button with the cursor inside the image to continue'
+   cursor,x,y,/wait
+   mousebutt = !mouse.button
+endif
+
+; Call medfit to get median-filtered fit to data.
+
+print, 'medsub: Doing median filtering of image'
+print, 'medsub: -------------------------------------------------------'
+mask1 = 0 * stamp + 1
+; medfit, stamp, mf1, mpar, outmask=mask1, rkeep=7
+medfit, stamp, mf1, mpar, outmask=mask1
+resid1 = stamp - mf1
+
+; If the dofitell flag is set, then re-do model fitting with combined 
+;  mask, then re-do the median filtering with the better
+;  determinations of the fit parameters.
+
+if keyword_set(dofitell) then begin
+    combmask = goodmask < mask1
+    cropcombmask = combmask[xmin:xmax,ymin:ymax]
+    print, ''
+    print, 'medsub: Re-fitting galaxy models (takes a while...)'
+    print, 'medsub: -------------------------------------------------------'
+    print, fitstring
+    if doellip then begin
+        fit2 = fitell(cropim,par2,err2,mask=cropcombmask,noise=stamprms)
+    endif else begin
+        fit2 = fitell(cropim,par2,err2,mask=cropcombmask,noise=stamprms, $
+                      /exponential)
+    endelse
+
+   ; *** NB: The x and y positions returned by fitell need to be
+   ;     corrected since fitell was run on the cropped image.
+
+    par2[1] = par2[1] + xmin
+    par2[2] = par2[2] + ymin
+
+   ; Now re-do median-filtering
+
+    print, ''
+    print, 'medsub: Doing median filtering of image'
+    print, 'medsub: -------------------------------------------------------'
+    mask2 = 0 * stamp + 1
+    ; medfit, stamp, mf2, par2, outmask=mask2, rkeep=7
+    medfit, stamp, mf2, par2, outmask=mask2
+    resid2 = stamp - mf2
+    sigclip, resid2, stat2, 3.0, immean=residmean, imrms=residrms
+    residmean = stat2.mean
+    residrms = stat2.rms
+
+; Otherwise, just copy over previous fit and residual images
+
+endif else begin
+
+    mf2 = mf1
+    resid2 = resid1
+    mask2 = mask1
+
+endelse
+
+; Display the final residual image
+
+if keyword_set(dodisplay) then begin
+   dispim, resid2, inhead=inhead, hsig=10.0
+   print, ''
+   print, '*** Displaying final residual image.'
+   print,'*** Hit any mouse button with the cursor inside the image to continue'
+   cursor,x,y,/wait
+   mousebutt = !mouse.button
+endif
+
+; Write out images as fits files
+
+print, ''
+print, 'medsub: Writing out fits files for ',outbase
+print, 'medsub: --------------------------------------------------------'
+fitfile   = fitdir + outbase + '_fit.fits'
+residfile = residdir + outbase + '_resid.fits'
+maskfile  = maskdir + outbase + '_mask.fits'
+fitname   = outbase + ' -- Fit to Data'
+residname = outbase + ' Residuals'
+maskname  = outbase + ' Mask'
+
+outhead = inhead
+print, 'medsub:   Writing ',fitfile
+fxaddpar, outhead, 'object', fitname
+writefits, fitfile, mf2, outhead
+print, 'medsub:   Writing ',residfile
+fxaddpar, outhead, 'object', residname
+writefits, residfile, resid2, outhead
+print, 'medsub:   Writing ',maskfile
+fxaddpar, outhead, 'object', maskname
+writefits, maskfile, mask2, outhead
+
+print, 'medsub: Finished for object ',outbase
+
+end
