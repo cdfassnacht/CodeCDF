@@ -367,6 +367,43 @@ def make_cat_wirc(fitsfile, outcat='tmp.cat', regfile=None,
 
 #-----------------------------------------------------------------------
 
+def make_cat_moircs(fitsfile, outcat='tmp.cat', regfile=None,
+                    configfile='sext_moircs.config', 
+                    ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
+                    whtfile=None, weight_type='MAP_WEIGHT', flag_file=None,
+                    det_thresh=-1, det_area=-1, logfile=None, verbose=True):
+   """
+
+   Calls make_fits_cat, but gets gain from FITS header
+
+   Note that the read noise (so far not set for this function) is 
+   ~30 e-/pix.
+
+   """
+
+   """ Get gain and exposure time from header """
+   hdr = pf.getheader(fitsfile)
+   try:
+      gain = hdr['gain']
+   except:
+      gain = 1.0
+   try:
+      texp = hdr['exptime']
+   except:
+      texp = 1.0
+   if verbose:
+      print ""
+      print "File: %s has gain=%6.3f and t_exp = %7.1f" % (fitsfile,gain,texp)
+
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,zeropt,
+                 catformat,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,flag_file=flag_file,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+#-----------------------------------------------------------------------
+
 def make_cat_kait(fitsfile, outcat='tmp.cat', regfile=None,
                   configfile='sext_kait.config', 
                   ncoadd=1, satur=50000., zeropt=None, catformat='ldac',
