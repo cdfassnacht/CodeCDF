@@ -22,7 +22,10 @@ Low-level Functions:
    sigma_clip        - sigma-clips a data array
 """
 
-import pyfits as pf
+try:
+   from astropy.io import fits as pf
+except:
+   import pyfits as pf
 import scipy as sp
 import numpy as n
 import imfuncs as imf
