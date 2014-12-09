@@ -28,7 +28,10 @@ Generic functions
 
 import os
 import numpy as n
-import pyfits as pf
+try:
+   from astropy.io import fits as pf
+except:
+   import pyfits as pf
 import catfuncs
 
 #-----------------------------------------------------------------------
