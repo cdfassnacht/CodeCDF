@@ -422,6 +422,11 @@ def plot_points(prefix, title=None, show_src_in_implane=True, scale=0.03,
       yloc = 0.97
       valoc = 'top'
       haloc = 'left'
+   if dtboxloc == 'bl':
+      xloc = 0.03
+      yloc = 0.03
+      valoc = 'bottom'
+      haloc = 'left'
    elif dtboxloc == 'br':
       xloc = 0.97
       yloc = 0.03
