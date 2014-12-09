@@ -168,7 +168,7 @@ def plot_mesh(prefix, suff='mesh.dat'):
 
 #-----------------------------------------------------------------------
 
-def plot_crit(prefix, icolor='b', scolor='r'):
+def plot_crit(prefix, icolor='b', scolor='r', suff='crit.dat'):
    """
    Plots the critical curves and caustics contained in prefix_crit.dat.  
 
@@ -198,7 +198,7 @@ def plot_crit(prefix, icolor='b', scolor='r'):
    """
 
    # Load the data
-   infile = "%s_crit.dat" % prefix
+   infile = "%s_%s" % (prefix,suff)
    print ""
    try:
       xi1,yi1,xs1,ys1,xi2,yi2,xs2,ys2 = n.loadtxt(infile,unpack=True)
