@@ -1,5 +1,9 @@
-import pyfits,scipy
+import scipy
 import sys,os
+try:
+   from astropy.io import fits as pyfits
+except:
+   import pyfits
 
 if len(sys.argv)>1:
    files = sys.argv[1:]
