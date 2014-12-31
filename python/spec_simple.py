@@ -1709,7 +1709,7 @@ def mark_spec_emission(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,showz=
       '[NII]','H-alpha',
       '[NII]','[SII]','','Pa-gamma','Pa-beta','Pa-alpha']
 
-   lineinfo = n.array([\
+   lineinfo = np.array([\
       ("Ly-alpha",  1216.,   r"Ly $\alpha$",1,True),\
       ("C IV",      1549.,   "C IV",        1,True),\
       ("C III]",    1909.,   "C III]",      1,True),\
@@ -1966,6 +1966,21 @@ def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
       return atm
    else:
       del atm
+
+#-----------------------------------------------------------------------
+
+def plot_model_sky_ir():
+   """
+   Calls plot_atm_trans and make_sky_model to make a combined plot for
+   the NIR sky that can be used to judge whether expected spectral lines
+   will fall in good parts of the sky
+   """
+
+   wsky = np.arange(10000.,23000.)
+   plot_atm_trans(wsky)
+   skymod = make_sky_model(wsky)
+   skymod /= skymod.max()
+   plt.plot(wsky,skymod)
 
 #-----------------------------------------------------------------------
 
