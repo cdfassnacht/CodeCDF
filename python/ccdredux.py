@@ -377,6 +377,7 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
    cards in the hdu that has been passed via the hdu parameter.
    """
 
+   """ Set up phdu in case there is not a separate one """
    if phdu is None:
       phdu = hdu
 
@@ -397,29 +398,39 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
       """
       Read the header cards
       """
+      hdr = hdu.header
+      phdr = phdu.header
+
       wcsread = True
-      try:
-         ra  = wcs.ra2deg(hdu.header[rakey].strip())
-      except:
+      if wcs.is_degree(hdr[rakey]):
+         ra = hdr[rakey]
+      else:
          try:
-            ra  = wcs.ra2deg(phdu.header[rakey].strip())
+            ra  = wcs.ra2deg(hdr[rakey].strip())
          except:
-            print 'ERROR. Attempts to read RA header card (%s) failed.' % \
-                rakey.upper()
-            print 'No wcs information'
-            wcsread = False
-      try:
-         dec = wcs.dec2deg(hdu.header[deckey].strip())
-      except:
+            try:
+               ra  = wcs.ra2deg(phdr[rakey].strip())
+            except:
+               print 'ERROR. Attempts to read RA header card (%s) failed.' % \
+                   rakey.upper()
+               print 'No wcs information'
+               wcsread = False
+
+      if wcs.is_degree(hdr[deckey]):
+         dec = hdr[deckey]
+      else:
          try:
-            dec = wcs.dec2deg(phdu.header[deckey].strip())
+            dec = wcs.dec2deg(hdr[deckey].strip())
          except:
-            print 'ERROR. Attempts to read Dec header card failed.'
-            print 'No wcs information'
-            wcsread = False
+            try:
+               dec = wcs.dec2deg(phdr[deckey].strip())
+            except:
+               print 'ERROR. Attempts to read Dec header card failed.'
+               print 'No wcs information'
+               wcsread = False
 
       """ Clean out old WCS and mosaic info """
-      foo = hdu.header.ascardlist()[4:]
+      foo = hdr.ascardlist()[4:]
       for k in range(0,len(foo)):
          keyname = foo[k].key
          if keyname[0:4] == 'CD1_' or keyname[0:4] == 'CD2_' or \
@@ -428,23 +439,23 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
                 or keyname[0:5] == 'CTYPE' or keyname[0:5] == 'CUNIT' \
                 or keyname[0:5] == 'CRDER' or keyname[0:5] == 'CSYER' \
                 or keyname[0:7] == 'WCSNAME' or keyname[0:3] == 'ADC':
-            del hdu.header[keyname]
+            del hdr[keyname]
 
       """ Apply the rough WCS info """
       if wcsread:
-         hdu.header.update('CRVAL1',ra)
-         hdu.header.update('CRVAL2',dec)
+         hdr.update('CRVAL1',ra)
+         hdr.update('CRVAL2',dec)
          if containsdata:
-            hdu.header.update('CRPIX1',shape[1]/2.)
-            hdu.header.update('CRPIX2',shape[0]/2.)
-         hdu.header.update('CD1_1',-pixscale/3600.)
-         hdu.header.update('CD1_2',0.)
-         hdu.header.update('CD2_1',0.)
-         hdu.header.update('CD2_2',pixscale/3600.)
-         hdu.header.update('CTYPE1','RA---TAN')
-         hdu.header.update('CTYPE2','DEC--TAN')
-         hdu.header.update('EQUINOX',2000.0)
-         hdu.header.update('RADECSYS','FK5')
+            hdr.update('CRPIX1',shape[1]/2.)
+            hdr.update('CRPIX2',shape[0]/2.)
+         hdr.update('CD1_1',-pixscale/3600.)
+         hdr.update('CD1_2',0.)
+         hdr.update('CD2_1',0.)
+         hdr.update('CD2_2',pixscale/3600.)
+         hdr.update('CTYPE1','RA---TAN')
+         hdr.update('CTYPE2','DEC--TAN')
+         hdr.update('EQUINOX',2000.0)
+         hdr.update('RADECSYS','FK5')
 
 #-----------------------------------------------------------------------
 

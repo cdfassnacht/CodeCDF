@@ -73,6 +73,7 @@ class Image:
 
       """ Set parameters related to image properties """
       self.infile = infile
+      self.fitsmode = mode
 
       """ Initialize display parameters """
       self.found_rms = False
@@ -88,7 +89,34 @@ class Image:
       """
 
       self.hdu.close()
-      
+
+   #-----------------------------------------------------------------------
+
+   def add_rough_wcs(self, ra, dec, pixscale, hext=0):
+      """
+      Uses the given RA, Dec, and pixel scale to create an initial guess
+      of the WCS for the data.  This is a simplistic guess, with the RA
+      and Dec assigned to the central pixel and the orientation assumed
+      to be exactly north up, east left.
+
+      Inputs:
+         ra       - RA of the image center
+         dec      - Dec of the image center
+         pixscale - pixel scale in arcsec/pix
+         hext     - HDU extension to assign the WCS to.  The default, 0, is
+                    good for most imaging
+      """
+
+      """ First make sure that the fits file can be updated """
+      if self.fitsmode != 'update':
+         print ''
+         print 'ERROR: Cannot update WCS unless image is loaded with'
+         print '   mode="update".  The mode for this image is %s' % self.fitsmode
+         print ''
+
+      else:
+         """ Create the header """
+         newwcs = wcs.ma
 
    #-----------------------------------------------------------------------
 
@@ -635,7 +663,7 @@ def open_fits(infile, mode='copyonwrite'):
       hdulist = pf.open(infile,mode=mode)
    except:
       try:
-         """ Try to get rid of read-in warings """
+         """ Try to get rid of read-in warnings """
          import warnings
          warnings.filterwarnings('ignore')
          hdulist = pf.open(infile,mode=mode,ignore_missing_end=True)

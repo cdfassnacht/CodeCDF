@@ -201,6 +201,9 @@ def is_degree(comp):
 
 # Convert string ra to degrees
 def ra2deg(ra):
+        print is_degree(ra)
+        if is_degree(ra):
+                return ra
 	comp = ra.split(" ")
 	if comp[0]==ra:
 		comp = comp[0].split(":")
