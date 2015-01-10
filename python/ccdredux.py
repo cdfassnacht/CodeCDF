@@ -430,9 +430,11 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
                wcsread = False
 
       """ Clean out old WCS and mosaic info """
-      foo = hdr.ascardlist()[4:]
+      #foo = hdr.ascardlist()[4:]
+      foo = hdr.keys()[4:]
       for k in range(0,len(foo)):
-         keyname = foo[k].key
+         #keyname = foo[k].key
+         keyname = foo[k]
          if keyname[0:4] == 'CD1_' or keyname[0:4] == 'CD2_' or \
                 keyname[0:4] == 'PANE' or keyname[0:5] == 'CRVAL' \
                 or keyname[0:5] == 'CRPIX' or keyname[0:5] == 'CDELT' \
