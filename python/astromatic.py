@@ -171,7 +171,7 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
             racol = 1
             namecol = 0
          if deccol is None:
-            racol = 2
+            deccol = 2
             namecol = 0
          tmpcat = catfuncs.Secat(outcat,catformat,racol=racol,deccol=deccol,
                                  namecol=namecol)

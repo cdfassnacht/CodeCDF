@@ -148,10 +148,10 @@ def sky_to_darcsec(alpha0, delta0, alpha, delta):
    """
 
    """ Make sure that inputs are in numpy array format """
-   a0 = n.atleast_1d(alpha0.copy())
-   d0 = n.atleast_1d(delta0.copy())
-   a = n.atleast_1d(alpha.copy())
-   d = n.atleast_1d(delta.copy())
+   a0 = n.atleast_1d(alpha0).copy()
+   d0 = n.atleast_1d(delta0).copy()
+   a = n.atleast_1d(alpha).copy()
+   d = n.atleast_1d(delta).copy()
 
    """ Convert inputs into radians """
    degs2rad = n.pi / 180.
