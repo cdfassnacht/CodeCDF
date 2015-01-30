@@ -20,8 +20,6 @@ class Secat:
 
    """
 
-   ****** NB: Right now this code may be partially broken ******
-
    The __init__ method has been changed to return something like a record
    array, which has the same number of rows as the old 2D float array, but
    which stores each row as a single tuple.  It is thus a 1D array, sort of
@@ -226,6 +224,9 @@ class Secat:
       if self.decfield is not None:
          self.dec = self.data[self.decfield].copy()
 
+   #-----------------------------------------------------------------------
+
+   #def plot_radec(self, symb='bo'):
    #-----------------------------------------------------------------------
 
    def plot_fwhm(self, fwhmcol='fwhm_image', magcol='mag_auto', 

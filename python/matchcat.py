@@ -382,6 +382,7 @@ def find_zp(datacat, photcat, magcol1, magcol2, lab1='mag_data', lab2='mag_phot'
       plt.figure(startfig)
    mdat,mphot = color_mag(datacat,photcat,magcol1,magcol2,lab1,lab2,
                           doplot=doplot)
+   plt.axhline(0.,color='r',lw=2,ls='--')
    mdiff = mdat - mphot
    if mphot.max() > 35.:
       plt.xlim(10.,27.)
