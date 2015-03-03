@@ -124,7 +124,9 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
       sopts += '-MAG_ZEROPOINT %5.2f ' % zeropt
    if seeing>0.0:
       sopts += '-SEEING_FWHM %6.3f ' % seeing
-   if whtfile is not None:
+   if whtfile is None:
+      sopts += '-WEIGHT_TYPE NONE '
+   else:      
       sopts += '-WEIGHT_TYPE %s -WEIGHT_IMAGE %s ' % (weight_type,whtfile)
    if weight_thresh is not None:
       sopts += '-WEIGHT_THRESH %9.2f ' % weight_thresh
@@ -209,8 +211,10 @@ def make_astrom_cat(fitsfile, configfile='sext_astfile.config',
 
 #-----------------------------------------------------------------------
 
-def make_cat_irac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
+def make_cat_irac(fitsfile, outcat='tmp.cat', regfile=None,
+                  configfile='sext_astfile.config', 
                   gain=29., texp=1., ncoadd=1, satur=64000., catformat='ldac',
+                  whtfile=None, weight_type='MAP_WEIGHT', 
                   det_area=15, det_thresh=2.5, logfile=None):
    """
    Calls make_fits_cat, but with gain preset for IRAC channel 2 (4.5 micron).
@@ -219,8 +223,9 @@ def make_cat_irac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
    """
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
-                 catformat,
-                 det_area,det_thresh,logfile=logfile)
+                 catformat,whtfile=whtfile, weight_type=weight_type,
+                 regfile=regfile,
+                 det_area=det_area,det_thresh=det_thresh,logfile=logfile)
 
 #-----------------------------------------------------------------------
 
@@ -252,7 +257,9 @@ def make_cat_acs(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
 
 #-----------------------------------------------------------------------
 
-def make_cat_wfc3(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
+def make_cat_wfc3(fitsfile, outcat='tmp.cat', regfile=None,
+                  configfile='sext_astfile.config', 
+                  whtfile=None, weight_type='MAP_WEIGHT', 
                   gain=2.5, texp=1., ncoadd=1, satur=65535., catformat='ldac',
                   logfile=None):
    """
@@ -260,7 +267,8 @@ def make_cat_wfc3(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
    """
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
-                 catformat,logfile=logfile)
+                 catformat,regfile=regfile,whtfile=whtfile,
+                 weight_type=weight_type,logfile=logfile)
 
 #-----------------------------------------------------------------------
 
