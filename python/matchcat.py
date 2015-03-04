@@ -92,8 +92,10 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    mdy = dymatch[nmatch>0]
    mra = ramatch[nmatch>0]
    mdec = decmatch[nmatch>0]
-   print " Median offset for matches (RA):  %+6.2f arcsec" % n.median(mdx)
-   print " Median offset for matches (Dec): %+6.2f arcsec" % n.median(mdy)
+   mdx0 = n.median(mdx)
+   mdy0 = n.median(mdy)
+   print " Median offset for matches (RA):  %+6.2f arcsec" % mdx0
+   print " Median offset for matches (Dec): %+6.2f arcsec" % mdy0
 
    """ Plot up some offsets, if desired """
    if doplot:
@@ -105,6 +107,7 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
       plt.title('Offsets between matched sources (rmatch = %5.2f)' % rmatch)
       plt.axvline(0.0,color='r')
       plt.axhline(0.0,color='r')
+      plt.plot(n.array([mdx0]),n.array([mdy0]),'r*',ms=20)
       plt.xlim(-1.1*rmatch,1.1*rmatch)
       plt.ylim(-1.1*rmatch,1.1*rmatch)
 
@@ -133,6 +136,8 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
       plt.xlabel(r'$\delta$')
       plt.axhline(0.0,color='r')
       plt.setp(ax4.get_yticklabels(), visible=False)
+
+      plt.show()
 
    """ Clean up """
    #del ra1,dec1,ra2,dec2

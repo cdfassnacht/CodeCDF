@@ -73,7 +73,8 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
                   catformat='ldac', det_area=-1, det_thresh=-1., seeing=0.0, 
                   whtfile=None, weight_type='MAP_WEIGHT', weight_thresh=None,
                   regfile=None, flag_file=None, logfile=None, verbose=True,
-                  racol=None, deccol=None, fluxcol=None,fluxerrcol='fluxerr_auto'):
+                  racol=None, deccol=None, fluxcol=None,
+                  fluxerrcol='fluxerr_auto'):
    """
    Runs SExtractor to create the LDAC catalog for the file that the astrometry
    will be applied to.
@@ -305,7 +306,8 @@ def make_cat_wfpc2(fitsfile, whtfile, outcat='tmp.cat',
 
 #-----------------------------------------------------------------------
 
-def make_cat_fors2(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
+def make_cat_fors2(fitsfile, outcat='tmp.cat', regfile=None,
+                   configfile='sext_astfile.config', 
                    gain=1.25, texp=1., ncoadd=1, satur=64000., catformat='ldac',
                    whtfile=None, weight_type='MAP_WEIGHT', logfile=None):
    """
@@ -313,7 +315,7 @@ def make_cat_fors2(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
    """
 
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
-                 catformat,
+                 catformat, regfile=regfile, 
                  whtfile=whtfile, weight_type=weight_type,
                  logfile=logfile)
 
