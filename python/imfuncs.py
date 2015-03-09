@@ -81,6 +81,9 @@ class Image:
       self.rms_clip = 0.0
       self.statsize = 2048
 
+      """ Initialize other parameters """
+      self.overlay_im = None
+
    #-----------------------------------------------------------------------
 
    def close(self):
@@ -89,6 +92,31 @@ class Image:
       """
 
       self.hdu.close()
+
+   #-----------------------------------------------------------------------
+
+   def read_overlay_image(file2name):
+      """
+      Reads in a second fits image in order to do an contour overlay
+      on the main image.  This process is separated from the overlay_contour
+      method so that a possibly large second image only needs to be read
+      in once.
+
+      Inputs:
+         file2name - name of second fits file
+      """
+
+      """ Read in the image """
+      try:
+         self.overlay_hdu = open_fits(file2name)
+      except:
+         print ''
+         print 'ERROR: Could not read in fits file %s' % file2name
+         print ''
+         return
+
+      """ Set the overlay_im parameter """
+      self.overlay_im = file2name
 
    #-----------------------------------------------------------------------
 
@@ -203,7 +231,7 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def def_subim_radec(self, ra, dec, xsize, ysize, outscale=None, 
+   def def_subim_radec(self, ra, dec, xsize, ysize=None, outscale=None, 
                        docdmatx=True, hext=0, dext=0, verbose=True):
       """
       Selects the data in the subimage defined by ra, dec, xsize, and ysize.
@@ -217,7 +245,11 @@ class Image:
          dec      - Central declination in decimal degrees
          xsize    - Output image x size in arcsec
          ysize    - Output image y size in arcsec
-         outscale - Output image pixel scale, in arcsec/pix
+                    If ysize is None (the default) then use the same size for
+                    y as is being used for x (i.e., ysize=xsize)
+         outscale - Output image pixel scale, in arcsec/pix.  
+                    If outscale is None (the default) then the output image
+                    scale will be the same as the input image scale
          docdmatx - If set to True (the default), then put the output image scale
 	            in terms of a CD matrix.  If False, then use the
 		    CDELT and PC matrix formalism instead.
@@ -254,6 +286,8 @@ class Image:
       """
       wcsinfo = wcs.parse_header(inhdr)
       inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
+      if ysize is None:
+         ysize = xsize
       inpixxsize = int(xsize / inscale)
       inpixysize = int(ysize / inscale)
       if outscale is None:
@@ -569,6 +603,8 @@ class Image:
       """ Set the color map """
       if cmap == 'gray':
          cmap = plt.cm.gray
+      elif cmap == 'gray_inv':
+         cmap = plt.cm.gray_r
       elif cmap == 'heat' or cmap == 'hot':
          cmap = plt.cm.hot
       elif cmap == 'Yl_Or_Br' or cmap == 'gaia':
@@ -588,6 +624,7 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+#-----------------------------------------------------------------------
 #-----------------------------------------------------------------------
 
 def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
@@ -1024,7 +1061,7 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
    pltc   = (coords - outsize/2.)*pixscale
    pltc[1] *= -1.
    plt.imshow(dat1,origin='bottom',vmin=vmin,vmax=vmax,cmap=plt.cm.gray,
-              interpolation='nearest',aspect='equal',
+              interpolation='none',aspect='equal',
               extent=(pltc[1][0,0],pltc[1][maxi,maxi],
                       pltc[0][0,0],pltc[0][maxi,maxi]))
    plt.xlabel(r"$\Delta \alpha$ (arcsec)")
@@ -1044,9 +1081,77 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
 
 #---------------------------------------------------------------------------
 
-def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale, rms1=None,
+def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None,
                      rms2=None, sighigh=10., title=None, showradec=True,
                      verbose=True):
+   """
+   Creates a postage-stamp cutout (of size imgsize arcsec) of the data in the
+    Image class and then overlays contours from the second image (infile2).
+
+   Inputs:
+      infile1   - fits file containing the data for the first image
+      infile2   - fits file containing the data for the second image
+      ra        - single number containing RA for image center
+                  (best if in decimal degrees)
+      dec       - single number containing Dec for image center
+                  (best if in decimal degrees)
+      imsize    - length of one side of output image, in arcsec
+      pixscale  - pixel scale of output image, in arcsec/pix
+                  If pixscale is None (the default) then just use the
+                  native pixel scale of each of the input images.
+      rms1      - user-requested rms for data in the first image. If set to 
+                   None (the default) then calculate rms from the cutout data
+                   themselves
+      rms2      - user-requested rms for data in the second image. If set to 
+                   None (the default) then calculate rms from the cutout data
+                   themselves
+   """
+
+   """ Read the input images """
+   try:
+      im1 = Image(infile1)
+   except:
+      return
+   print "   .... Done"
+   try:
+      im2 = Image(infile2)
+   except:
+      return
+   print "   .... Done"
+
+   """ 
+   Make cutouts of the appropriate size for each of the input images
+   For the first image this is done via a call to display
+   """
+   im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
+               subimsize=(imsize,imsize))
+   im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
+
+   """ Set contour levels for the second image """
+   if rms2 is None:
+      m2,rms2 = ccd.sigma_clip(im2.subim)
+   contbase = sqrt(3.)
+   maxcont = int(log((im2.subim.max()/rms2),contbase))
+   if maxcont < 3:
+      clevs = n.array([-3.,3.,contbase**3])
+   else:
+      clevs = n.concatenate(([-contbase**2],
+                             n.logspace(2.,maxcont,maxcont-1,base=contbase)))
+   print "Contour levels: %f *" % rms2
+   print clevs
+   clevs *= rms2
+
+   """ Clean up """
+   im1.close()
+   im2.close()
+   del im1,im2
+
+
+#---------------------------------------------------------------------------
+
+def overlay_contours_old(infile1, infile2, ra, dec, imsize, pixscale, rms1=None,
+                         rms2=None, sighigh=10., title=None, showradec=True,
+                         verbose=True):
    """
    Creates a postage-stamp cutout (of size imgsize arcsec) of the data in the
     Image class and then overlays contours from the second image (infile2).
