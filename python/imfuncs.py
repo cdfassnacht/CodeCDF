@@ -628,7 +628,7 @@ class Image:
          pltc[1] *= -1.
          print pltc[1][0,0], pltc[0][0,0]
          maxi = n.atleast_1d(self.subim.shape) - 1
-         print pltc[1][maxi[1],maxi[1]], pltc[0][maxi[0],maxi[0]]
+         print pltc[1][maxi[1],maxi[1]]-inscale, pltc[0][maxi[0],maxi[0]]+inscale
       else:
          pltc = coords
 
@@ -636,8 +636,8 @@ class Image:
       maxi = n.atleast_1d(self.subim.shape) - 1
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
                  interpolation='none',
-                 extent=(pltc[1][0,0],pltc[1][maxi[1],maxi[1]],
-                         pltc[0][0,0],pltc[0][maxi[0],maxi[0]]))
+                 extent=(pltc[1][0,0],pltc[1][maxi[1],maxi[1]]-inscale,
+                         pltc[0][0,0],pltc[0][maxi[0],maxi[0]]+inscale))
    #plt.xlabel(r"$\Delta \alpha$ (arcsec)")
    #plt.ylabel(r"$\Delta \delta$ (arcsec)")
       if title is not None:
@@ -1176,11 +1176,13 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    pltc2[0]   = (coords2[0] - im2.subim.shape[0]/2.)*inscale2
    pltc2[1]   = (coords2[1] - im2.subim.shape[1]/2.)*inscale2
    pltc2[1] *= -1.
-   plt.contour(pltc2[1],pltc2[0],im2.subim,clevs,colors='r')
-   print pltc2[1][0,0], pltc2[0][0,0]
    maxi = n.atleast_1d(im2.subim.shape) - 1
-   print maxi
-   print pltc2[1][maxi[1],maxi[1]], pltc2[0][maxi[0],maxi[0]]
+   plt.contour(im2.subim,clevs,colors='r',
+               extent=(pltc2[1][0,0],pltc2[1][maxi[1],maxi[1]]-inscale2,
+                       pltc2[0][0,0],pltc2[0][maxi[0],maxi[0]]+inscale2))
+   #plt.contour(pltc2[1],pltc2[0],im2.subim,clevs,colors='r')
+   print pltc2[1][0,0], pltc2[0][0,0]
+   print pltc2[1][maxi[1],maxi[1]]-inscale2, pltc2[0][maxi[0],maxi[0]]+inscale2
 
    """ Clean up """
    im1.close()
