@@ -168,7 +168,8 @@ class Image:
 
       else:
          """ Create the header """
-         newwcs = wcs.ma
+         #newwcs = wcs.ma
+         print 'Not functioning yet'
 
    #-----------------------------------------------------------------------
 
