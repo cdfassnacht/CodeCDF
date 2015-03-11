@@ -95,6 +95,30 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def get_wcs(self, hext=0):
+      """
+      Reads in WCS information from the header and stores it in 
+      new wcsinfo (see below) and pixscale variables
+
+      Inputs:
+         hext - Header extension that contains the WCS info.  Default=0
+
+      wcsinfo components:
+       0: crval
+       1: crpix
+       2: cd matrix
+       3: ctype1
+       4: ctype2
+       5: projection
+      """
+
+      hdr = self.hdu[hext].header
+      self.wcsinfo = wcs.parse_header(hdr)
+      self.pixscale = sqrt(self.wcsinfo[2][0,0]**2 + 
+                           self.wcsinfo[2][1,0]**2)*3600.
+
+   #-----------------------------------------------------------------------
+
    def read_overlay_image(file2name):
       """
       Reads in a second fits image in order to do an contour overlay
@@ -618,26 +642,25 @@ class Image:
       """ Set the displayed axes to be in WCS offsets, if requested """
       coords = n.indices(self.subim.shape).astype(n.float32)
       if dispunits == 'radec':
-         inhdr = self.hdu[hext].header.copy()
-         # INSERT ERROR CHECKING HERE
-         wcsinfo = wcs.parse_header(inhdr)
-         inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
+         self.get_wcs(hext)
          pltc = n.zeros(coords.shape)
-         pltc[0]   = (coords[0] - self.subim.shape[0]/2.)*inscale
-         pltc[1]   = (coords[1] - self.subim.shape[1]/2.)*inscale
+         pltc[0]   = (coords[0] - self.subim.shape[0]/2.)*self.pixscale
+         pltc[1]   = (coords[1] - self.subim.shape[1]/2.)*self.pixscale
          pltc[1] *= -1.
-         print pltc[1][0,0], pltc[0][0,0]
          maxi = n.atleast_1d(self.subim.shape) - 1
-         print pltc[1][maxi[1],maxi[1]]-inscale, pltc[0][maxi[0],maxi[0]]+inscale
+         extx1 = pltc[1][0,0]
+         exty1 = pltc[0][0,0]
+         extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
+         exty2 = pltc[0][maxi[1],maxi[1]]+self.pixscale
+         extval = (extx1,extx2,exty1,exty2)
       else:
          pltc = coords
+         extval = None
 
       """ Display the image """
       maxi = n.atleast_1d(self.subim.shape) - 1
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
-                 interpolation='none',
-                 extent=(pltc[1][0,0],pltc[1][maxi[1],maxi[1]]-inscale,
-                         pltc[0][0,0],pltc[0][maxi[0],maxi[0]]+inscale))
+                 interpolation='none',extent=extval)
    #plt.xlabel(r"$\Delta \alpha$ (arcsec)")
    #plt.ylabel(r"$\Delta \delta$ (arcsec)")
       if title is not None:
