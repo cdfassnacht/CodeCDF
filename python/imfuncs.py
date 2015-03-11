@@ -119,7 +119,43 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def read_overlay_image(file2name):
+   def set_wcsextent(self, hext=0):
+      """
+      For making plots with WCS information, it is necessary to define
+      the boundaries in terms of RA and Dec offsets from the center, in
+      arcsec.  For this purpose, the imshow and contour methods in 
+      matplotlib.pyplot have an 'extent' parameter.  
+      
+      This set_wcsextent method will use the WCS information in the fits
+      header to properly set the extent parameter values and return them.
+
+      Inputs:
+         hext - HDU containing the WCS info.  Default=0
+
+      Output:
+         extval - a four-element tuple containing the coordinates of the
+                  lower left and upper right corners, in terms of
+                  RA and Dec offsets.
+      """
+
+      self.get_wcs(hext)
+      coords = n.indices(self.subim.shape).astype(n.float32)
+      pltc = n.zeros(coords.shape)
+      pltc[0] = (coords[0] - self.subim.shape[0]/2.)*self.pixscale
+      pltc[1] = (coords[1] - self.subim.shape[1]/2.)*self.pixscale
+      pltc[1] *= -1.
+      maxi = n.atleast_1d(self.subim.shape) - 1
+      extx1 = pltc[1][0,0]
+      exty1 = pltc[0][0,0]
+      extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
+      exty2 = pltc[0][maxi[1],maxi[1]]+self.pixscale
+      extval = (extx1,extx2,exty1,exty2)
+
+      return extval
+
+   #-----------------------------------------------------------------------
+
+   def read_overlay_image(self,file2name):
       """
       Reads in a second fits image in order to do an contour overlay
       on the main image.  This process is separated from the overlay_contour
@@ -472,20 +508,6 @@ class Image:
 
       for i in wcskeys:
          newhdr.update(i,self.subimhdr[i])
-      #newhdr.update('RA',self.subimhdr['ra'])
-      #newhdr.update('DEC',self.subimhdr['dec'])
-      #newhdr.update('CTYPE1',self.subimhdr['ctype1'])
-      #newhdr.update('CTYPE2',self.subimhdr['ctype2'])
-      #newhdr.update('CRVAL1',self.subimhdr['crval1'])
-      #newhdr.update('CRPIX1',self.subimhdr['crpix1'])
-      #newhdr.update('CRVAL2',self.subimhdr['crval2'])
-      #newhdr.update('CRPIX2',self.subimhdr['crpix2'])
-      #newhdr.update('CDELT1',self.subimhdr['cdelt1'])
-      #newhdr.update('CDELT2',self.subimhdr['cdelt2'])
-      #newhdr.update('PC1_1',self.subimhdr['pc1_1'])
-      #newhdr.update('PC1_2',self.subimhdr['pc1_2'])
-      #newhdr.update('PC2_1',self.subimhdr['pc2_1'])
-      #newhdr.update('PC2_2',self.subimhdr['pc2_2'])
       newhdr.update('ORIG_IM',self.infile)
 
       """ Write the postage stamp to the output file """
@@ -566,8 +588,7 @@ class Image:
    def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
                sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
                subimcent=None, subimsize=None, subimunits='pixels', 
-               dispunits='pixels'):
-      # NB: Need to add extent parameter for call to imshow
+               dispunits='pixels', axlabel=True):
       """
       
       """
@@ -641,29 +662,21 @@ class Image:
          cmap = plt.cm.YlOrBr_r
 
       """ Set the displayed axes to be in WCS offsets, if requested """
-      coords = n.indices(self.subim.shape).astype(n.float32)
       if dispunits == 'radec':
-         self.get_wcs(hext)
-         pltc = n.zeros(coords.shape)
-         pltc[0]   = (coords[0] - self.subim.shape[0]/2.)*self.pixscale
-         pltc[1]   = (coords[1] - self.subim.shape[1]/2.)*self.pixscale
-         pltc[1] *= -1.
-         maxi = n.atleast_1d(self.subim.shape) - 1
-         extx1 = pltc[1][0,0]
-         exty1 = pltc[0][0,0]
-         extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
-         exty2 = pltc[0][maxi[1],maxi[1]]+self.pixscale
-         extval = (extx1,extx2,exty1,exty2)
+         extval = self.set_wcsextent(hext)
       else:
-         pltc = coords
          extval = None
 
       """ Display the image """
-      maxi = n.atleast_1d(self.subim.shape) - 1
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
                  interpolation='none',extent=extval)
-   #plt.xlabel(r"$\Delta \alpha$ (arcsec)")
-   #plt.ylabel(r"$\Delta \delta$ (arcsec)")
+      if axlabel is True:
+         if dispunits == 'radec':
+            plt.xlabel(r"$\Delta \alpha$ (arcsec)")
+            plt.ylabel(r"$\Delta \delta$ (arcsec)")
+         else:
+            plt.xlabel('x (pix)')
+            plt.xlabel('y (pix)')
       if title is not None:
          plt.title(title)
       #del data
@@ -1171,7 +1184,6 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    """
    im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
                subimsize=(imsize,imsize),dispunits='radec')
-   #im1.def_subim_radec(ra,dec,imsize,outscale=pixscale)
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
 
    """ Set contour levels for the second image """
@@ -1189,24 +1201,8 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    clevs *= rms2
 
    """ Plot the contours """
-   print im2.subim.shape
-   coords2 = n.indices(im2.subim.shape).astype(n.float32)
-   inhdr2 = im2.hdu[0].header.copy()
-   # INSERT ERROR CHECKING HERE
-   wcsinfo2 = wcs.parse_header(inhdr2)
-   inscale2 = sqrt(wcsinfo2[2][0,0]**2 + wcsinfo2[2][1,0]**2)*3600.
-   print inscale2
-   pltc2 = n.zeros(coords2.shape)
-   pltc2[0]   = (coords2[0] - im2.subim.shape[0]/2.)*inscale2
-   pltc2[1]   = (coords2[1] - im2.subim.shape[1]/2.)*inscale2
-   pltc2[1] *= -1.
-   maxi = n.atleast_1d(im2.subim.shape) - 1
-   plt.contour(im2.subim,clevs,colors='r',
-               extent=(pltc2[1][0,0],pltc2[1][maxi[1],maxi[1]]-inscale2,
-                       pltc2[0][0,0],pltc2[0][maxi[0],maxi[0]]+inscale2))
-   #plt.contour(pltc2[1],pltc2[0],im2.subim,clevs,colors='r')
-   print pltc2[1][0,0], pltc2[0][0,0]
-   print pltc2[1][maxi[1],maxi[1]]-inscale2, pltc2[0][maxi[0],maxi[0]]+inscale2
+   extval2 = im2.set_wcsextent()
+   plt.contour(im2.subim,clevs,colors='r',extent=extval2)
 
    """ Clean up """
    im1.close()
