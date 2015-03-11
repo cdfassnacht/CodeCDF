@@ -622,19 +622,22 @@ class Image:
          # INSERT ERROR CHECKING HERE
          wcsinfo = wcs.parse_header(inhdr)
          inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
-         xxsize = self.subimsize[0] / inscale
-         yysize = self.subimsize[1] / inscale
-         pltc   = (coords - self.subimsize/2.)*inscale
+         pltc = n.zeros(coords.shape)
+         pltc[0]   = (coords[0] - self.subim.shape[0]/2.)*inscale
+         pltc[1]   = (coords[1] - self.subim.shape[1]/2.)*inscale
          pltc[1] *= -1.
+         print pltc[1][0,0], pltc[0][0,0]
+         maxi = n.atleast_1d(self.subim.shape) - 1
+         print pltc[1][maxi[1],maxi[1]], pltc[0][maxi[0],maxi[0]]
       else:
          pltc = coords
 
       """ Display the image """
-      maxi = self.subim.shape
+      maxi = n.atleast_1d(self.subim.shape) - 1
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
                  interpolation='none',
-                 extent=(pltc[1][0,0],pltc[1][maxi[1]-1,maxi[1]-1],
-                         pltc[0][0,0],pltc[0][maxi[0]-1,maxi[0]-1]))
+                 extent=(pltc[1][0,0],pltc[1][maxi[1],maxi[1]],
+                         pltc[0][0,0],pltc[0][maxi[0],maxi[0]]))
    #plt.xlabel(r"$\Delta \alpha$ (arcsec)")
    #plt.ylabel(r"$\Delta \delta$ (arcsec)")
       if title is not None:
@@ -1142,12 +1145,11 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    Make cutouts of the appropriate size for each of the input images
    For the first image this is done via a call to display
    """
-   #im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
-   #            subimsize=(imsize,imsize))
-   im1.def_subim_radec(ra,dec,imsize,outscale=pixscale)
+   im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
+               subimsize=(imsize,imsize),dispunits='radec')
+   #im1.def_subim_radec(ra,dec,imsize,outscale=pixscale)
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
 
-   """ Display the first image, with axes in dRA,dDec """
    """ Set contour levels for the second image """
    if rms2 is None:
       m2,rms2 = ccd.sigma_clip(im2.subim)
@@ -1161,6 +1163,24 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    print "Contour levels: %f *" % rms2
    print clevs
    clevs *= rms2
+
+   """ Plot the contours """
+   print im2.subim.shape
+   coords2 = n.indices(im2.subim.shape).astype(n.float32)
+   inhdr2 = im2.hdu[0].header.copy()
+   # INSERT ERROR CHECKING HERE
+   wcsinfo2 = wcs.parse_header(inhdr2)
+   inscale2 = sqrt(wcsinfo2[2][0,0]**2 + wcsinfo2[2][1,0]**2)*3600.
+   print inscale2
+   pltc2 = n.zeros(coords2.shape)
+   pltc2[0]   = (coords2[0] - im2.subim.shape[0]/2.)*inscale2
+   pltc2[1]   = (coords2[1] - im2.subim.shape[1]/2.)*inscale2
+   pltc2[1] *= -1.
+   plt.contour(pltc2[1],pltc2[0],im2.subim,clevs,colors='r')
+   print pltc2[1][0,0], pltc2[0][0,0]
+   maxi = n.atleast_1d(im2.subim.shape) - 1
+   print maxi
+   print pltc2[1][maxi[1],maxi[1]], pltc2[0][maxi[0],maxi[0]]
 
    """ Clean up """
    im1.close()
