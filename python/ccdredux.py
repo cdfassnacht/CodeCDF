@@ -1406,22 +1406,63 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
 #---------------------------------------------------------------------------
 
-def add_exptime(inlist, exptime, hext=0, verbose=True):
+def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
    """
    Given a list of fits files, adds to each one an EXPTIME header keyword
-   with a value given by the passed exptime parameter
+   with a value based on the passed exptime parameter.
+   ** NOTE ** The exptime parameter can either be a numerical value, in
+     which case it is interpreted as the value for EXPTIME, or it can
+     be a string in which case it is interpreted as the name of a reference
+     file that contains a valid exposure time keyword (designated by
+     the passed exptkey parameter) that will be copied into the input files.
 
    Inputs:
      inlist  - list of fits files to which the keyword will be added
-     exptime - the value of the exposure time to add to each file
+     exptime - can take one of two forms:
+               (1) the value of the exposure time to add to each file
+               (2) the name of a reference file that contains a valid
+                   exposure time in its header.  This exposure time
+                   (designated by the exptkey keyword in the header) will
+                   be copied into the input list.
+     exptkey - if the exptime parameter is the name of a reference file, then
+               this designates the keyword in the reference file header that
+               contains the exposure time value.  Default is 'exptime'
      hext    - HDU to modify (default = 0)
      verbose - Set to True (the default) for some status
    """
 
+   """ Check format of the exptime parameter """
+   if type(exptime) is str:
+      try:
+         hdr = pf.getheader(exptime)
+      except:
+         print ''
+         print 'ERROR: Unable to open fits file %s' % exptime
+         print ''
+         return
+      try:
+         texp = hdr[exptkey]
+      except:
+         print 'ERROR: Unable to read %s keyword in %s fits file' % \
+             (exptkey,exptime)
+         del hdr
+         print ''
+         return
+   elif type(exptime) is float:
+      texp = exptime
+   elif type(exptime) is int:
+      texp = float(exptime)
+   else:
+      print ''
+      print 'ERROR: exptime needs to be a number or name of a reference file'
+      print ''
+      return
+
+   """ Put the desired exposure time into the input files """
    for i in inlist:
       hdu = pf.open(i,mode='update')
       hdr = hdu[hext].header
-      hdr.update('exptime',exptime)
+      hdr.update('exptime',texp)
       hdu.flush()
       if verbose:
          print 'Updated %s with EXPTIME=%.2f' % (i,exptime)
