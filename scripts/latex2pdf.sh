@@ -42,7 +42,7 @@ echo ""
 echo "Cleaning up...."
 echo ""
 rm $1.ps
-rm *.log *.dvi *.aux *~
+rm *.log *.dvi *.aux *.blg *.bbl *~
 echo "Displaying $1.pdf..."
 echo ""
 #acroread $1.pdf &
