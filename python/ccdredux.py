@@ -160,7 +160,7 @@ def define_trimsec(hdu,x1,x2,y1,y2):
 
 #-----------------------------------------------------------------------
 
-def divide_images(a,b,output):
+def divide_images(a,b,output,preserve_header=0):
    print "Dividing images: '%s' / '%s' = '%s'" % (a,b,output)
    try:
       hdua = pf.open(a)[0]
@@ -170,7 +170,12 @@ def divide_images(a,b,output):
       hdub = pf.open(b)[0]
    except:
       hdub = pf.open(b,ignore_missing_end=True)[0]
-   hdu = pf.PrimaryHDU(hdua.data/hdub.data)
+   if preserve_header == 1:
+      hdu = pf.PrimaryHDU(hdua.data / hdub.data,header=hdua.header)
+   elif preserve_header == 2:
+      hdu = pf.PrimaryHDU(hdua.data / hdub.data,header=hdub.header)
+   else:
+      hdu = pf.PrimaryHDU(hdua.data/hdub.data)
    hdu.writeto(output,output_verify='ignore')
 
 def subtract_images(a,b,output,hexta=0,hextb=0):
@@ -1465,7 +1470,7 @@ def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
       hdr.update('exptime',texp)
       hdu.flush()
       if verbose:
-         print 'Updated %s with EXPTIME=%.2f' % (i,exptime)
+         print 'Updated %s with EXPTIME=%.2f' % (i,texp)
 
 #---------------------------------------------------------------------------
 
