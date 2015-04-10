@@ -59,13 +59,29 @@ for f in files:
 
    # Set instrument-specific parameter value
    if inst is not None:
+
+      """ HST Instruments """
+      if inst == 'ACS':
+         objname = 'targname'
+         filtname = 'filter2'
       if inst == 'NICMOS':
          objname = 'targname'
          inst2   = 'aperture'
-      elif inst == 'NIRI':
-         usecoadd  = True
-         texpname  = 'coaddexp'
-         filtname  = 'filter1'
+      elif inst == 'WFC3':
+         objname = 'targname'
+      elif inst == 'WFPC2':
+         objname = 'targname'
+         filtname = 'filtnam1'
+
+      ### Keck Instruments ###
+      elif inst[0:3] == 'ESI':
+         inst = 'ESI'
+         texpname = 'ttime'
+         filtname = 'dwfilnam'
+      elif inst[0:4] == 'LRIS':
+         inst = 'LRIS'
+         texpname = 'ttime'
+         filtname = 'redfilt'
       elif inst == 'NIRC2':
          usecoadd = True
          texpname = 'itime'
@@ -73,21 +89,18 @@ for f in files:
          usecoadd = True
          texpname = 'itime'
          filtname = 'filname'
-      elif inst[0:4] == 'LRIS':
-         inst = 'LRIS'
-         texpname = 'ttime'
-         filtname = 'redfilt'
-      elif inst[0:3] == 'ESI':
-         inst = 'ESI'
-         texpname = 'ttime'
-         filtname = 'dwfilnam'
-      elif inst == 'WFPC2':
-         objname = 'targname'
-         filtname = 'filtnam1'
+
+      ### Subaru Instruments ###
       elif inst == 'MOIRCS':
          filtname = 'filter01'
       elif inst == 'SuprimeCam':
          filtname = 'filter01'
+
+      ### Other Instruments ###
+      elif inst == 'NIRI':
+         usecoadd  = True
+         texpname  = 'coaddexp'
+         filtname  = 'filter1'
 
    # Get object name
    try:
