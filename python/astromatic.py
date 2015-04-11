@@ -230,15 +230,21 @@ def make_cat_irac(fitsfile, outcat='tmp.cat', regfile=None,
 
 #-----------------------------------------------------------------------
 
-def make_cat_acs(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
-                 gain=2.0, texp=1., ncoadd=1, satur=65535., det_area=30,
+def make_cat_acs(fitsfile, outcat='default', regfile='default',
+                 configfile='sext_astfile.config', 
+                 gain=2.0, texp='header', ncoadd=1, satur=65535., det_area=30,
                  det_thresh=2.5, seeing=0.105, obsfilt=None, magsys='ab', 
                  whtfile=None, weight_type='MAP_RMS', 
-                 catformat='ldac',
-                 logfile=None):
+                 catformat='ldac', logfile=None, verbose=True):
    """
    Calls make_fits_cat, but with parameters preset for HST/ACS WFC
    """
+
+   """ Set output file if user wants default values """
+   if outcat=='default':
+      outcat = fitsfile.replace('.fits','.cat')
+   if regfile=='default':
+      regfile = fitsfile.replace('.fits','.reg')
 
    """ Set zeropoint """
    if obsfilt.lower()=='f814w':
@@ -250,41 +256,10 @@ def make_cat_acs(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
       """ Default zeropoint """
       magzp = 30.
 
-   """ Call SExtractor """
-   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,magzp,
-                 catformat,
-                 det_area,det_thresh,seeing=seeing,whtfile=whtfile,
-                 weight_type=weight_type,logfile=logfile)
-
-#-----------------------------------------------------------------------
-
-def make_cat_wfc3(fitsfile, outcat='tmp.cat', regfile=None,
-                  configfile='sext_astfile.config', 
-                  whtfile=None, weight_type='MAP_WEIGHT', 
-                  gain=2.5, texp=1., ncoadd=1, satur=65535., catformat='ldac',
-                  logfile=None):
-   """
-   Calls make_fits_cat, but with gain preset for WFC3
-   """
-
-   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
-                 catformat,regfile=regfile,whtfile=whtfile,
-                 weight_type=weight_type,logfile=logfile)
-
-#-----------------------------------------------------------------------
-
-def make_cat_wfpc2(fitsfile, whtfile, outcat='tmp.cat', 
-                   configfile='sext_astfile.config', gain=7., texp=None, 
-                   ncoadd=1, satur=65535., catformat='ldac', 
-                   weight_type='MAP_WEIGHT', weight_thresh=None,
-                   logfile=None):
-   """
-   Calls make_fits_cat, but with gain preset for WFPC2
-   """
-
+   """ Set exposure time """
    f = pf.open(fitsfile)
    hdr = f[0].header
-   if texp is None:
+   if texp == 'header':
       readok = True
       try:
          texp = hdr['exptime']
@@ -299,10 +274,97 @@ def make_cat_wfpc2(fitsfile, whtfile, outcat='tmp.cat',
       print "Exposure time set by function call to %8.1f sec" % texp
    f.close()
 
-   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
-                 catformat,
-                 whtfile=whtfile,weight_type=weight_type,
-                 weight_thresh=weight_thresh,logfile=logfile)
+   """ Call SExtractor """
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,magzp,
+                 catformat,seeing=seeing,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+#-----------------------------------------------------------------------
+
+def make_cat_wfc3(fitsfile, outcat='default', regfile='default',
+                  configfile='sext_astfile.config', 
+                  whtfile=None, weight_type='MAP_WEIGHT', 
+                  gain=2.5, texp='header', ncoadd=1, satur=65535., 
+                  catformat='ldac', det_area=30, det_thresh=2.5,
+                  logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but with gain preset for WFC3
+   """
+
+   """ Set output file if user wants default values """
+   if outcat=='default':
+      outcat = fitsfile.replace('.fits','.cat')
+   if regfile=='default':
+      regfile = fitsfile.replace('.fits','.reg')
+
+   """ Set exposure time """
+   f = pf.open(fitsfile)
+   hdr = f[0].header
+   if texp == 'header':
+      readok = True
+      try:
+         texp = hdr['exptime']
+      except:
+         texp = 1.
+         readok = False
+      if readok:
+         print "Exposure time from fits header: %8.1f sec" % texp
+      else:
+         print "Failed to read EXPTIME header. Setting texp = 1 sec"
+   else:
+      print "Exposure time set by function call to %8.1f sec" % texp
+   f.close()
+
+   """ Call SExtractor """
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,
+                 catformat=catformat,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+#-----------------------------------------------------------------------
+
+def make_cat_wfpc2(fitsfile, outcat='default', regfile='default',
+                   configfile='sext_astfile.config', 
+                   whtfile=None, weight_type='MAP_WEIGHT', 
+                   gain=2.5, texp='header', ncoadd=1, satur=65535., 
+                   catformat='ldac', det_area=30, det_thresh=2.5,
+                   logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but with gain preset for WFPC2
+   """
+
+   """ Set output file if user wants default values """
+   if outcat=='default':
+      outcat = fitsfile.replace('.fits','.cat')
+   if regfile=='default':
+      regfile = fitsfile.replace('.fits','.reg')
+
+   """ Set exposure time """
+   f = pf.open(fitsfile)
+   hdr = f[0].header
+   if texp == 'header':
+      readok = True
+      try:
+         texp = hdr['exptime']
+      except:
+         texp = 1.
+         readok = False
+      if readok:
+         print "Exposure time from fits header: %8.1f sec" % texp
+      else:
+         print "Failed to read EXPTIME header. Setting texp = 1 sec"
+   else:
+      print "Exposure time set by function call to %8.1f sec" % texp
+   f.close()
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,
+                 catformat=catformat,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
 
 #-----------------------------------------------------------------------
 
