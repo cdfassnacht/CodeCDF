@@ -247,11 +247,12 @@ def make_cat_acs(fitsfile, outcat='default', regfile='default',
       regfile = fitsfile.replace('.fits','.reg')
 
    """ Set zeropoint """
-   if obsfilt.lower()=='f814w':
-      if magsys.lower()=='ab':
-         magzp = 25.943
-      else:
-         magzp = 25.520
+   if obsfilt is not None:
+      if obsfilt.lower()=='f814w':
+         if magsys.lower()=='ab':
+            magzp = 25.943
+         else:
+            magzp = 25.520
    else:
       """ Default zeropoint """
       magzp = 30.

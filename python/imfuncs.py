@@ -1183,7 +1183,7 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
    For the first image this is done via a call to display
    """
    im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
-               subimsize=(imsize,imsize),dispunits='radec')
+               subimsize=(imsize,imsize),dispunits='radec',sighigh=sighigh)
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
 
    """ Set contour levels for the second image """
