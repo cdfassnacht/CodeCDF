@@ -49,6 +49,9 @@ class Secat:
 
       read_success = True
 
+      """ Set a flag showing whether the file has been modified """
+      self.modified = False
+
       """
       Start by loading the catalog information
       """
@@ -109,7 +112,7 @@ class Secat:
       """ FITS LDAC format """
       if catformat.lower()=='ldac' or read_success==False:
          try:
-            hdu = pf.open(infile)
+            self.hdu = pf.open(infile,mode='update')
          except:
             print "  ERROR. Problem in loading file %s" % infile
             print "  Check to make sure filename matches an existing file."
@@ -117,8 +120,8 @@ class Secat:
             return
 
          self.informat = 'ldac'
-         self.data = hdu[2].data.copy()
-         ncols = hdu[2].header['tfields']
+         self.data = self.hdu[2].data
+         ncols = self.hdu[2].header['tfields']
 
          """ Set the field names """
          self.rafield = 'alpha_j2000'
@@ -128,6 +131,27 @@ class Secat:
          print "Number of rows:    %d" % self.data.shape[0]
          print "Number of columns: %d" % ncols
       self.infile = infile
+
+   #-----------------------------------------------------------------------
+
+   def close_ldac(self):
+      """
+      Closes the catalog.  If the catalog is in fits format and it has
+      been modified (as shown by the modified parameter in this Secat class)
+      then use flush rather than close.
+      """
+
+      """ Close the file if it is in the expected format """
+      if self.informat == 'ldac':
+         if self.modified:
+            self.hdu.flush()
+            print 'Updating input fits LDAC file: %s' % self.infile
+         else:
+            self.hdu.close()
+      else:
+         print ''
+         print 'WARNING. Calling close_ldac but file is not in ldac format'
+         print ''
 
    #-----------------------------------------------------------------------
 
