@@ -305,6 +305,118 @@ class Secat:
 
    #-----------------------------------------------------------------------
 
+   def match_radec(self, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
+      """
+
+      *** UNDER CONSTRUCTION!  DO NOT USE YET. ***
+
+      Given a list of ra,dec coordinates (ra2, dec2), possibly from a second
+      catalog, and a match tolerance, find the matches to the catalog
+      contained in self.data
+
+      Inputs:
+        ra2      - RA (decimal degrees) for catalog 
+        dec2     - Dec (decimal degrees) for second catalog
+        rmatch   - max distance for a valid match (arcsec)
+        dra2     - optional offset in ARCSEC to apply to ra2, if there is a known
+                   offset between the catalogs (default=0.0)
+        ddec2    - optional offset in ARCSEC to apply to dec2, if there is a
+                   known offset between the catalogs (default=0.0)
+      """
+
+      print ""
+      print "Matching catalogs: basic info"
+      print "--------------------------------------------"
+      print " Catalog 1: %d coordinates" % self.ra.size
+      print " Catalog 2: %d coordinates" % ra2.size
+
+      """ Initialize containers for output information """
+      ramatch  = n.zeros(self.ra.size)
+      decmatch = n.zeros(self.ra.size)
+      self.nmatch   = n.zeros(self.ra.size,dtype=int)
+      self.matchdx  = n.zeros(self.ra.size)
+      self.matchdy  = n.zeros(self.ra.size)
+      self.indmatch = n.ones(self.ra.size,dtype=int) * -1
+
+      """ Correct for known shifts """
+      ra2 = ra2.copy() + dra2/(3600.*n.cos(dec2))
+      dec2 = dec2.copy() + ddec2/3600.
+
+      """ Loop over catalog """
+      print ""
+      print "Searching for matches..."
+      print "------------------------------"
+      for i in range(self.ra.size):
+         dx,dy = coords.sky_to_darcsec(self.ra[i],self.dec[i],ra2,dec2)
+         dpos = n.sqrt(dx**2 + dy**2)
+         isort = n.argsort(dpos)
+         if dpos[isort[0]]<=rmatch:
+            ramatch[i]  = self.ra[i]
+            decmatch[i] = self.dec[i]
+            self.matchdx[i]  = dx[isort[0]]
+            self.matchdy[i]  = dy[isort[0]]
+            self.nmatch[i]   = dpos[dpos<=rmatch].size
+            self.indmatch[i] = isort[0]
+         del dx,dy,dpos
+      print " Number of matches between the catalogs:  %d" % \
+          (self.nmatch>0).sum()
+      mra  = ramatch[self.nmatch>0]
+      mdec = decmatch[self.nmatch>0]
+      mdx  = self.matchdx[self.nmatch>0]
+      mdy  = self.matchdy[self.nmatch>0]
+      mdx0 = n.median(mdx)
+      mdy0 = n.median(mdy)
+      print " Median offset for matches (RA):  %+6.2f arcsec" % mdx0
+      print " Median offset for matches (Dec): %+6.2f arcsec" % mdy0
+
+      """ Plot up some offsets, if desired """
+      if doplot:
+         plt.figure(1)
+         plt.scatter(mdx,mdy)
+         plt.axis('scaled')
+         plt.xlabel(r'$\Delta \alpha$ (arcsec)')
+         plt.ylabel(r'$\Delta \delta$ (arcsec)')
+         plt.title('Offsets between matched sources (rmatch = %5.2f)' % rmatch)
+         plt.axvline(0.0,color='r')
+         plt.axhline(0.0,color='r')
+         plt.plot(n.array([mdx0]),n.array([mdy0]),'r*',ms=20)
+         plt.xlim(-1.1*rmatch,1.1*rmatch)
+         plt.ylim(-1.1*rmatch,1.1*rmatch)
+
+         plt.figure(2)
+         #
+         ax1 = plt.subplot(221)
+         plt.scatter(mra,mdy)
+         plt.setp(ax1.get_xticklabels(), visible=False)
+         plt.ylabel(r'$\Delta \delta$ (arcsec)')
+         plt.axhline(0.0,color='r')
+         #
+         ax2 = plt.subplot(223, sharex=ax1)
+         plt.scatter(mra,mdx)
+         plt.xlabel(r'$\alpha$')
+         plt.ylabel(r'$\Delta \alpha$ (arcsec)')
+         plt.axhline(0.0,color='r')
+         #
+         ax3 = plt.subplot(222, sharey=ax1)
+         plt.scatter(mdec,mdy)
+         plt.axhline(0.0,color='r')
+         plt.setp(ax3.get_xticklabels(), visible=False)
+         plt.setp(ax3.get_yticklabels(), visible=False)
+         #
+         ax4 = plt.subplot(224)
+         plt.scatter(mdec,mdx)
+         plt.xlabel(r'$\delta$')
+         plt.axhline(0.0,color='r')
+         plt.setp(ax4.get_yticklabels(), visible=False)
+
+         plt.show()
+
+      """ Clean up """
+      del ramatch,decmatch
+      del mdx,mdy,mra,mdec
+
+   #-----------------------------------------------------------------------
+
    def print_ccmap(self, outfile, verbose=True):
       """
       Prints out a file that can be used as the input for the pyraf ccmap
