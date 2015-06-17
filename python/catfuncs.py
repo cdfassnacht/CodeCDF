@@ -244,9 +244,22 @@ class Secat:
       self.ra = None
       self.dec = None
       if self.rafield is not None:
-         self.ra  = self.data[self.rafield].copy()
+         try:
+            self.ra  = self.data[self.rafield].copy()
+         except:
+            try:
+               self.ra = self.data['x_world'].copy()
+            except:
+               self.ra = None
       if self.decfield is not None:
-         self.dec = self.data[self.decfield].copy()
+         try:
+            self.dec = self.data[self.decfield].copy()
+         except:
+            try:
+               self.dec = self.data['y_world'].copy()
+            except:
+               self.dec = None
+
 
    #-----------------------------------------------------------------------
 
