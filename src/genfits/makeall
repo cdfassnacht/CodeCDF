@@ -1,0 +1,28 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Create and install the genfits programs and their libraries.
+#-----------------------------------------------------------------------
+
+
+echo ' '; echo 'Compiling the scratch file utils library libscrfil.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/scrfil_src; make)
+
+echo ' '; echo 'Compiling the log I/O library liblogio.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/logio_src; make)
+
+echo ' '; echo 'Compiling the record I/O interface library librecio.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/recio_src; make)
+
+echo ' '; echo 'Compiling the fits library libfits.a'; echo ' '
+(cd $FITSFNDIR/MCSfits/fits_src; make)
+
+echo ' '; echo 'Compiling the general utility library libutil.a'; echo ' '
+(cd $CDFUTIL; make)
+
+echo ' '; echo 'Compiling the local fits WCS/header library libfitswcs.a'
+echo ' '
+(cd $FITSFNDIR/CDFfits; make)
+
+echo ' '; echo 'Compiling the genfit programs themselves'; echo ' '
+(cd src; make)
+

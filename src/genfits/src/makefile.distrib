@@ -1,0 +1,63 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the genfits makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the genfits programs.
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu). 
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the PGPLOT library is to be specified on the loader
+# line.
+
+PGLIB  = -L$(LIBDIR) -lcpgplot $(PGPLOT_LIB)
+
+# Specify how the FITS library is to be specified on the loader line.
+
+FITS = -L$(LIBDIR) -lfits -lrecio -lscrfil
+
+# Specify how the local FITS/image library is to be specified
+
+# LOCFITS = $(LIBDIR)/liblf.a
+
+# Specify how the local FITS header/WCS library is to be specified
+
+LOCFITSWCS = $(LIBDIR)/liblfwcs.a
+
+# Specify how the general utilities library is to be specified
+
+LIBUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: $(BINDIR)/fitshead $(BINDIR)/fitsinfo $(BINDIR)/fitsxy2wcs $(BINDIR)/fitswcs2xy
+
+$(BINDIR)/fitshead: fitshead.o $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/fitshead fitshead.o $(LIBUTIL) $(FITS) -lm $(CCLIB)
+
+$(BINDIR)/fitsinfo: fitsinfo.o $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/fitsinfo fitsinfo.o $(LOCFITSWCS) $(LIBUTIL) $(FITS) -lm $(CCLIB)
+
+$(BINDIR)/fitsxy2wcs: fitsxy2wcs.o $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/fitsxy2wcs fitsxy2wcs.o $(LIBUTIL) $(FITS) $(LOCFITSWCS) -lm $(CCLIB)
+
+$(BINDIR)/fitswcs2xy: fitswcs2xy.o $(LOCFITSWCS) $(LIBUTIL) 
+	$(FC) -o $(BINDIR)/fitswcs2xy fitswcs2xy.o $(LIBUTIL) $(FITS) $(LOCFITSWCS) -lm $(CCLIB)
+
