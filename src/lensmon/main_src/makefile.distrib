@@ -1,0 +1,194 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the lensmon main makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the library for light-curve analysis and
+#               the analysis programs.
+#
+# Chris Fassnacht (fassnacht@physics.ucd.edu).  
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the PGPLOT library is to be specified on the loader
+# line.
+
+PGLIB  = -L$(LIBDIR) -lcpgplot $(PGPLOT_LIB)
+
+# Specify how the local Numerical Recipes library is to be specified
+
+LOCNR = -L$(LIBDIR) -llocnr
+
+# Specify how the FITS library is to be specified on the loader line.
+
+FITS = -L$(LIBDIR) -lfits -lrecio -lscrfil
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libutil.a
+
+# Specify how the general plotting library is to be specified
+
+PLOTUTIL = $(LIBDIR)/libplotutil.a
+
+# Specify how the light curve library is to be specified
+
+LCFN = $(LIBDIR)/liblcfn.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	$(FC) $(FFLAGC) $<
+
+default: tdelays interp getflux
+
+tdelays: tdelays.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/tdelays tdelays.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+interp: interp.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/interp interp.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+delays: delays.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/delays delays.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+add_chisq: add_chisq.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/add_chisq add_chisq.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+add_disp: add_disp.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/add_disp add_disp.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+smooth_curve: smooth_curve.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/smooth_curve smooth_curve.o $(LCFN) $(PLOTUTIL) $(CDFUTIL) $(LOCNR) $(PGLIB) -lm $(CCLIB)
+
+mk_monte_lcurve: mk_monte_lcurve.o $(LCFN) $(CDFUTIL)
+	$(CC) -o $(BINDIR)/mk_monte_lcurve mk_monte_lcurve.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+mkrand: mkrand.o $(LCFN) $(CDFUTIL)
+	$(CC) -o $(BINDIR)/mkrand mkrand.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+getflux: getflux.o  modfuncs.o $(CDFUTIL)
+	$(CC) -o $(BINDIR)/getflux getflux.o  modfuncs.o $(CDFUTIL) $(FITS) -lsla -lm $(CCLIB) 
+
+calflux: calflux.o  modfuncs.o $(CDFUTIL)
+	$(CC) -o $(BINDIR)/calflux calflux.o  modfuncs.o $(CDFUTIL) $(FITS) -lsla -lm $(CCLIB) 
+
+intdisp: intdisp.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/intdisp intdisp.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+modscal: modscal.o modfuncs.o $(CDFUTIL)
+	$(CC) -o $(BINDIR)/modscal modscal.o modfuncs.o $(CDFUTIL) $(FITS) -lsla -lm $(CCLIB)
+
+best_cmod: best_cmod.o modfuncs.o $(CDFUTIL)
+	$(CC) -o $(BINDIR)/best_cmod best_cmod.o modfuncs.o $(CDFUTIL) $(FITS) -lsla  -lm $(CCLIB)
+
+shift_mod: shift_mod.o modfuncs.o $(CDFUTIL)
+	$(CC) -o $(BINDIR)/shift_mod shift_mod.o modfuncs.o $(CDFUTIL) $(FITS) -lsla -lm $(CCLIB)
+
+plot_chisq: plot_chisq.o $(CDFUTIL) $(PLOTUTIL) $(LCFN) 
+	$(FC) -o $(BINDIR)/plot_chisq plot_chisq.o $(LCFN) $(PLOTUTIL) $(CDFUTIL) $(LOCNR) $(PGLIB) -lm $(CCLIB)
+
+fit_curve: fit_curve.o $(LCFN) $(PLOTUTIL) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/fit_curve fit_curve.o  $(LCFN) $(PLOTUTIL) $(CDFUTIL) $(LOCNR) $(PGLIB) -lm $(CCLIB)
+
+slide_curve: slide_curve.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/slide_curve slide_curve.o  $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+test_rand: test_rand.o $(LCFN) $(CDFUTIL)
+	$(CC) -o $(BINDIR)/test_rand test_rand.o $(LCFN) $(CDFUTIL) $(LOCNR) -lm $(CCLIB)
+
+fit_1_to_3: fit_1_to_3.o $(LCFN) $(CDFUTIL)
+	$(FC) -o $(BINDIR)/fit_1_to_3 fit_1_to_3.o $(LCFN) $(CDFUTIL) $(PGLIB) $(LOCNR) -lm $(CCLIB)
+
+clean:
+	rm *.o *~
+
+#
+# Dependence of *.o files
+#
+
+modfuncs.o: modfuncs.h $(INCDIR)/dataio.h
+
+modscal.o: modfuncs.h $(INCDIR)/dataio.h
+
+getflux.o: $(INCDIR)/structdef.h
+
+calflux.o: $(INCDIR)/structdef.h
+
+shift_mod.o: $(INCDIR)/coords.h
+
+plot_chisq.o: $(INCDIR)/dataio.h $(INCDIR)/plotfuncs.h $(INCDIR)/lc_chisq.h
+
+#-----------------------------------------------------------------------
+# The following rules make the library of light curve functions
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+LCFN_O = lc_funcs.o lc_setup.o lc_chisq.o lc_interp.o correlate.o noninterp_fns.o monte_setup.o monte.o
+
+$(INCDIR)/lc_funcs.h: lc_funcs.h
+	cp lc_funcs.h $(INCDIR)/lc_funcs.h
+	chmod ugo+r $(INCDIR)/lc_funcs.h
+
+$(INCDIR)/lc_setup.h: lc_setup.h
+	cp lc_setup.h $(INCDIR)/lc_setup.h
+	chmod ugo+r $(INCDIR)/lc_setup.h
+
+$(INCDIR)/lc_chisq.h: lc_chisq.h
+	cp lc_chisq.h $(INCDIR)/lc_chisq.h
+	chmod ugo+r $(INCDIR)/lc_chisq.h
+
+$(INCDIR)/lc_interp.h: lc_interp.h
+	cp lc_interp.h $(INCDIR)/lc_interp.h
+	chmod ugo+r $(INCDIR)/lc_interp.h
+
+$(INCDIR)/correlate.h: correlate.h
+	cp correlate.h $(INCDIR)/correlate.h
+	chmod ugo+r $(INCDIR)/correlate.h
+
+$(INCDIR)/noninterp_fns.h: noninterp_fns.h
+	cp noninterp_fns.h $(INCDIR)/noninterp_fns.h
+	chmod ugo+r $(INCDIR)/noninterp_fns.h
+
+$(INCDIR)/monte_setup.h: monte_setup.h
+	cp monte_setup.h $(INCDIR)/monte_setup.h
+	chmod ugo+r $(INCDIR)/monte_setup.h
+
+$(INCDIR)/monte.h: monte.h
+	cp monte.h $(INCDIR)/monte.h
+	chmod ugo+r $(INCDIR)/monte.h
+
+$(LCFN): $(LCFN_O)
+	ar ru $(LCFN) $(LCFN_O)
+	ranlib $(LCFN)
+
+lc_funcs.o: $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h $(INCDIR)/dataio.h $(INCDIR)/structdef.h
+
+lc_chisq.o: $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h $(INCDIR)/lc_chisq.h
+
+lc_setup.o: $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h
+
+lc_interp.o: $(INCDIR)/lc_interp.h $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h $(INCDIR)/structdef.h
+
+correlate.o: $(INCDIR)/correlate.h $(INCDIR)/lc_interp.h $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h $(INCDIR)/structdef.h
+
+noninterp_fns.o: $(INCDIR)/noninterp_fns.h $(INCDIR)/lc_setup.h 
+
+monte_setup.o: $(INCDIR)/monte_setup.h $(INCDIR)/lc_funcs.h  $(INCDIR)/structdef.h
+
+monte.o: $(INCDIR)/monte.h $(INCDIR)/monte_setup.h $(INCDIR)/lc_funcs.h $(INCDIR)/lc_setup.h $(INCDIR)/structdef.h
+
+

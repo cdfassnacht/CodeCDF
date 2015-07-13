@@ -1,0 +1,885 @@
+/*
+ * monte.c
+ *
+ * A library of functions to construct various type of randomized light
+ *  curves for use in Monte Carlo simulations.
+ *
+ * 01Oct98 CDF,  Moved functions over from lc_funcs.c.  For history prior
+ *                to this date, see lc_funcs.c
+ *               Added daycmp function to compare day fields of Fluxrec
+ *                structure.  This function is used in the sorting of
+ *                an array of Fluxrecs.  
+ *                ** NB: daycmp is now in lc_funcs.c **
+ * v06Feb99 CDF, Changed the determination of the mean flux density for
+ *                the fake curves in make_monte.  Before, the mean flux
+ *                densities were set to absolute values.  Now they are set
+ *                by ratios to the mean value of curve B.  These values
+ *                are defined in ~/include/lc_funcs.h. 
+ * v09Mar99 CDF, Added function find_spacings to find the distribution of
+ *                spacings in the observed light curve.
+ * v10Mar99 CDF, Final modification to deal with randomly selected days
+ *                in make_monte.
+ * v19Feb02 CDF, Take out hard-wired delays in make_monte function.
+ * v02Apr02 CDF, Put most of the variables passed to the make_monte function
+ *                into the newly defined MC_Setup structure for a cleaner
+ *                function call.
+ *               Allowed separate sigmas (used to generate pseudo-random
+ *                curves) for the individual component light curves in 
+ *                make_monte.
+ *
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include "structdef.h"
+#include "nr.h"
+#include "nrutil.h"
+#include "lc_funcs.h"
+#include "monte.h"
+
+/*.......................................................................
+ *
+ * Function rand_curves
+ *
+ * Creates a series of randomized light curves by taking the observed
+ *  light curves and randomizing the days of observation, while keeping
+ *  the fluxes the same.  This keeps the same flux distribution as the
+ *  observed light curves.
+ * The day list is randomized by calling the Numerical Recipes routine
+ *  "ran2" which returns a uniformly distributed random number between
+ *  0 and 1.  This number is then converted to the range daymin - daymax
+ *  to match the range of days in the observations.
+ *
+ * Inputs: Fluxrec *fl08[]     1608 light curves
+ *         int nlines          number of points in light curves
+ *         int nbad            number of flagged points in light curves
+ *         int ncurves         number of curves desired
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> errors
+ *
+ * v25Aug98 CDF, Modified output format to match that produced by make_monte.
+ * v12Nov98 CDF, Changed time series randomization from a total randomization
+ *                over the period spanned by the observations.  The new form
+ *                just assigns the observed flux densities randomly to the
+ *                OBSERVED days of observation.
+ *
+ */
+
+int rand_curves(Fluxrec *fl08[], int nlines, int nbad, int ncurves)
+{
+  int i,j;                  /* Looping variables */
+  int no_error=1;           /* Flag set to 0 on error */
+  int doprint=1;            /* Flag set to 0 if output files aren't open */
+  int ngood=nlines-nbad;    /* Number of good points in curves */
+  long randseed;            /* Seed for random number generator. */
+  float daymin,daymax;      /* First and last observed days */
+  float *daylist=NULL;      /* Array to contain list of good days */
+  float *dptr;              /* Pointer to navigate daylist */
+  char out08[MAXC];         /* 1608 output file name */
+  Fluxrec *a=NULL;          /* Container for good points in fl08[0] */
+  Fluxrec *b=NULL;          /* Container for good points in fl08[1] */
+  Fluxrec *c=NULL;          /* Container for good points in fl08[2] */
+  Fluxrec *d=NULL;          /* Container for good points in fl08[3] */
+  Fluxrec *pa,*pb,*pc,*pd;  /* Pointers to navigate a, b, c, and d */
+  Fluxrec *p0,*p1,*p2,*p3;  /* Pointers to navigate fl08 curves */
+  FILE *ofp08=NULL;         /* Pointer for 1608 output file */
+
+  
+  /*
+   * Allocate memory for good light curve points and good day list
+   */
+
+  if(!(a = new_fluxrec(ngood)))
+    no_error = 0;
+
+  if(!(b = new_fluxrec(ngood)))
+    no_error = 0;
+
+  if(!(c = new_fluxrec(ngood)))
+    no_error = 0;
+
+  if(!(d = new_fluxrec(ngood)))
+    no_error = 0;
+
+  if(!(daylist = new_array(ngood,1)))
+    no_error = 0;
+
+  /*
+   * Fill good arrays
+   */
+
+  if(no_error) {
+    pa = a;
+    pb = b;
+    pc = c;
+    pd = d;
+    dptr = daylist;
+    for(i=0,p0=fl08[0],p1=fl08[1],p2=fl08[2],p3=fl08[3]; i<nlines;
+	i++,p0++,p1++,p2++,p3++) {
+      if(p0->match > -1) {
+	*pa = *p0;
+	*pb = *p1;
+	*pc = *p2;
+	*pd = *p3;
+	*dptr = p0->day;
+	pa++;
+	pb++;
+	pc++;
+	pd++;
+	dptr++;
+      }
+    }
+  }
+
+  /*
+   * Find range of days used in the observations
+   */
+
+  if(no_error) {
+    daymin = a->day;
+    daymax = (a+ngood-1)->day;
+    printf("\ndaymin = %6.2f, daymax = %6.2f\n\n",daymin,daymax);
+  }
+
+  /*
+   * Set the initial seed for the random number generator
+   */
+
+  randseed = -97867564;
+
+  /*
+   * Outer loop on number of random light curves desired
+   */
+
+  for(i=0; i<ncurves; i++) {
+
+    /*
+     * Open the output file for this loop
+     */
+
+    sprintf(out08,"rand%05d.dat",i+1);
+    if((ofp08 = fopen(out08,"w")) == NULL) {
+      fprintf(stderr,"ERROR: rand_curves.  Cannot open output %s\n",out08);
+      doprint = 0;
+    }
+
+    /*
+     * Modify the random seed variable
+     */
+
+    randseed -= i;
+
+    /*
+     * Fill the day members of the four light curves with uniform
+     *  random deviates between 0 and 1.
+     */
+
+    for(j=0,pa=a,pb=b,pc=c,pd=d; j<ngood; j++,pa++,pb++,pc++,pd++) {
+      pa->day = ran1(&randseed);
+      pb->day = ran1(&randseed);
+      pc->day = ran1(&randseed);
+      pd->day = ran1(&randseed);
+    }
+
+    /*
+     * Sort the light curves based on their day field by calling
+     *  qsort and using daycmp to compare the day values.
+     */
+
+    qsort(a,ngood,sizeof(a[0]),daycmp);
+    qsort(b,ngood,sizeof(b[0]),daycmp);
+    qsort(c,ngood,sizeof(c[0]),daycmp);
+    qsort(d,ngood,sizeof(d[0]),daycmp);
+
+    /*
+     * Print output, replacing the sorted uniform random deviates in
+     *  the day fields with the actual days of observation contained in
+     *  the daylist array.
+     */
+
+    if(doprint) {
+      for(j=0,pa=a,pb=b,pc=c,pd=d,dptr=daylist; j<ngood; 
+	  j++,pa++,pb++,pc++,pd++,dptr++) {
+	fprintf(ofp08,"%6.1f %f %f %f %f %f %f %f %f\n",
+		*dptr,pa->flux,pb->flux,pc->flux,pd->flux,pa->err,
+		pb->err,pc->err,pd->err);
+      }
+    }
+
+    /*
+     * Close the output file
+     */
+
+    if(ofp08)
+      fclose(ofp08);
+  }
+
+  /*
+   * Clean up and exit;
+   */
+
+  a = del_fluxrec(a);
+  b = del_fluxrec(b);
+  c = del_fluxrec(c);
+  d = del_fluxrec(d);
+  daylist = del_array(daylist);
+
+  if(ofp08)
+    fclose(ofp08);
+
+  if(!no_error)  {
+    fprintf(stderr,"ERROR: rand_curves.\n");
+    return 1;
+  }
+
+  if(doprint)
+    return 0;
+  else
+    return 1;
+}
+
+/*.......................................................................
+ *
+ * Function gauss_noise
+ *
+ * Generates a time series of zero-mean Gaussian-distributed random noise 
+ *  with the value of sigma passed to the function.  
+ *
+ * Inputs: Fluxrec *noise      container to be filled with noise
+ *         int npoints         number of points in time series
+ *         float sigma         sigma for the gaussian distribution
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int gauss_noise(Fluxrec *noise, int npoints, float sigma, long *randseed)
+{
+  int i;                    /* Looping variable */
+  Fluxrec *nptr;            /* Pointer to navigate noise */
+
+  /*
+   * Loop through the input curve, setting the noise value (noise->flux)
+   *  by calling the Numerical Recipes routine gasdev (Gaussian deviate?).
+   *  Note that the Numerical Recipes routine generates a normally 
+   *  distributed deviate with zero mean and unit variance.  We need 
+   *  to correct this value to a gaussian deviate with variance = sigma^2 
+   *  so just multiply result by sigma.  
+   */
+
+
+  for(i=0,nptr=noise; i<npoints; i++,nptr++) {
+    nptr->flux = sigma*gasdev(randseed);
+  }
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function make_monte
+ *
+ * Takes ideal light curve and shifts it to create four offset light
+ *  curves, using lags in lc_funcs.h.  This function then sparsely
+ *  samples the shifted light curves to match the sampling in the
+ *  experiment and writes the output to a file.  These sparsely sampled 
+ *  light curves will be used in the Monte Carlo simulations.
+ *
+ * Inputs: Fluxrec *ideal      ideal light curve
+ *         Fluxrec *mflux[]    measured flux densities
+ *         MC_Setup *setup     container for curve information
+ *         int ncurves         number of output light curves
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ * v05Sep98 CDF, Modification to deal with new method of flagging
+ *                bad days.
+ * v06Feb99 CDF, Changed fake curve fluxes to have means determined from
+ *                the desired flux density ratios rather than from the
+ *                desired absolute flux densities.  This makes the function
+ *                more general.
+ * v10Feb99 CDF, Added function calls to produce fake curves with randomly
+ *                selected sampling patterns, if desired.
+ * v04Oct00 CDF, Moved printing out of curves into new write_1608 function
+ *                in lc_funcs.c.
+ *               Now passing magnification ratio info via the setup->mu0
+ *                array rather than using the hard-wired RAB, etc.
+ *               Now passing output file root name via the setup->root
+ *                variable.
+ * v19Feb02 CDF, Changed delays from hard-wired values (ALAG, CLAG, DLAG)
+ *                to values passed in the tau parameter of the Setup
+ *                structure.
+ * v02Apr02 CDF, Moved most of the passed variables into the new
+ *                MC_Setup structure, which makes the function call much
+ *                cleaner.
+ *               Allowed separate sigmas (used to generate pseudo-random
+ *                curves) for the individual component light curves.
+ */
+ 
+int make_monte(Fluxrec *ideal, Fluxrec *mflux[], MC_Setup *setup, int ncurves)
+{
+  int i,j;                     /* Looping variables */
+  int no_error=1;              /* Flag set to 0 on error */
+  int randdays=0;              /* Flag set to 1 for random sampling patterns */
+  int nsamp;                   /* Number of points in randomly sampled curves */
+  long randseed;               /* Seed for random number generator. */
+  float bmean;                 /* Mean of B curve, calculated from mflux[1] */
+  float amean,cmean,dmean;     /* A, C, D means, set by bmean & flux ratios */
+  float *spacings=NULL;        /* Spacings between points in observed curves */
+  float *randsamp=NULL;        /* Container for randomly sampled days */
+  float *multfac=NULL;         /* Factors by which to scale MC curves */
+  float junk;                  /* Holder for return from calc_mean */
+  char outname[MAXC];          /* Output file name */
+  Fluxrec *iptr;               /* Pointer to navigate ideal curve */
+  Fluxrec *f1,*f2,*f3,*f4;     /* Pointers to navigate measured curves */
+  Fluxrec *dummy[N08]={NULL};  /* Dummy copies of observed light curves */
+  Fluxrec *iflux[N08]={NULL};  /* Individual ideal light curves */
+  Fluxrec *sparse[N08]={NULL}; /* Sparsely sampled curves */
+  Fluxrec *s1,*s2,*s3,*s4;     /* Pointers to navigate sparse curves */
+   
+  /*
+   * Allocate memory for the sparsely sampled light curves and dummy
+   *  copies of mflux[]
+   */
+
+  for(i=0; i<N08; i++) {
+    if(!(sparse[i] = new_fluxrec(setup->nobs)))
+      no_error = 0;
+    if(!(dummy[i] = new_fluxrec(setup->nobs)))
+      no_error = 0;
+    if(!(iflux[i] = new_fluxrec(setup->nobs)))
+      no_error = 0;
+  }
+
+  /*
+   * Copy observed light curves into dummy versions
+   */
+
+  if(no_error) {
+    for(i=0; i<N08; i++) {
+      s1 = dummy[i];
+      s2 = iflux[i];
+      for(j=0,f1=mflux[i]; j<setup->nobs; j++,f1++) {
+	if(f1->match >= 0) {
+	  *s1 = *f1;
+	  *s2 = *f1;
+	  s1++;
+	  s2++;
+	}
+      }
+    }
+  }
+
+  /*
+   * Calculate the multiplicative factors by which to scale the 
+   *  curves produced from the idealized curve.
+   */
+
+  if(no_error)
+    if(!(multfac = get_ideal_multfac(mflux,setup,4)))
+      no_error = 0;
+
+  /*
+   * Calculate the mean of curve B
+   */
+
+  if(no_error)
+    if(calc_mean(mflux[1],setup->nobs,&bmean,&junk))
+      no_error = 0;
+
+  /*
+   * Set the means of A, C, and D from bmean and the flux density
+   *  ratios contained in the setup container.
+   */
+
+  amean = bmean * setup->mu0[0];
+  cmean = bmean * setup->mu0[2];
+  dmean = bmean * setup->mu0[3];
+
+  /*
+   * Summary info
+   */
+
+  printf("\nmake_monte: Using lags of %5.2f %5.2f %5.2f %5.2f\n",
+	 setup->tau0[0],setup->tau0[1],setup->tau0[2],setup->tau0[3]);
+  printf("make_monte: Curve means are %6.3f %6.3f %6.3f %6.3f\n",
+	 amean,bmean,cmean,dmean);
+  printf("make_monte: Multiplicative factors are %6.3f %6.3f %6.3f %6.3f\n",
+	 multfac[0],multfac[1],multfac[2],multfac[3]);
+  printf("make_monte: Curve ratios are %7.5f %7.5f %7.5f\n\n",
+	 amean/bmean,cmean/bmean,dmean/bmean);
+  printf("make_monte: Curve ratios are %7.5f %7.5f %7.5f\n\n",
+	 multfac[0]/multfac[1],multfac[2]/multfac[1],multfac[3]/multfac[1]);
+
+  /*
+   * Set the initial seed for the random number generator
+   */
+
+  randseed = -97867564;
+
+  /*
+   * Find spacings in observed light curves
+   */
+
+  if(no_error)
+    if(!(spacings = find_spacings(dummy[0],setup->nobs)))
+      no_error = 1;
+
+  /*
+   * Allocate memory for array of randomly sampled days
+   */
+
+  if(no_error)
+    if(!(randsamp = new_array(setup->nobs,1)))
+      no_error = 1;
+
+  /*
+   * Outer loop on number of curves desired
+   */
+   
+  j = 0;
+  while(j<ncurves && no_error) {
+    j++;	
+      		
+    /*
+     * If using randomly selected days, then generate the sampling pattern
+     *  and transfer it into the dummy copies of the observed light curves.
+     */
+
+    if(randdays) {
+      if(rand_sampling(mflux[0],setup->nobs,spacings,randsamp,&nsamp,
+		       &randseed))
+	no_error = 1;
+      if(no_error)
+	for(i=0,f1=dummy[0],f2=dummy[1],f3=dummy[2],f4=dummy[3]; i<nsamp;
+	    i++,f1++,f2++,f3++,f4++) {
+	  f1->day = f2->day = f3->day = f4->day = randsamp[i];
+	}
+    }
+    else {
+      nsamp = setup->nobs;
+    }
+
+    /*
+     * Initialize pointers
+     */
+       
+    f1 = dummy[0];
+    f2 = dummy[1];
+    f3 = dummy[2];
+    f4 = dummy[3];
+    s1 = sparse[0];
+    s2 = sparse[1];
+    s3 = sparse[2];
+    s4 = sparse[3];
+
+    /*
+     * Get to the first unflagged day for each raw lightcurve
+     */
+
+    while(f1->match < 0)
+      f1++;
+    while(f2->match < 0)
+      f2++;
+    while(f3->match < 0)
+      f3++;
+    while(f4->match < 0)
+      f4++;
+
+    /*
+     * Modify the random seed variable
+     */
+
+    randseed -= j;
+
+    /*
+     * Step through idealized list.  At each point see if the day matches
+     *  a day in the sparsely sampled day list, after the appropriate
+     *  correction for the lags in the light curves.  If the days match
+     *  (to within setup->ftol) then take the flux from the ideal curve, 
+     *  add a gaussian distributed random error and then multiply by the
+     *  appropriate mean flux density for that component to create the flux 
+     *  density for that day and that light curve.  Note that the Numerical
+     *  Recipes routine gasdev generates a normally distributed deviate with
+     *  zero mean and unit variance.  We need to correct this value to a
+     *  gaussian deviate with variance = sigma^2 so just multiply result by
+     *  sigma.  Note that now the individual light curves can have different
+     *  values of sigma, which are contained in the setup->mcsig array.
+     *  For the uncertainty on the fake flux density, just take the 
+     *  uncertainty on the measured flux density for that day.
+     *
+     */
+    
+    for(i=0,iptr=ideal; i<setup->nideal; i++,iptr++) {
+      if(fabs(iptr->day - f1->day + setup->tau0[0]) < setup->ftol && 
+	 f1 < dummy[0]+nsamp) {
+	*s1 = *f1;
+	s1->flux = (iptr->flux + setup->mcsig[0]*gasdev(&randseed)) * 
+	  multfac[0];
+	s1++;
+	f1++;
+	while(f1->match < 0 && f1 < dummy[0]+nsamp)
+	  f1++;
+      }
+      if(fabs(iptr->day - f2->day + setup->tau0[1]) < setup->ftol && 
+	 f2 < dummy[1]+nsamp) {
+	*s2 = *f2;
+	s2->flux = (iptr->flux + setup->mcsig[1]*gasdev(&randseed)) * 
+	  multfac[1];
+	s2++;
+	f2++;
+	while(f2->match < 0)
+	  f2++;
+      }
+      if(fabs(iptr->day - f3->day + setup->tau0[2]) < setup->ftol && 
+	 f3 < dummy[2]+nsamp) {
+	*s3 = *f3;
+	s3->flux = (iptr->flux + setup->mcsig[2]*gasdev(&randseed)) * 
+	  multfac[2];
+	s3++;
+	f3++;
+	while(f3->match < 0)
+	  f3++;
+      }
+      if(fabs(iptr->day - f4->day + setup->tau0[3]) < setup->ftol && 
+	 f4 < dummy[3]+nsamp) {
+	*s4 = *f4;
+	s4->flux = (iptr->flux + setup->mcsig[3]*gasdev(&randseed)) * 
+	  multfac[3];
+	s4++;
+	f4++;
+	while(f4->match < 0)
+	  f4++;
+      }
+    }
+      
+    /*
+     * Print sparse curves to output file.
+     */
+       
+    sprintf(outname,"%05d.%s",j,setup->root);
+    if(write_1608(sparse,nsamp,outname,1))
+      no_error = 0;
+  }
+
+  /*
+   * Clean up and exit
+   */
+     
+  for(i=0; i<N08; i++) {
+    sparse[i] = del_fluxrec(sparse[i]);
+    dummy[i] = del_fluxrec(dummy[i]);
+  }
+  spacings = del_array(spacings);
+  randsamp = del_array(randsamp);
+  multfac = del_array(multfac);
+
+  if(no_error) 
+    return 0;	
+  else {
+    fprintf(stderr,"ERROR: make_monte.\n");
+    return 1;
+  }
+}
+
+/*.......................................................................
+ *
+ * Function get_ideal_multfac
+ *
+ * Uses the four input light curves to determine the factors by which
+ *  to multiply the normalized MC output curves.  It does this by:
+ *
+ *  1) Combining the input light curves into a composite curve by dividing
+ *     each by its appropriate magnification.  This means that all the
+ *     light curves will be on the same flux scale, that of the reference
+ *     component (which is B for 1608).
+ *  2) Finding the mean of the composite curve.
+ *  3) Multiplying the individual magnifications by the composite-curve
+ *     mean to get the final multiplicative factors.
+ *
+ * Inputs: Fluxrec *mflux[]    measured flux densities
+ *         MC_Setup *setup     information about the magnifications and
+ *                              delays.
+ *         int ncomp           number of components
+ *
+ * Output: float *multfac      multiplication factors
+ *
+ */
+
+float *get_ideal_multfac(Fluxrec *mflux[], MC_Setup *setup, int ncomp)
+{
+  int i;                  /* Looping variable */
+  int no_error=1;         /* Flag set to 0 on error */
+  int ncompos=0;          /* Number of points in composite curve */
+  int nbad[4]={0,0,0,0};  /* Number of bad days in curves */
+  int nptarr[4];          /* Array version of nobs */
+  int index[4];           /* Index values used for make_compos */
+  float meancompos;       /* Mean value of composite curve */
+  float rmscompos;        /* RMS of composite curve (not used) */
+  float *multfac=NULL;    /* Output multiplicative factors */
+  float *mp1,*mp2;        /* Pointers to navigate float arrays */
+  Fluxrec *compos=NULL;   /* Composite curve */
+
+  /*
+   * Allocate memory for multiplicative factor array
+   */
+
+  if(!(multfac = new_array(ncomp,1))) {
+    fprintf(stderr,"ERROR: get_ideal_multfac.\n");
+    return NULL;
+  }
+
+  /*
+   * Set up index and nptarr arrays.
+   */
+
+  for(i=0; i<ncomp; i++) {
+    index[i] = i;
+    nptarr[i] = setup->nobs;
+  }
+
+  /*
+   * Call make_compos to make the composite curve.
+   */
+
+  if(!(compos = make_compos(mflux,ncomp,nptarr,index,setup->tau0,
+			    setup->mu0,&ncompos,1)))
+    no_error = 0;
+
+  /*
+   * Get mean of composite curve
+   */
+
+  if(no_error) {
+    if(calc_mean(compos,ncompos,&meancompos,&rmscompos))
+      no_error = 0;
+    else
+      printf("\nget_ideal_multfac: Mean of composite curve is %8.4f\n",
+	     meancompos);
+  }
+
+  /*
+   * Set multiplicative factors
+   */
+
+  if(no_error) {
+    for(i=0,mp1=multfac,mp2=setup->mu0; i<ncomp; i++,mp1++,mp2++) {
+      *mp1 = *mp2 * meancompos;
+    }
+  }
+
+  /*
+   * Clean up and exit
+   */
+
+  compos = del_fluxrec(compos);
+
+  if(no_error)
+    return multfac;
+  else {
+    multfac = del_array(multfac);
+    return NULL;
+  }
+}
+
+/*.......................................................................
+ *
+ * Function split_ideal
+ *
+ * Splits input ideal light curve into the N individual ideal light
+ *  curves associated with the N lensed images.
+ *
+ * Inputs: Fluxrec *ideal      ideal light curve
+ *         Fluxrec *iflux[]    individual compoent ideal flux densities 
+ *                              (these are filled in this function)
+ *         MC_Setup *setup     container for curve information
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ */ 
+
+int split_ideal(Fluxrec *ideal, Fluxrec *iflux[], MC_Setup *setup)
+{
+  int i;                    /* Looping variable */
+  Fluxrec *iptr;            /* Pointer to navigate ideal curve */
+  Fluxrec *f1,*f2,*f3,*f4;  /* Pointers to navigate measured curves */
+
+  /*
+   * Initialize pointers
+   */
+       
+  f1 = iflux[0];
+  f2 = iflux[1];
+  f3 = iflux[2];
+  f4 = iflux[3];
+
+  /*
+   * Get to the first unflagged day for each raw lightcurve
+   */
+
+  while(f1->match < 0)
+    f1++;
+  while(f2->match < 0)
+    f2++;
+  while(f3->match < 0)
+    f3++;
+  while(f4->match < 0)
+    f4++;
+
+  /*
+   * Step through idealized list.  At each point see if the day matches
+   *  a day in the observed day list, after the appropriate correction for 
+   *  the lags in the light curves.  If the days match (to within setup->ftol)
+   *  then take the flux from the ideal curve and copy it to the individual
+   *  component ideal curve.
+   *
+   */
+    
+  for(i=0,iptr=ideal; i<setup->nideal; i++,iptr++) {
+    if(fabs(iptr->day - f1->day + setup->tau0[0]) < setup->ftol && 
+       f1 < iflux[0]+setup->nobs) {
+      *f1 = *iptr;
+      f1++;
+      while(f1->match < 0 && f1 < iflux[0]+setup->nobs)
+	f1++;
+    }
+    if(fabs(iptr->day - f2->day + setup->tau0[1]) < setup->ftol && 
+       f2 < iflux[1]+setup->nobs) {
+      *f2 = *iptr;
+      f2++;
+      while(f2->match < 0)
+	f2++;
+    }
+    if(fabs(iptr->day - f3->day + setup->tau0[2]) < setup->ftol && 
+       f3 < iflux[2]+setup->nobs) {
+      *f3 = *iptr;
+      f3++;
+      while(f3->match < 0)
+	f3++;
+    }
+    if(fabs(iptr->day - f4->day + setup->tau0[3]) < setup->ftol && 
+       f4 < iflux[3]+setup->nobs) {
+      *f4 = *iptr;
+      f4++;
+      while(f4->match < 0)
+	f4++;
+    }
+  }
+
+  return 0;
+}
+
+
+/*.......................................................................
+ *
+ * Function find_spacings
+ *
+ * Takes observed light curves and finds the spacings between records.  These
+ *  spacings can be used to generate a new sampling pattern for fake light
+ *  curves in the MC simulations.
+ *
+ * Inputs: Fluxrec *obsflux    an observed light curve
+ *         int npoints         number of points in light curve
+ *
+ * Output: float *spacings     array of spacings.  Set to NULL on error.
+ *
+ */
+
+float *find_spacings(Fluxrec *obsflux, int npoints)
+{
+  int i;                 /* Looping variable */
+  float *spacings=NULL;  /* Array of spacings */
+  float *sptr;           /* Pointer to navigate spacings */
+  Fluxrec *fptr;         /* Pointer to navigate obsflux */
+
+  /*
+   * Allocate memory for spacings
+   */
+
+  if(!(spacings = new_array(npoints-1,1))) {
+    fprintf(stderr,"ERROR: find_spacings\n");
+    return NULL;
+  }
+
+  /*
+   * Step through obsflux, computing spacings between points.
+   */
+
+  for(i=0,sptr=spacings,fptr=obsflux; i<(npoints-1); i++,sptr++,fptr++) {
+    *sptr = (fptr+1)->day - fptr->day;
+  }
+
+  return spacings;
+}
+
+/*.......................................................................
+ *
+ * Function rand_sampling
+ *
+ * Given the distribution of spacings in the observed light curve, this 
+ *  function generates a new sampling pattern for use in MC simulations.
+ *
+ * Inputs: Fluxrec *obsflux    observed light curve
+ *         int npoints         number of points in light curve
+ *         float *spacings     distribution of samplings (has npoints-1
+ *                              values)
+ *         float *randsamp     new list of days with random sampling
+ *         int *nsamp          number of samples in random curve (set by this
+ *                              function)
+ *         long *randseed      seed for random number generator
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int rand_sampling(Fluxrec *obsflux, int npoints, float *spacings,
+		  float *randsamp, int *nsamp, long *randseed)
+{
+  int i;                 /* Looping variable */
+  int stepindex;         /* Index for spacings array */
+  float *rptr;           /* Pointer to navigate randsamp */
+
+  /*
+   * Initialize nsamp
+   */
+
+  *nsamp = 1;
+
+  /*
+   * Assign first member of randsamp to match first day of observation
+   */
+
+  *randsamp = obsflux->day;
+
+  /*
+   * Now assign the rest of the members of randsamp by drawing randomly (with
+   *  replacement) from the distribution of step sizes in the observed light
+   *  curves.  Go until nsamp = npoints or the day is larger than the largest
+   *  observed day, whichever comes first.
+   */
+
+  rptr = randsamp;
+
+  while(*rptr < (obsflux+npoints-1)->day && *nsamp < npoints) {
+
+    /*
+     * Increment the pointer and nsamp
+     */
+
+    rptr++;
+    *nsamp += 1;
+
+    /*
+     * Generate a uniformly distributed random deviate between 0 and npoints-1
+     */
+
+    stepindex = (int) floor((npoints-1) * ran1(randseed));
+    *rptr = *(rptr-1) + spacings[stepindex];
+  }
+
+  printf("rand_sampling: Day range is %4.1f --> %4.1f with %d points\n",
+	 *randsamp,*(randsamp+*nsamp-1),*nsamp);
+
+  return 0;
+}

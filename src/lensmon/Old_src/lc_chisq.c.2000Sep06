@@ -1,0 +1,1202 @@
+/*
+ * lc_chisq.c
+ *
+ * A library of functions to perform chisq minimization on pairs of
+ *  1608 light curves.
+ *
+ * 27Jul00 CDF,  Split off from lc_funcs.c
+ * v30Jul00 CDF, Changed step_delays (*** BUT NOT STEP_DELAYS_2 ***) to
+ *                search from a min to a max delay, rather than the whole
+ *                range of delays.  This necessitates the creation of the
+ *                new Prange (for parameter range) structure, to keep the
+ *                number of passed variables down.  This also requires
+ *                many changes to shift_chi. 
+ *
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include "structdef.h"
+#include "dataio.h"
+#include "nrutil.h"
+#include "nr.h"
+#include "lc_setup.h"
+#include "lc_funcs.h"
+#include "lc_chisq.h"
+
+/*.......................................................................
+ *
+ * Function do_chi
+ *
+ * A "meta-function" to call shift_chi a number of times.
+ *
+ * Inputs: Fluxrec *raw[]      control light curves
+ *         Fluxrec *interp[]   comparsion light curves
+ *         int nraw            number of values in control light curves
+ *         int nint            number of values in comparison light curves
+ *         Setup *setup        smoothing/interpolation info
+ *         FILE *logfp         logfile pointer
+ *         int doprint         flag set to 1 if output files are desired
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+  *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> failure
+ *
+ * v25Jun98 CDF, Made the interpolated curves into an array of Fluxrec
+ *                arrays.
+ * v09Jul98 CDF, Moved the interpolation of the light curves up into the
+ *                calling function (e.g. lcurve.c).
+ *               Changed output format to put all logfile output on same line.
+ *               Added doprint flag as a passed parameter to control whether
+ *                output gets printed.
+ * v13Jul98 CDF, Better output format
+ * v23Aug98 CDF, Cleaner output code.
+ * v30Aug98 CDF, Allow two types of input curves: raw (sparsely sampled) and
+ *                smoothed/interpolated.  Before both curves were interpolated.
+ * v30Jan99 CDF, Added possibility of passing initial guess for flux density
+ *                ratios to shift_chi.
+ */
+
+int do_chi(Fluxrec *raw[], Fluxrec *interp[], int nraw, int nint, 
+	   Setup *setup, FILE *logfp, int doprint, int speed)
+{
+  Fluxrec bestba;            /* B-A lag with lowest chisq */
+  Fluxrec bestab;            /* A-B lag with lowest chisq */
+  Fluxrec bestbc;            /* B-C lag with lowest chisq */
+  Fluxrec bestcb;            /* C-B lag with lowest chisq */
+  Fluxrec bestbd;            /* B-C lag with lowest chisq */
+  Fluxrec bestdb;            /* D-B lag with lowest chisq */
+
+  /*
+   * Call shift_chi with input light curves, calculating chisq for curves
+   *  A, C, and D with respect to curve B.  In each call to shift_chi
+   *  the raw light curve will be the "control" curve.
+   *
+   * First call B and A
+   */
+
+  printf("\nCalculating chisq curves....\n\n");
+
+  if(shift_chi(raw[1],interp[0],nraw,nint,setup->tau0[0],setup->mu0[0],setup,
+	       speed,&bestba,"chiba.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#if 0
+  if(shift_chi(raw[0],interp[1],nraw,nint,0.0,setup,speed,&bestab,
+	       "chiab.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#endif
+  /*
+   * B and C
+   */
+  
+  if(shift_chi(raw[1],interp[2],nraw,nint,setup->tau0[1],setup->mu0[1],setup,
+	       speed,&bestbc,"chibc.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#if 0
+  if(shift_chi(raw[2],interp[1],nraw,nint,0.0,setup,speed,&bestcb,
+	       "chicb.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#endif
+  /*
+   * B and D
+   */
+
+  if(shift_chi(raw[1],interp[3],nraw,nint,setup->tau0[2],setup->mu0[2],setup,
+	       speed,&bestbd,"chibd.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#if 0
+  if(shift_chi(raw[3],interp[1],nraw,nint,0.0,setup,speed,&bestdb,
+	       "chidb.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi\n");
+    return 1;
+  }
+#endif
+  printf(" shift_chi: ---------------------------------------------------");
+  printf("---------------\n");
+
+  /*
+   * Now adjust the day and flux values that need to be changed to
+   *  produce a uniform output.
+   */
+
+  bestab.day *= -1.0;
+  bestcb.day *= -1.0;
+  bestdb.day *= -1.0;
+  bestab.flux = 1.0 / bestab.flux;
+  bestcb.flux = 1.0 / bestcb.flux;
+  bestdb.flux = 1.0 / bestdb.flux;
+
+  /*
+   * Print out results
+   */
+
+  printf("\n do_chi: Best-fit values:\n");
+  printf("         Pair     lag     flux ratio    chisq\n");
+  printf("         -----  -------   ----------   --------\n");
+  printf("          B-A  %7.2f      %6.4f     %8.4f\n",bestba.day,
+	 bestba.flux,bestba.err);
+  printf("          B-C  %7.2f      %6.4f     %8.4f\n",bestbc.day,
+	 bestbc.flux,bestbc.err);
+  printf("          B-D  %7.2f      %6.4f     %8.4f\n",bestbd.day,
+	 bestbd.flux,bestbd.err);
+#if 0
+  printf("          A-B  %6.2f      %6.4f     %8.4f\n",bestab.day,
+	 bestab.flux,bestab.err);
+  printf("          C-B  %7.2f      %6.4f     %8.4f\n",bestcb.day,
+	 bestcb.flux,bestcb.err);
+  printf("          D-B  %7.2f      %6.4f     %8.4f\n",bestdb.day,
+	 bestdb.flux,bestdb.err);
+#endif
+
+  if(logfp) {
+#if 0
+    fprintf(logfp,"# Chisq results\n");
+    fprintf(logfp,"#         Pair     lag     flux ratio    chisq\n");
+    fprintf(logfp,"#         -----  -------   ----------   --------\n");
+    fprintf(logfp,"#          B-A  %7.2f      %6.4f     %8.4f\n",bestba.day,
+	    bestba.flux,bestba.err);
+    fprintf(logfp,"#          B-C  %7.2f      %6.4f     %8.4f\n",bestbc.day,
+	    bestbc.flux,bestbc.err);
+    fprintf(logfp,"#          B-D  %7.2f      %6.4f     %8.4f\n",bestbd.day,
+	    bestbd.flux,bestbd.err);
+    fprintf(logfp,"#          A-B  %7.2f      %6.4f     %8.4f\n",bestab.day,
+	    bestab.flux,bestab.err);
+    fprintf(logfp,"#          C-B  %7.2f      %6.4f     %8.4f\n",bestcb.day,
+	    bestcb.flux,bestcb.err);
+    fprintf(logfp,"#          D-B  %7.2f      %6.4f     %8.4f\n",bestdb.day,
+	    bestdb.flux,bestdb.err);
+#endif
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestba.day,bestba.flux,bestba.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestbc.day,bestbc.flux,bestbc.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestbd.day,bestbd.flux,bestbd.err);
+#if 0
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestab.day,bestab.flux,bestab.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestcb.day,bestcb.flux,bestcb.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f\n",bestdb.day,bestdb.flux,bestdb.err);
+#else
+    fprintf(logfp,"\n");
+#endif
+  }
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function do_chi_2
+ *
+ * A "meta-function" to call shift_chi_2 a number of times.
+ *
+ * Inputs: Fluxrec *rawa[]     control light curves
+ *         Fluxrec *interpa[]  comparsion light curves
+ *         int nrawa           number of values in control light curves
+ *         int ninta           number of values in comparison light curves
+ *         Fluxrec *rawb[]     control light curves
+ *         Fluxrec *interpb[]  comparsion light curves
+ *         int nrawb           number of values in control light curves
+ *         int nintb           number of values in comparison light curves
+ *         Setup *setup        smoothing/interpolation info
+ *         FILE *logfp         logfile pointer
+ *         int doprint         flag set to 1 if output files are desired
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+ *
+ */
+
+int do_chi_2(Fluxrec *rawa[], Fluxrec *interpa[], int nrawa, int ninta, 
+	     Fluxrec *rawb[], Fluxrec *interpb[], int nrawb, int nintb, 
+	     Setup *setup, FILE *logfp, int doprint, int speed)
+{
+  Fluxrec bestba;            /* B-A lag with lowest chisq */
+  Fluxrec bestab;            /* A-B lag with lowest chisq */
+  Fluxrec bestbc;            /* B-C lag with lowest chisq */
+  Fluxrec bestcb;            /* C-B lag with lowest chisq */
+  Fluxrec bestbd;            /* B-C lag with lowest chisq */
+  Fluxrec bestdb;            /* D-B lag with lowest chisq */
+
+  /*
+   * Call shift_chi with input light curves, calculating chisq for curves
+   *  A, C, and D with respect to curve B.  In each call to shift_chi
+   *  the raw light curve will be the "control" curve.
+   *
+   * First call B and A
+   */
+
+  printf("\nCalculating chisq curves....\n\n");
+
+  if(shift_chi_2(rawa[1],interpa[0],nrawa,ninta,rawb[1],interpb[0],
+		 nrawb,nintb,0.0,setup,speed,&bestba,"chiba.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi_2\n");
+    return 1;
+  }
+
+  /*
+   * B and C
+   */
+  
+  if(shift_chi_2(rawa[1],interpa[2],nrawa,ninta,rawb[1],interpb[2],
+		 nrawb,nintb,0.0,setup,speed,&bestbc,"chibc.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi_2\n");
+    return 1;
+  }
+
+  /*
+   * B and D
+   */
+
+  if(shift_chi_2(rawa[1],interpa[3],nrawa,ninta,rawb[1],interpb[3],
+		 nrawb,nintb,0.0,setup,speed,&bestbd,"chibd.dat",doprint)) {
+    fprintf(stderr,"ERROR: do_chi_2\n");
+    return 1;
+  }
+
+  /*
+   * Now adjust the day and flux values that need to be changed to
+   *  produce a uniform output.
+   */
+
+  bestab.day *= -1.0;
+  bestcb.day *= -1.0;
+  bestdb.day *= -1.0;
+  bestab.flux = 1.0 / bestab.flux;
+  bestcb.flux = 1.0 / bestcb.flux;
+  bestdb.flux = 1.0 / bestdb.flux;
+
+  /*
+   * Print out results
+   */
+
+  printf("\n do_chi: Best-fit values:\n");
+  printf("         Pair     lag     flux ratio    chisq\n");
+  printf("         -----  -------   ----------   --------\n");
+  printf("          B-A  %7.2f      %6.4f     %8.4f\n",bestba.day,
+	 bestba.flux,bestba.err);
+  printf("          B-C  %7.2f      %6.4f     %8.4f\n",bestbc.day,
+	 bestbc.flux,bestbc.err);
+  printf("          B-D  %7.2f      %6.4f     %8.4f\n",bestbd.day,
+	 bestbd.flux,bestbd.err);
+
+  if(logfp) {
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestba.day,bestba.flux,bestba.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestbc.day,bestbc.flux,bestbc.err);
+    fprintf(logfp,"%7.2f %6.4f %8.4f ",bestbd.day,bestbd.flux,bestbd.err);
+    fprintf(logfp,"\n");
+  }
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function shift_chi
+ *
+ * Computes the chi-squared obtained by comparing two light curves, the
+ *  "control" one, with measured values, and the "comparison" one, with
+ *  interpolated values.  The comparison curve is shifted by different
+ *  lags and flux ratios, and the reduced chi-squared is computed at each 
+ *  (lag, flux-ratio) pair.
+ *
+ * Inputs: Fluxrec *control    control light curve
+ *         Fluxrec *comp       comparison light curve
+ *         int nctrl           number of points in control curve
+ *         int ncomp           number of points in comparison curve
+ *         float tau0          initial guess for delay
+ *         float mu0           initial guess at flux density ratio (calculated
+ *                              by this function if mu0 == 0.0)
+ *         Setup *setup        smoothing/interpolation info
+ *         Fluxrec *bestlag    lag with best-fit chisq (set by this function)
+ *         char *outname       name of output file
+ *         int doprint         flag set to 1 if output files are desired
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ * v12Feb97 CDF, Moved comparison curve normalization to after the
+ *                point where the interpolated curve has been shifted.
+ *               Only include points in dummy array that match points
+ *                in comparison curve.
+ * v10Jun98 CDF, Transfer interpolation of light curves into this function
+ *                from main.
+ *               Put in steps in flux ratio rather than just normalizing
+ *                the two curves.
+ *               Moved the printing to the output file into this function.
+ * v16Jun98 CDF, Added flag to choose interpolation or not
+ * v19Jun98 CDF, Moved interpolation up one level to do_chi.
+ *               Added the return of the lag with best-fitting chisq
+ * v09Jul98 CDF, Added doprint flag as a passed parameter to control whether
+ *                output gets printed.
+ * v19Jul98 CDF, Changed steps in flux density ratio to be fractions of
+ *                ratio0 rather than absolute values.
+ * v23Aug98 CDF, Added a call to find_min_chisq which fits a parabola to the
+ *                lag-chisq curve at the grid points with the lowest chisq
+ *                to find the "true" minimum chisq value.
+ * v30Aug98 CDF, Changed to allow control and comp to be of different sizes,
+ *                e.g. if the control is a raw curve and the comparison curve
+ *                has been smoothed.
+ * v24Sep98 CDF, Change N_dof calculation to use the estimated number of 
+ *                independent points in the overlap region rather than
+ *                just the number of overlapping points (this only applies
+ *                in the case in which both curves are interpolted, i.e.
+ *                when speed == FAST).
+ * v30Jan99 CDF, Moved delay loop into step_delays.
+ *               Changed ratio0 from mean(control)/mean(comp) to
+ *                mean(comp)/mean(control).
+ *               Added possibility of getting initial guess for flux density
+ *                ratios from do_chi rather than just taking the ratio of
+ *                the mean values.
+ * v22Feb99 CDF, Changed output from function.  Now, in addition to printing
+ *                out full 2D chisq surface as a function of (ratio, delay)
+ *                pairs, also print out a constant-ratio cut through the
+ *                surface to get chisq as a function of delay only at the
+ *                best-fitting value for the delay.
+ * v30Jul00 CDF, Replaced the ratio0, dtau, nmu, and ntau variables
+ *                with the two new Prange structure variables mu and tau.
+ */
+
+int shift_chi(Fluxrec *control, Fluxrec *comp, int nctrl, int ncomp, 
+	      float tau0, float mu0, Setup *setup, int speed, 
+	      Fluxrec *bestlag, char *outname, int doprint)
+{
+  int i;                 /* Looping variable */
+  int no_error=1;        /* Flag set to 0 on error */
+  float mean1,mean2;     /* Means of flux1 and flux2 */
+  float ratio;           /* Flux ratio between two curves */
+  float rms;             /* Junk variable filled by calling calc_mean */
+  char slicename[MAXC];  /* Name for the slice output file */
+  Fluxrec *bestchi;      /* Container for data associated w/min chisq */
+  Fluxrec *chisq=NULL;   /* Curve of (day,ratio,chisq) group */
+  Fluxrec *chiptr;       /* Pointer to navigate chisq */
+  Prange mu;             /* Parameter search values for mu grid */
+  Prange tau;            /* Parameter search values for tau grid */
+  FILE *fullfp=NULL;     /* Output file pointer for full chisq surface */
+  FILE *slicefp=NULL;    /* Output file pointer for chisq vs delay slice */
+
+  /*
+   * Initialize bestlag to something ridiculous -- why put this value into
+   *  bestlag->err?  We are lazy and so we're using a Fluxrec container to
+   *  hold the three values of interest, with the following correspondence:
+   *
+   *  bestlag->day  <---> lag
+   *  bestlag->flux <---> flux ratio
+   *  bestlag->err  <---> chisq
+   *
+   */
+
+  bestlag->err = -999.0;
+
+  /*
+   * If mu0 is set, take that as the initial guess for the flux ratio
+   *  between the components.  Otherwise, get an initial guess for the 
+   *  flux ratio by taking the ratio of their mean values across the 
+   *  observations.
+   */
+
+  printf(" shift_chi: ---------------------------------------------------");
+  printf("---------------\n");
+  if(mu0 > 0.0) {
+    mu.val0 = mu0;
+    printf(" shift_chi: Using set_mu0 value as initial guess of for %s",
+	   outname);
+    printf(" flux ratio.\n");
+  }
+  else {
+    if(calc_mean(control,nctrl,&mean1,&rms))
+      no_error = 0;
+    if(no_error)
+      if(calc_mean(comp,ncomp,&mean2,&rms))
+	no_error = 0;
+    if(no_error) {
+      mu.val0 = mean2 / mean1;
+      printf(" shift_chi: Initial guess for %s flux ratio is %6.4f\n",outname,
+	     mu.val0);
+    }
+  }
+  mu.nval = NFLUXSTEP;
+  mu.dval = FLUXSTEP;
+  printf(" shift_chi: mu0=%6.4f,  mu_min=%6.4f,  mu_max=%6.4f,  ",mu.val0,
+	 mu.val0*(1.0-mu.nval*mu.dval),mu.val0*(1.0+mu.nval*mu.dval));
+  printf("dmu=%6.4f, nmu=%d\n",mu.dval,2*mu.nval+1);
+
+  /*
+   * Find the lag axis spacing, central delay, and number of delay
+   *  steps.  The central delay and number of steps can be set in the Setup 
+   *  structure and passed as non-zero values to shift_chi.  If they are not, 
+   *  then set them to be 0 and ncomp/2, respectively.
+   */
+
+  if(no_error) {
+    tau.dval = (comp+1)->day - comp->day;
+    if(setup->ntau == 0) {
+      tau.val0 = 0;
+      tau.nval = ncomp/2;
+      tau.minstep = -tau.nval;
+      tau.maxstep = tau.nval;
+    }
+    else {
+      printf(" shift_chi: Using tau0 value contained in Setup structure.\n");
+      tau.val0 = tau0;
+      tau.nval = setup->ntau;
+      tau.minstep = (int) (tau.val0/tau.dval) - tau.nval;
+      tau.maxstep = (int) (tau.val0/tau.dval) + tau.nval;
+    }
+  }
+
+  /*
+   * Calculate limits on number of steps to be 1/2 the number of
+   *  points in the comparison curve.  Use this number to set the
+   *  sizes of arrays.
+   */
+
+  printf(" shift_chi: tau0=%6.1f, tau_min=%6.1f, tau_max=%6.1f, ",tau.val0,
+	 tau.minstep*tau.dval,tau.maxstep*tau.dval);
+  printf("dtau=%5.2f, ntau=%d\n",tau.dval,2*tau.nval+1);
+
+  /*
+   * Allocate memory for chisq array.  It will contain 2*tau.nval+1 members.
+   */
+
+  if(!(chisq = new_fluxrec(2*tau.nval+1)))
+    no_error = 0;
+
+  /*
+   * Open the output files and write header line
+   */
+
+  if(doprint && no_error) {
+    if(!(fullfp = fopen(outname,"w")))
+      no_error =0;
+    if(no_error)
+      fprintf(fullfp,"# Gridsize %d %d\n",2*tau.nval+1,2*mu.nval+1);
+    sprintf(slicename,"%s_slice",outname);
+    if(!(slicefp = fopen(slicename,"w")))
+      no_error =0;
+  }
+
+  /*
+   * Start the calculations.  Make the outer loop on flux ratios to get 
+   *  data into proper Fortran order for making contour plots.
+   */
+   
+  i = -mu.nval;
+  while(i<mu.nval+1 && no_error) {
+
+    /*
+     * Set value of flux ratio for this iteration
+     */
+
+    ratio = mu.val0 * (1  + i*mu.dval);
+
+    /*
+     * Step through the delays at this ratio, putting reduced chisq
+     *  values into the chisq array.
+     */
+    
+    if(step_delays(control,comp,nctrl,ncomp,ratio,tau,chisq, 
+		   setup,speed,fullfp,doprint))
+      no_error = 0;
+
+    /*
+     * Find the minimum value of chisq
+     */
+
+    bestchi = find_min_chisq(chisq,2*tau.nval+1);
+    if(bestchi->err < 0.0)
+      no_error = 0;
+
+    /*
+     * Check to see if we have a better chisq than the previous
+     *  best chisq or if this is the first time around 
+     *  (bestlag->err = -999.0).  If either one is true, put the
+     *  current value of bestchi into bestlag.
+     * 
+     */
+
+    if(bestlag->err < 0 || bestchi->err < bestlag->err)
+      *bestlag = *bestchi;
+
+    i++;
+  }
+
+  /*
+   * Print out slice through 2D chisq surface at the best-fit value of
+   *  the flux density ratio.  First, create the slice by calling step_delays
+   *  again, with the ratio set to the proper ratio (contained in 
+   *  bestlag->flux).
+   */
+
+  if(no_error)
+    if(step_delays(control,comp,nctrl,ncomp,bestlag->flux,tau,
+		   chisq,setup,speed,NULL,0))
+      no_error = 0;
+
+  /*
+   * Now print out the values contained in the chisq array.
+   */
+
+  if(doprint && no_error) {
+    for(i=0,chiptr=chisq; i<2*tau.nval+1; i++,chiptr++)
+      fprintf(slicefp,"%7.2f %f %f\n",chiptr->day,chiptr->flux,chiptr->err);
+  }
+
+  /*
+   * Clean up
+   */
+
+  if(fullfp)
+    fclose(fullfp);
+  if(slicefp)
+    fclose(slicefp);
+
+  chisq = del_fluxrec(chisq);
+
+  if(no_error)
+    return 0;
+  else {
+    fprintf(stderr,"ERROR: shift_chi\n");
+    return 1;
+  }
+}
+
+/*.......................................................................
+ *
+ * Function shift_chi_2
+ *
+ * Computes the chi-squared obtained by comparing two light curves, the
+ *  "control" one, with measured values, and the "comparison" one, with
+ *  interpolated values.  The comparison curve is shifted by different
+ *  lags and flux ratios, and the reduced chi-squared is computed at each 
+ *  (lag, flux-ratio) pair.
+ *
+ * Inputs: Fluxrec *controla   control light curve
+ *         Fluxrec *compa      comparison light curve
+ *         int nctrla          number of points in control curve
+ *         int ncompa          number of points in comparison curve
+ *         Fluxrec *controlb   control light curve
+ *         Fluxrec *compb      comparison light curve
+ *         int nctrlb          number of points in control curve
+ *         int ncompb          number of points in comparison curve
+ *         Setup *setup        smoothing/interpolation info
+ *         Fluxrec *bestlag    lag with best-fit chisq (set by this function)
+ *         char *outname       name of output file
+ *         int doprint         flag set to 1 if output files are desired
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int shift_chi_2(Fluxrec *controla, Fluxrec *compa, int nctrla, int ncompa, 
+		Fluxrec *controlb, Fluxrec *compb, int nctrlb, int ncompb, 
+		float mu0, Setup *setup, int speed, Fluxrec *bestlag, 
+		char *outname, int doprint)
+{
+  int i;                 /* Looping variable */
+  int no_error=1;        /* Flag set to 0 on error */
+  int ntau;              /* Absolute value of max steps from 0 */
+  int arraysize;         /* Size for arrays */
+  float mean1,mean2;     /* Means of flux1 and flux2 */
+  float ratio0;          /* Initial guess for flux ratio between two curves */
+  float ratio;           /* Flux ratio between two curves */
+  float rms;             /* Junk variable filled by calling calc_mean */
+  float dtau;            /* Step size between points on light curves */
+  char slicename[MAXC];  /* Name for the slice output file */
+  Fluxrec *bestchi;      /* Container for data associated w/min chisq */
+  Fluxrec *chisq=NULL;   /* Curve of (day,ratio,chisq) group */
+  Fluxrec *chiptr;       /* Pointer to navigate chisq */
+  FILE *fullfp=NULL;     /* Output file pointer for full chisq surface */
+  FILE *slicefp=NULL;    /* Output file pointer for chisq vs delay slice */
+
+  /*
+   * Initialize bestlag to something ridiculous -- why put this value into
+   *  bestlag->err?  We are lazy and so we're using a Fluxrec container to
+   *  hold the three values of interest, with the following correspondence:
+   *
+   *  bestlag->day  <---> lag
+   *  bestlag->flux <---> flux ratio
+   *  bestlag->err  <---> chisq
+   *
+   */
+
+  bestlag->err = -999.0;
+
+  /*
+   * If mu0 is set, take that as the initial guess for the flux ratio
+   *  between the components.  Otherwise, get an initial guess for the 
+   *  flux ratio by taking the ratio of their mean values across the 
+   *  observations.
+   */
+
+  if(mu0 > 0.0) {
+    ratio0 = mu0;
+    printf(" shift_chi_2: Using initial guess of %8.4f for %s flux ratio ",
+	   ratio0,outname);
+    printf("from do_chi_2.\n");
+  }
+  else {
+    if(calc_mean(controla,nctrla,&mean1,&rms))
+      no_error = 0;
+    if(no_error)
+      if(calc_mean(compa,ncompa,&mean2,&rms))
+	no_error = 0;
+    if(no_error) {
+      ratio0 = mean2 / mean1;
+      printf(" shift_chi_2: Initial guess for %s flux ratio is %8.4f\n",outname,
+	     ratio0);
+    }
+  }
+
+  /*
+   * Find the lag axis spacing
+   */
+
+  if(no_error) {
+    dtau = (compa+1)->day - compa->day;
+    printf(" shift_chi_2: Lag axis spacing = %5.2f days.\n",dtau);
+  }
+
+  /*
+   * Calculate limits on number of steps to be 1/2 the number of
+   *  points in the comparison curve.  Use this number to set the
+   *  sizes of arrays.
+   */
+
+  ntau = ncompa/2;
+  arraysize = 2 * ntau + 1;
+#if 0
+  arraysize = ntau + 1;
+#endif
+
+  /*
+   * Allocate memory for chisq array.  It will contain arraysize members.
+   */
+
+  if(!(chisq = new_fluxrec(arraysize)))
+    no_error = 0;
+
+  /*
+   * Open the output file and write header line
+   */
+
+  if(doprint && no_error) {
+    if(!(fullfp = fopen(outname,"w")))
+      no_error =0;
+    if(no_error)
+      fprintf(fullfp,"# Gridsize %d %d\n",arraysize,2*NFLUXSTEP+1);
+    sprintf(slicename,"%s_slice",outname);
+    if(!(slicefp = fopen(slicename,"w")))
+      no_error =0;
+  }
+
+  /*
+   * Start the calculations.  Make the outer loop on flux ratios to get 
+   *  data into proper Fortran order for making contour plots.
+   */
+   
+  i = -NFLUXSTEP;
+  while(i<NFLUXSTEP+1 && no_error) {
+
+    /*
+     * Set value of flux ratio for this iteration
+     */
+
+    ratio = ratio0 * (1  + i*FLUXSTEP);
+
+    /*
+     * Step through the delays at this ratio, putting reduced chisq
+     *  values into the chisq array.
+     */
+    
+    if(step_delays_2(controla,compa,nctrla,ncompa,controlb,compb,nctrlb,ncompb,
+		     ratio,ntau,dtau,chisq, 
+		     setup,speed,fullfp,doprint))
+      no_error = 0;
+
+    /*
+     * Find the minimum value of chisq
+     */
+
+    bestchi = find_min_chisq(chisq,arraysize);
+    if(bestchi->err < 0.0)
+      no_error = 0;
+
+    /*
+     * Check to see if we have a better chisq than the previous
+     *  best chisq or if this is the first time around 
+     *  (bestlag->err = -999.0).  If either one is true, put the
+     *  current value of bestchi into bestlag.
+     * 
+     */
+
+    if(bestlag->err < 0 || bestchi->err < bestlag->err)
+      *bestlag = *bestchi;
+
+    i++;
+  }
+
+  /*
+   * Print out slice through 2D chisq surface at the best-fit value of
+   *  the flux density ratio.  First, create the slice by calling step_delays
+   *  again, with the ratio set to the proper ratio (contained in 
+   *  bestlag->flux).
+   */
+
+  if(no_error)
+    if(step_delays_2(controla,compa,nctrla,ncompa,controlb,compb,nctrlb,ncompb,
+		     bestlag->flux,ntau,dtau,chisq, 
+		     setup,speed,NULL,0))
+      no_error = 0;
+
+  /*
+   * Now print out the values contained in the chisq array.
+   */
+
+  if(doprint && no_error) {
+    for(i=0,chiptr=chisq; i<arraysize; i++,chiptr++)
+      fprintf(slicefp,"%7.2f %f %f\n",chiptr->day,chiptr->flux,chiptr->err);
+  }
+
+  /*
+   * Clean up
+   */
+
+  if(fullfp)
+    fclose(fullfp);
+  if(slicefp)
+    fclose(slicefp);
+
+  chisq = del_fluxrec(chisq);
+
+  if(no_error)
+    return 0;
+  else {
+    fprintf(stderr,"ERROR: shift_chi\n");
+    return 1;
+  }
+}
+
+/*.......................................................................
+ *
+ * Function step_delays
+ *
+ * Given two input curves and a magnification ratio between them, steps
+ *  through a number of delays between them, computing a reduced chisq 
+ *  statistic for each delay.  This functionality used to be contained
+ *  in shift_chi.
+ *
+ * Inputs: Fluxrec *control    control light curve
+ *         Fluxrec *comp       comparison light curve
+ *         int nctrl           number of points in control curve
+ *         int ncomp           number of points in comparison curve
+ *         float ratio         flux ratio between the two curves
+ *         Prange tau          delay parameter search values
+ *         Fluxrec *chisq      array of (day,ratio,chisq) structure
+ *         Setup *setup        smoothing/interpolation info
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+ *         FILE *ofp           output file pointer
+ *         int doprint         flag set to 1 if output files are desired
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ * v30Jul00 CDF, Modified the delay steps to run from the passed tau.minstep
+ *                to tau.maxstep instead of running the full range from
+ *                -ntau to +ntau.  This required the creation of a new
+ *                Prange structure to reduce the number of passed parameters.
+ */
+
+int step_delays(Fluxrec *control, Fluxrec *comp, int nctrl, int ncomp, 
+		float ratio, Prange tau, Fluxrec *chisq, 
+		Setup *setup, int speed, FILE *ofp, int doprint)
+{
+  int i,j,m;             /* Looping variables */
+  int pos;               /* Array position */
+  int nmatch;            /* Number of overlapping points in light curves */
+  float chidiff;         /* Difference in values used to calculate chisq */
+  float sum;             /* Sum of individual chisqs */
+  Fluxrec *fptr1;        /* Pointer to navigate control curve */
+  Fluxrec *fptr2;        /* Pointer to navigate comparison curve */
+  Fluxrec *chiptr;       /* Pointer to navigate chisq array */
+
+
+  /*
+   * Step through lags going from -ntau to ntau
+   * At each lag i, step through control (incrementing j) and compute
+   *  the chisq using control[j] and comp[m] if where m is set such that
+   *  control[j].day - lag = comp[m].day.
+   */
+
+  for(i=tau.minstep,chiptr=chisq; i<tau.maxstep+1; i++,chiptr++) {
+
+    /*
+     * Set the value of the day and ratio members of the chisq array
+     */
+
+    chiptr->day = i*tau.dval;
+    chiptr->flux = ratio;
+
+    /*
+     * Initialize the running counter and sum variables.
+     */
+
+    nmatch = 0;
+    sum = 0.0;
+
+    /*
+     * Now step through the control curve and compute the chisq contribution
+     *  from the control and comparison (with the given lag), as long as
+     *  the control point is a measured value (match = 1).  We can use the
+     *  FAST version if the control and comparison curves have the same
+     *  size and spacing.  Otherwise, we have to do the more tedious
+     *  SLOW calculations.
+     */
+
+    if(speed == FAST) {
+
+      /*
+       * Fast case
+       */
+	
+      for(j=0,fptr1=control,fptr2=comp; j<nctrl; j++,fptr1++,fptr2++) {
+	pos = j + i;
+	if(fptr1->match >= 0 && pos >= 0 && pos < ncomp) {
+	  chidiff = fptr1->flux - (fptr2+i)->flux / ratio;
+	  sum += chidiff * chidiff / (fptr1->err * fptr1->err);
+	  nmatch++;
+	}
+      }
+    }
+    else {
+
+      /*
+       * Slow case (the default)
+       */
+
+      for(j=0,fptr1=control; j<nctrl; j++,fptr1++) {
+	if(fptr1->match == 1) {
+	  for(m=0,fptr2=comp; m<ncomp; m++,fptr2++) {
+	    if(fabs(fptr1->day + chiptr->day - fptr2->day) < 0.2*tau.dval) {
+	      chidiff = fptr1->flux - fptr2->flux / ratio;
+	      sum += chidiff * chidiff / (fptr1->err * fptr1->err);
+	      nmatch++;
+	      break;
+	    }
+	  }
+	}
+      }
+    }
+
+    /*
+     * If both curves are interpolated (speed == FAST), compute the number
+     *   of independent points in the overlap region by dividing the
+     *   time of overlap (nmatch * tau.dval) by the average spacing of points
+     *   in the raw curves.
+     */
+
+    if(speed == FAST) {
+#if 0
+      switch(setup->smtype) {
+      case SMBOXCAR: case SMTRIANGLE:
+	nmatch = floor(nmatch * tau.dval * WINFRAC / setup->smwidth);
+	break;
+      default:
+      }
+#endif
+      nmatch = floor(nmatch * tau.dval / 3.7);
+    }
+
+    /*
+     * Compute reduced chisq
+     */
+
+    if(nmatch <= NFIT) {
+      fprintf(stderr,
+	      "step_delays: Warning! Overlap between curves is too small.\n");
+      chiptr->err = -999.0;
+    }
+    else
+      chiptr->err = sum/(nmatch-NFIT);
+
+    /*
+     * Print out lag and reduced chisq
+     */
+
+    if(doprint) {
+      fprintf(ofp,"%7.2f %f %f %f %d\n",i*tau.dval,ratio,chiptr->err,sum,
+	      nmatch-NFIT);
+    }
+  }
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function step_delays_2
+ *
+ * Given two input curves and a magnification ratio between them, steps
+ *  through a number of delays between them, computing a reduced chisq 
+ *  statistic for each delay.  This functionality used to be contained
+ *  in shift_chi.
+ *
+ * Inputs: Fluxrec *controla   control light curve
+ *         Fluxrec *compa      comparison light curve
+ *         int nctrla          number of points in control curve
+ *         int ncompa          number of points in comparison curve
+ *         Fluxrec *controlb   control light curve
+ *         Fluxrec *compb      comparison light curve
+ *         int nctrlb          number of points in control curve
+ *         int ncompb          number of points in comparison curve
+ *         float ratio         flux ratio between the two curves
+ *         int ntau            absolute value of maximum delay
+ *         float dtau          delay step size
+ *         Fluxrec *chisq      array of (day,ratio,chisq) structure
+ *         Setup *setup        smoothing/interpolation info
+ *         int speed           if the input curves are of the same size and
+ *                              have the same spacing, this is set to FAST
+ *                              and a quicker form of calculation can occur.
+ *                              Otherwise, it will be set to SLOW.
+ *         FILE *ofp           output file pointer
+ *         int doprint         flag set to 1 if output files are desired
+ *
+ * Output: int (0 or 1)        0 ==> success, 1 ==> error
+ *
+ */
+
+int step_delays_2(Fluxrec *controla, Fluxrec *compa, int nctrla, int ncompa, 
+		  Fluxrec *controlb, Fluxrec *compb, int nctrlb, int ncompb, 
+		  float ratio, int ntau, float dtau, Fluxrec *chisq, 
+		  Setup *setup, int speed, FILE *ofp, int doprint)
+{
+  int i,j,m;             /* Looping variables */
+  int pos;               /* Array position */
+  int nmatch;            /* Number of overlapping points in light curves */
+  float chidiff;         /* Difference in values used to calculate chisq */
+  float sum;             /* Sum of individual chisqs */
+  Fluxrec *fptr1;        /* Pointer to navigate control curve */
+  Fluxrec *fptr2;        /* Pointer to navigate comparison curve */
+  Fluxrec *chiptr;       /* Pointer to navigate chisq array */
+
+
+  /*
+   * Step through lags going from -ntau to ntau
+   * At each lag i, step through control (incrementing j) and compute
+   *  the chisq using control[j] and comp[m] if where m is set such that
+   *  control[j].day - lag = comp[m].day.
+   */
+
+  for(i=-ntau,chiptr=chisq; i<ntau+1; i++,chiptr++) {
+
+    /*
+     * Set the value of the day and ratio members of the chisq array
+     */
+
+    chiptr->day = i*dtau;
+    chiptr->flux = ratio;
+
+    /*
+     * Initialize the running counter and sum variables.
+     */
+
+    nmatch = 0;
+    sum = 0.0;
+
+    /*
+     * Now step through the control curve and compute the chisq contribution
+     *  from the control and comparison (with the given lag), as long as
+     *  the control point is a measured value (match = 1).  We can use the
+     *  FAST version if the control and comparison curves have the same
+     *  size and spacing.  Otherwise, we have to do the more tedious
+     *  SLOW calculations.
+     */
+
+    if(speed == FAST) {
+
+      /*
+       * Fast case
+       */
+	
+      for(j=0,fptr1=controla,fptr2=compa; j<nctrla; j++,fptr1++,fptr2++) {
+	pos = j + i;
+	if(fptr1->match >= 0 && pos >= 0 && pos < ncompa) {
+	  chidiff = fptr1->flux - (fptr2+i)->flux / ratio;
+	  sum += chidiff * chidiff / (fptr1->err * fptr1->err);
+	  nmatch++;
+	}
+      }
+      for(j=0,fptr1=controlb,fptr2=compb; j<nctrlb; j++,fptr1++,fptr2++) {
+	pos = j + i;
+	if(fptr1->match >= 0 && pos >= 0 && pos < ncompb) {
+	  chidiff = fptr1->flux - (fptr2+i)->flux / ratio;
+	  sum += chidiff * chidiff / (fptr1->err * fptr1->err);
+	  nmatch++;
+	}
+      }
+    }
+    else {
+
+      /*
+       * Slow case (the default)
+       */
+
+      for(j=0,fptr1=controla; j<nctrla; j++,fptr1++) {
+	if(fptr1->match == 1) {
+	  for(m=0,fptr2=compa; m<ncompa; m++,fptr2++) {
+	    if(fabs(fptr1->day + chiptr->day - fptr2->day) < 0.2*dtau) {
+	      chidiff = fptr1->flux - fptr2->flux / ratio;
+	      sum += chidiff * chidiff / (fptr1->err * fptr1->err);
+	      nmatch++;
+	      break;
+	    }
+	  }
+	}
+      }
+    }
+
+    /*
+     * If both curves are interpolated (speed == FAST), compute the number
+     *   of independent points in the overlap region by dividing the
+     *   time of overlap (nmatch * dtau) by the average spacing of points
+     *   in the raw curves.
+     */
+
+    if(speed == FAST) {
+#if 0
+      switch(setup->smtype) {
+      case SMBOXCAR: case SMTRIANGLE:
+	nmatch = floor(nmatch * dtau * WINFRAC / setup->smwidth);
+	break;
+      default:
+      }
+#endif
+      nmatch = floor(nmatch * dtau / 3.7);
+    }
+
+    /*
+     * Compute reduced chisq
+     */
+
+    if(nmatch <= NFIT) {
+      fprintf(stderr,
+	      "step_delays: Warning! Overlap between curves is too small.\n");
+      chiptr->err = -999.0;
+    }
+    else
+      chiptr->err = sum/(nmatch-NFIT);
+
+    /*
+     * Print out lag and reduced chisq
+     */
+
+    if(doprint) {
+      fprintf(ofp,"%7.2f %f %f %f %d\n",i*dtau,ratio,chiptr->err,sum,
+	      nmatch-NFIT);
+    }
+  }
+
+  return 0;
+}
+
+/*.......................................................................
+ *
+ * Function find_min_chisq
+ *
+ * Takes a Fluxrec array containing points of the nature
+ *     fluxrec->day = day
+ *     fluxrec->err = chisq
+ *  and finds the array member with the lowest value of chisq.  Then
+ *  fits a parabola (with the function fit_parab) to the points surrounding
+ *  the minimum-chisq array member to get a "true" minimum chisq.
+ *
+ * Inputs: Fluxrec *chisq      chisq array
+ *         int npoints         number of points in the array
+ *
+ * Output: Fluxrec *bestchi    day giving "true" minimum chisq
+ *
+ */
+
+Fluxrec *find_min_chisq(Fluxrec *chisq, int npoints)
+{
+  int i;             /* Looping variable */
+  int no_error=1;    /* Flag set to 0 on error */
+  float a,b,c;       /* Parameters of the parabolic fit */
+  Fluxrec *bestchi;  /* "True" min chisq */
+  Fluxrec *chiptr;   /* Pointer to navigate chisq */
+
+  /*
+   * Check to make sure there are at least 3 grid points in chisq
+   */
+
+  if(npoints < 3) {
+    fprintf(stderr,"ERROR: find_min_chisq.  ");
+    fprintf(stderr,"There must be at least 3 grid points to find min chisq.\n");
+    bestchi->err = -999.0;
+    return bestchi;
+  }
+
+  /*
+   * Initialize bestchi
+   */
+
+  bestchi = chisq;
+
+  /*
+   * Find minimum chisq on grid (must be > 0)
+   */
+
+  for(i=0,chiptr=chisq; i<npoints; i++,chiptr++) {
+    if(chiptr->err < bestchi->err && chiptr->err >= 0.0)
+      bestchi = chiptr;
+  }
+
+  /*
+   * Call fit_parab to fit a parabola to lowest grid point + 2 neighboring
+   *  points.  There are three possible cases:
+   *   1. bestchi is at the first grid point ==> just take bestchi
+   *   2. bestchi is at the last grid point ==> just take bestchi
+   *   3. bestchi is any other grid point ==> take bestchi plus the points
+   *      on either side of it.
+   */
+
+  if(bestchi != chisq && bestchi != chisq+npoints-1) {
+    if(fit_parab((bestchi-1)->day,(bestchi-1)->err,bestchi->day,bestchi->err,
+		 (bestchi+1)->day,(bestchi+1)->err,&a,&b,&c,0))
+      no_error = 0;
+
+    if(no_error) {
+      bestchi->day = -b / (2*a);
+      bestchi->err = a * bestchi->day * bestchi->day + b * bestchi->day + c;
+    }
+    else {
+      bestchi->err = -999.0;
+    }
+  }
+
+  if(bestchi->err < 0.0)
+    fprintf(stderr,"ERROR: find_min_chisq.  Best chisq is less than 0!\n");
+  return bestchi;
+}
+

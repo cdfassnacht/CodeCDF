@@ -1,0 +1,40 @@
+INSTALLATION INSTRUCTIONS for VERSION 1.5
+=========================================
+  0. NB: This version will by default only compile tdelays.c, which
+     takes two input light curves and finds the delay between them
+     via the Pelt et al. method.
+
+  2. Decide where your executable is going, and modify the BINDIR line
+     in the "configure" file.
+     *** NB: In this simplified version, you shouldn't need to change
+         the values of PGDIR and X11DIR in the configure file ***
+
+  3. Run the configure file with the appropriate operating-system flag.
+     There are currently four options:
+
+       ./configure sun4-gcc
+       ./configure sol2-gcc
+       ./configure linux-gcc
+       ./configure apple-osx-gcc
+
+     See the notes in the "configure" file for more explanation.
+
+  4. Actually compile the program.
+     Type "./makeall".
+
+  5. Type "rehash" -- now you are ready to go
+
+  6. You can test out tdelays by using the two demonstration data
+     sets in this directory.  Just type
+
+       tdelays demo1.dat demo2.dat
+
+     Just choose the default values when prompted.  You should get
+     a best-fit time delay of around -32 days, with a best-fit
+     magnification ratio around 0.5.
+
+  7. For help with tdelays, just type the program name on
+     the command line and hit return.
+
+
+

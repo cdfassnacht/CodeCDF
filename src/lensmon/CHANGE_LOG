@@ -1,0 +1,3 @@
+Version 1.50
+------------
+* First "export" version.  Set up to only compile tdelays.c by default.

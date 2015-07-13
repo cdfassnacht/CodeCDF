@@ -1,0 +1,412 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Configure site-specific make files.  This script has been taken
+#  directly from Martin Shepherd's difmap configure script, with
+#  modifications made for the lensmon package.
+#
+# This script may be run any number of times.
+#-----------------------------------------------------------------------
+# Usage:
+#
+#  ./configure system_name
+#
+# Where system_name must be one of the following:
+#  sun4-gcc  -  Sun sparc running SUNOS4.* using gcc.
+#                NB. If your gcc runtime library is not installed
+#                in a directory below /usr/local/lib/gcc-lib/ you should
+#                change CCLIB in the sun4-gcc case below.
+#  sol2-gcc  -  Sun sparc running Solaris 2.* using gcc.
+#                NB. If your gcc runtime library is not installed
+#                in a directory below /usr/local/lib/gcc-lib/ you should
+#                change CCLIB in the sol2-gcc case below.
+#  linux-gcc -    PC running Linux, using the Gnu C compiler, gcc.
+#  macosx-gcc -   Apple Mac Power PC running OSX with the Gnu C compiler
+#  macintel-gcc - Apple Mac Pro running OSX on Intel chips, with gcc
+#-----------------------------------------------------------------------
+
+# The following shell-variable assignments probably require modification.
+# To do this, read the information preceding each assignment and modify
+# the text on the right-hand-side of assignments that need to be changed.
+#
+# NOTE that the Bourne-shell will not tolerate any space around the '='
+# character in shell-variable assignments.
+
+#
+# NB: You MUST set the following environment variables BEFORE running
+#  this configuration script:
+#
+#   OSBIN      (The directory in which you want the output executables to
+#                reside)
+#   X11DIR     (The X11 libraries)
+#   PGPLOT_DIR (The PGPLOT libraries)
+#   CPGSRC     (The location of the C wrappers for the PGPLOT routines)
+#   CDFUTIL    (The location of the C. Fassnacht library functions)
+#   LOCNR      (A local version of the numerical recipes functions)
+#   CDFUTIL    (The directory containing the C. Fassnacht library functions)
+#   FITSFNDIR  (The directory containing the FITS handling functions)
+#   SLADIR     (The location of the slalib functions)
+
+
+# **** NB: Typical locations for the following directories ****
+#  X11DIR
+#    Solaris:   /usr/openwin/lib
+#    Linux:     /usr/X11R6/lib
+#  PGDIR
+#    /usr/local/pgplot
+#    /usr/local/lib/pgplot
+#    /sw/lib/pgplot
+
+
+BINDIR=$OSBIN
+PGDIR=$PGPLOT_DIR
+CPGDIR=$FITSFNDIR/MCSfits/cpg_src
+SCRDIR=$FITSFNDIR/MCSfits/scrfil_src
+LOGDIR=$FITSFNDIR/MCSfits/logio_src
+RECDIR=$FITSFNDIR/MCSfits/recio_src
+FITSDIR=$FITSFNDIR/MCSfits/fits_src
+
+# Specify the PGPLOT and X11 libraries in a form suitable for the
+# linker. If the libraries are in a location that is normally searched
+# by the linker then all that you will need to write is:
+#
+#  PGPLOT_LIB="-lpgplot -lX11"
+#
+# Otherwise you must precede each library with a -L argument to
+# specify the directory in which each library resides. For example
+# under SunOS this might be:
+#
+#  PGPLOT_LIB="-L$PGDIR -lpgplot -L$X11DIR -lX11"
+#
+# Under Solaris 2.x there is a complication in that when programs are
+# linked with shared libraries, as they are by default, the path used
+# to locate the libraries at compile time is not remembered at run
+# time. To cater for shared libraries you either have to specify the
+# run-time library path with the -R flag, or you have to require your
+# users to specify the directories in their LD_LIBRARY_PATH environment
+# variables. The former is obviously friendlier. An example of using
+# the -R flag is:
+#
+# PGPLOT_LIB="-L/usr/local/pgplot -L/usr/openwin/lib \
+#     -R/usr/local/pgplot:/usr/openwin/lib:/opt/SUNWspro/lib -lpgplot -lX11"
+# 
+# Where /usr/local/pgplot and /opt/SUNWspro/lib are the directories that
+# contain the PGPLOT and FORTRAN libraries at our site.
+#
+# Under Mac OS X, assuming that the pgplot library is installed in
+# /usr/local/pgplot, the appropriate definition of PGPLOT_LIB is:
+#
+# PGPLOT_LIB="-L$PGDIR -lpgplot -L/usr/local/lib -lpng -L$X11DIR -lX11"
+#
+
+PGPLOT_LIB="-L$PGDIR -lpgplot -L/usr/local/lib -lpng -L$X11DIR -lX11 "
+
+#-----------------------------------------------------------------------
+# I recommend that you don't change anything below this point.
+#-----------------------------------------------------------------------
+INCDIR="`pwd`/include"
+LIBDIR="`pwd`/lib"
+
+#-----------------------------------------------------------------------
+#  THE FOLLOWING ARE DEFAULTS WHICH ARE OVERRIDEN LATER FOR YOUR OS.
+#                 DO NOT CHANGE THESE.
+#-----------------------------------------------------------------------
+# The following is the default set of options. After this list are
+# instructions on how to override the default for a specific system.
+
+# The default ANSI-C compiler and the flags that should be presented to it.
+
+CC="cc"
+CFLAGS="-O"
+
+# The default FORTRAN compiler (the same one that PGPLOT was compiled with).
+# Also the flags that should be presented to it.
+
+FC="f77"
+FFLAGS="-O"
+
+# If the C run-time library is not automatically linked in when using
+# the FORTRAN compiler to link, cite the name of the library(ies) here.
+# The default shown here names the latest version of the gcc run-time
+# library.
+
+CCLIB=""
+
+# Flags to be sent to the loader (linker).
+
+LDFLAGS=""
+
+# The way to create a symbolic or (if symbolic links are not supported)
+# a hard link to a file.
+
+LN="ln -s"
+
+# How to run ranlib.
+
+RANLIB="ranlib"
+
+## The default pager.
+#
+#PAGER="more"
+
+# Flags for the cpg_src/pgbind command that tell it how to construct
+# C wrappers for FORTRAN PGPLOT routines.
+
+PGBIND_FLAGS="bsd"
+
+#-----------------------------------------------------------------------
+# OVERRIDE SELECTED OPTIONS FOR THE GIVEN OS.
+# When compiling for a new OS-compiler combination, add a new
+#  OS-compiler)
+# case in the switch below and redefine any variables for which the default
+# is inappropriate.
+#-----------------------------------------------------------------------
+
+# Get the operating system name from the command line.
+
+if test $# -lt 1;then
+  echo ""
+  echo "*** Usage: configure OS_name-compiler_name ***"
+  echo ""
+  echo " Current options for OS_name-compiler_name are:"
+  echo "  sun4-gcc    (Sun sparc running SUNOS4.* using gcc.)"
+  echo "  sol2-gcc    (Sun sparc running Solaris 2.* using gcc.)"
+  echo "  linux-gcc    (PC running Linux, using the Gnu C compiler, gcc.)"
+  echo "  macosx-gcc   (Mac Power PC (G4 or G5) running Mac OSX, using gcc)"
+  echo "  macintel-gcc (Mac Pro running Mac OSX with Intel chips, using gcc)"
+  echo ""
+  echo " Read comments in configure file for more details."
+  echo ""
+  exit 1
+else
+  OS=$1
+fi
+
+# Override selected options for the given operating system-compiler
+# pair.
+
+case $OS in
+  sun4-gcc)   # SUN-Sparc running SUNOS4.*, using the gcc compiler.
+    CC=gcc
+    #
+    # Attempt to find libgcc.a.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location. Please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '         sun4-gcc), Eg. if libgcc.a is in /usr/local/lib. write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+;;
+
+  sol2-gcc)  # SUN running Solaris2.* using gcc.
+    CC="gcc"
+    FC="f77"
+    #
+    # Attempt to find libgcc.a.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location, please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '         sol2-gcc), Eg. if libgcc.a is in /usr/local/lib. write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+    RANLIB="echo ranlib"
+    PGPLOT_LIB="${PGPLOT_LIB} -lsocket -lnsl"
+;;
+
+  linux-gcc)   # PC running Linux, using the Gnu C compiler, gcc.
+    CC=gcc
+    CFLAGS="$CFLAGS -Dlinux_i486_gcc"
+    #
+    # Attempt to find libgcc.a in its default location.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location, please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '        linux-i486-gcc), Eg. if libgcc.a is in /usr/local/lib.'
+      echo '        write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+;;
+
+  linux-elf)   # PC running Linux, using the Gnu gcc C compiler on an elf-system.
+    CC=gcc
+    CFLAGS="$CFLAGS -fPIC -Dlinux_i486_elf"
+    #
+    # Attempt to find libgcc.a in its default location.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location, please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '        linux-i486-gcc), Eg. if libgcc.a is in /usr/local/lib.'
+      echo '        write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+;;
+
+  macosx-gcc)   # Mac Power PC (G4 or G5) running OSX, using the Gnu C compiler.
+    CC=gcc
+    FC=g77
+    CFLAGS="$CFLAGS -Dapple_osx"
+    #
+    # Attempt to find libgcc.a in its default location.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location, please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '        apple-osx-gcc), Eg. if libgcc.a is in /usr/local/lib.'
+      echo '        write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+;;
+
+  macintel-gcc) # Mac Pro running OSX with Intel chips, using the Gnu C compiler
+    CC=gcc
+    FC="gfortran"
+    CFLAGS="$CFLAGS -Dmacintel"
+    #
+    # Attempt to find libgcc.a in its default location.
+    #
+    CCLIB="`gcc -print-libgcc-file-name`"
+    if test ! -f "$CCLIB"; then
+      echo ' Error: libgcc.a is not in the default location, please edit'
+      echo '        ./configure to assign the path of libgcc.a to CCLIB under'
+      echo '        apple-osx-gcc), Eg. if libgcc.a is in /usr/local/lib.'
+      echo '        write:'
+      echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
+      exit 1
+    fi
+;;
+
+  *)
+    echo "Unknown OS-compiler combination: $OS"
+    exit 1
+;;
+esac
+
+
+#-----------------------------------------------------------------------
+# You should not have to change anything below this line.
+#-----------------------------------------------------------------------
+
+# Keep the user informed.
+
+echo 'Configuration follows:'
+echo ' BINDIR       =' $BINDIR
+echo ' INCDIR       =' $INCDIR
+echo ' LIBDIR       =' $LIBDIR
+echo ' PGPLOT_LIB   =' $PGPLOT_LIB
+echo ' CC           =' $CC
+echo ' CCLIB        =' $CCLIB
+echo ' FC           =' $FC
+echo ' CFLAGS       =' $CFLAGS
+echo ' FFLAGS       =' $FFLAGS
+echo ' LDFLAGS      =' $LDFLAGS
+echo ' LN           =' $LN
+echo ' RANLIB       =' $RANLIB
+echo ' PGBIND_FLAGS =' $PGBIND_FLAGS
+echo ' '
+
+
+# Create the makefile header.
+
+cat > make.configure << EOF
+# Copyright (c) 1993 by the California Institute of Technology.
+
+# ANSI-C compiler.
+
+CC = $CC
+
+# ANSI-C run-time library
+
+CCLIB = $CCLIB
+
+# FORTRAN compiler.
+
+FC = $FC
+
+# C and FORTRAN compilation flags.
+
+CFLAGS = $CFLAGS
+FFLAGS = $FFLAGS
+
+# Directory for executables.
+
+BINDIR = $BINDIR
+
+# Directory for includes.
+
+INCDIR = $INCDIR
+
+# Directory for libraries.
+
+LIBDIR = $LIBDIR
+
+# Directory in which the PGPLOT library can be found.
+
+PGPLOT_LIB = $PGPLOT_LIB
+
+# Loader flags.
+
+LDFLAGS = $LDFLAGS
+
+# Symbolic link creation.
+
+LN = $LN
+
+# The way to invoke ranlib.
+
+RANLIB = $RANLIB
+
+# The flags used by cpg_src/pgbind.
+
+PGBIND_FLAGS = $PGBIND_FLAGS
+
+EOF
+
+## Create include and library directories if not already there.
+
+if test ! -d include; then
+  mkdir include
+fi
+
+if test ! -d lib; then
+  mkdir lib
+fi
+
+# Create site-specific make files in each of the source directories.
+
+echo 'Configuring make files:'
+
+#echo '  ... PGPLOT C wrappers'
+#cat make.configure $CPGDIR/makefile.lis $CPGDIR/makefile.distrib > $CPGDIR/makefile
+echo '  ... FITS handling routines'
+cat make.configure $SCRDIR/makefile.distrib > $SCRDIR/makefile
+cat make.configure $LOGDIR/makefile.distrib > $LOGDIR/makefile
+cat make.configure $RECDIR/makefile.distrib > $RECDIR/makefile
+cat make.configure $FITSDIR/makefile.distrib > $FITSDIR/makefile
+echo '  ... utility functions'
+cat make.configure $CDFUTIL/makefile.distrib > $CDFUTIL/makefile
+echo '  ... numerical recipes'
+cat make.configure locnr/makefile.distrib > locnr/makefile
+echo '  ... slalib routines'
+cat make.configure $SLADIR/makefile.distrib > $SLADIR/makefile
+echo '  ... main source files'
+cat make.configure main_src/makefile.distrib > main_src/makefile
+echo ' '
+
+\rm make.configure
+
+echo ""
+echo 'Now type "make" to compile the code'
+echo ""
