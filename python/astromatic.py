@@ -384,7 +384,8 @@ def make_cat_fors2(fitsfile, outcat='tmp.cat', regfile=None,
 
 #-----------------------------------------------------------------------
 
-def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config', 
+def make_cat_isaac(fitsfile, outcat='tmp.cat', regfile=None,
+                   configfile='sext_astfile.config', 
                    gain=4.5, texp=1., ncoadd=1, satur=40000., catformat='ldac',
                    whtfile=None, weight_type='MAP_WEIGHT', logfile=None):
    """
@@ -394,7 +395,7 @@ def make_cat_isaac(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
    make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,None,
                  catformat,
                  whtfile=whtfile, weight_type=weight_type,
-                 logfile=logfile)
+                 logfile=logfile,regfile=regfile)
 
 #-----------------------------------------------------------------------
 
