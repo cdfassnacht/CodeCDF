@@ -146,7 +146,7 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
       print ""
    if logfile is None:
       try:
-         os.system('sextractor -c %s %s %s' % (configfile,fitsfile,sopts))
+         os.system('sex -c %s %s %s' % (configfile,fitsfile,sopts))
       except:
          print ""
          print "ERROR.  Could not run SExtractor on %s" % fitsfile
@@ -154,7 +154,7 @@ def make_fits_cat(fitsfile, outcat='tmp.cat', configfile='sext_astfile.config',
          return
    else:
       try:
-         os.system('sextractor -c %s %s %s > %s' % \
+         os.system('sex -c %s %s %s > %s' % \
                       (configfile,fitsfile,sopts,logfile))
       except:
          print ""
