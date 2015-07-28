@@ -485,7 +485,7 @@ def make_bias(infiles, outfile="Bias.fits", x1=0, x2=0, y1=0, y2=0,
 
    """
 
-   median_combine(filenames,outfile,x1,x2,y1,y2,hdu0only=hdu0only)
+   median_combine(infiles,outfile,x1,x2,y1,y2,hdu0only=hdu0only)
 
 #-----------------------------------------------------------------------
 
