@@ -466,8 +466,31 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
 
 #-----------------------------------------------------------------------
 
-def make_bias(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
-      outfile="Bias.fits", x1=0,x2=0,y1=0,y2=0,hdu0only=False):
+def make_bias(infiles, outfile="Bias.fits", x1=0, x2=0, y1=0, y2=0, 
+              hdu0only=False):
+   """ 
+
+       This function takes an input list of dark frames (either true darks, 
+       or bias frames) and median-combines them to create a master dark/bias
+
+       Required inputs:
+        infiles     - a list of input files
+
+       Optional inputs:
+        outfile     - output filename (default="masterdark.fits")
+        x1          - to set a trim section that is smaller than the full frame
+        x2          - to set a trim section that is smaller than the full frame
+        y1          - to set a trim section that is smaller than the full frame
+        y2          - to set a trim section that is smaller than the full frame
+
+   """
+
+   median_combine(filenames,outfile,x1,x2,y1,y2,hdu0only=hdu0only)
+
+#-----------------------------------------------------------------------
+
+def make_bias_frames(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
+                     outfile="Bias.fits", x1=0,x2=0,y1=0,y2=0,hdu0only=False):
    """ 
 
        This function takes as input the frame numbers of the
