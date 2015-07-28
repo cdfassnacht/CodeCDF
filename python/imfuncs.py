@@ -1446,20 +1446,21 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
 
 #-----------------------------------------------------------------------
 
-def make_wcs_from_tel_pointing(inhdr, pixscale, rotatekey=None, 
-                               rakey='ra', deckey='dec'):
+def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None, 
+                               rakey='ra', deckey='dec', hduext=0):
    """
    Many fits files produced by cameras on ground-based telescopes
    do not come with full WCS header cards.  However, most do store the
    (rough) telescope pointing information in the RA and DEC header cards.
    This function uses those and the input pixel scale to create a fake
    output header.
-   This function returns the temporary header, the WCS information in which 
-   can either be copied into the input file or into another file that is
-   using the input file as a reference.
+   This function takes an input fits file and creates a temporary header
+   that contains the rough WCS information in a more useful format.
+   It writes the new WCS information into the input file, and also
+   returns the new header in case it is needed for other files
 
    Inputs:
-      inhdr     -  header of the input fits file
+      infile    -  input fits file
       pixscale  -  desired pixel scale for the output header (should be the
                    expected pixel scale for the camera)
       rotatekey -  [OPTIONAL] if the image was taken with a rotation, that can
@@ -1471,22 +1472,43 @@ def make_wcs_from_tel_pointing(inhdr, pixscale, rotatekey=None,
                    from the default value of 'RA'
       deckey    -  [OPTIONAL] header keyword for Dec of pointing, if different
                    from the default value of 'Dec'
+      hduext    -  [OPTIONAL] HDU number to use.  Default=0 (i.e., the primary
+                   HDU)
    """
 
    print ""
+   """ Open the input fits file """
+   try:
+      hdu = pf.open(infile,mode='update')
+   except:
+      print 'ERROR: Could not open %s' % infile
+      print ''
+      exit()
+   print 'Opened input fits file: %s' % infile
+   try:
+      inhdr = hdu[hduext].header
+   except:
+      print ''
+      print 'ERROR: Could not open header for HDU %d in %s' % (infile,hduext)
+      print ''
+      hdu.close()
+      exit()
+   print ''
+   hdr_error = False
+
    """ Read in the RA and Dec pointing values """
    try:
       ra_tel = inhdr[rakey]
    except:
       print "RA designated by keyword %s was not found in header" % rakey
       print ""
-      return
+      hdr_error = True
    try:
       dec_tel = inhdr[deckey]
    except:
       print "Dec designated by keyword %s was not found in header" % deckey
       print ""
-      return
+      hdr_error = True
 
    """ Get size of image """
    try:
@@ -1494,13 +1516,21 @@ def make_wcs_from_tel_pointing(inhdr, pixscale, rotatekey=None,
    except:
       print "Problem reading x-axis size"
       print ""
-      return
+      hdr_error = True
    try:
       ysize = inhdr['naxis2']
    except:
-      print "Problem reading x-axis size"
+      print "Problem reading y-axis size"
       print ""
-      return
+      hdr_error = True
+
+   """ Exit if any problems before this point """
+   if hdr_error:
+      print ''
+      print 'ERROR: Not continuing'
+      print ''
+      hdu.close()
+      exit()
 
    """ Create the temporary output header """
    try:
@@ -1508,7 +1538,8 @@ def make_wcs_from_tel_pointing(inhdr, pixscale, rotatekey=None,
    except:
       print "ERROR. Could not create output header"
       print ""
-      return
+      hdu.close()
+      exit()
 
    """ Rotate if requested """
    if rotatekey is not None:
@@ -1524,7 +1555,14 @@ def make_wcs_from_tel_pointing(inhdr, pixscale, rotatekey=None,
       outhdr = rothdr.copy()
 
    print "Created header from telescope pointing info."
-   print outhdr.ascardlist()
+   print outhdr
+   print 'Updating fits file header'
+   wcskeys = ['ctype1','ctype2','crval1','crval2','crpix1','crpix2',
+              'cd1_1','cd2_2']
+   for k in wcskeys:
+      inhdr[k] = outhdr[k]
+               
+   hdu.flush()
    return outhdr
 
 #-----------------------------------------------------------------------

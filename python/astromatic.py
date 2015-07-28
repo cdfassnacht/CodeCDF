@@ -35,6 +35,67 @@ except:
 import catfuncs
 
 #-----------------------------------------------------------------------
+
+def make_cat_generic(fitsfile, outcat='default', regfile='default',
+                     configfile='sext_astfile.config', 
+                     whtfile=None, weight_type='MAP_WEIGHT', 
+                     gain='header', texp='header', ncoadd=1, satur=65535., 
+                     catformat='ldac', det_area=10, det_thresh=1.5,
+                     logfile=None, verbose=True):
+   """
+   Calls make_fits_cat, but for a generic input fits file
+   """
+
+   """ Set output file if user wants default values """
+   if outcat=='default':
+      outcat = fitsfile.replace('.fits','.cat')
+   if regfile=='default':
+      regfile = fitsfile.replace('.fits','.reg')
+
+   """ Set up for reading information from input file, if requested """
+   f = pf.open(fitsfile)
+   hdr = f[0].header
+
+   """ Set exposure time """
+   if texp == 'header':
+      readok = True
+      try:
+         texp = hdr['exptime']
+      except:
+         texp = 1.
+         readok = False
+      if readok:
+         print "Exposure time from fits header: %8.1f sec" % texp
+      else:
+         print "Failed to read EXPTIME header. Setting texp = 1 sec"
+   else:
+      print "Exposure time set by function call to %8.1f sec" % texp
+
+   """ Set gain """
+   if gain == 'header':
+      readok = True
+      try:
+         gain = hdr['gain']
+      except:
+         gain = 1.
+         readok = False
+      if readok:
+         print "Gain from fits header: %6.3f " % gain
+      else:
+         print "Failed to read GAIN header. Setting gain = 1.0"
+   else:
+      print "Gain set by function call to %6.3f" % gain
+
+
+   f.close()
+
+   make_fits_cat(fitsfile,outcat,configfile,gain,texp,ncoadd,satur,
+                 catformat=catformat,
+                 whtfile=whtfile, weight_type=weight_type, 
+                 det_thresh=det_thresh,det_area=det_area,
+                 logfile=logfile,regfile=regfile, verbose=verbose)
+
+#-----------------------------------------------------------------------
 #
 #def make_reg_file(infile, outfile, informat='ascii', racol=1, deccol=2, 
 #                  fluxcol=17,fluxerrcol=18, plot_high_snr=False):
