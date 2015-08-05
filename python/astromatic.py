@@ -51,6 +51,8 @@ def make_cat_generic(fitsfile, outcat='default', regfile='default',
       outcat = fitsfile.replace('.fits','.cat')
    if regfile=='default':
       regfile = fitsfile.replace('.fits','.reg')
+   if whtfile=='default':
+      whtfile = fitsfile.replace('.fits','_wht.fits')
 
    """ Set up for reading information from input file, if requested """
    f = pf.open(fitsfile)

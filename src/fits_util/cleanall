@@ -1,0 +1,34 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Return the lensmon directory structure to its original un-compiled
+# state. This involves deleting object file, libraries, executables etc..
+# from under this directory.
+#-----------------------------------------------------------------------
+
+# Remove all object files under this directory.
+
+echo ' '; echo 'Deleting object files'
+find . -name '*.o' -exec echo rm {} \; -exec rm {} \;
+
+# Remove all libraries under this directory.
+
+echo ' '; echo 'Deleting library files'
+find . -name '*.a' -exec echo rm {} \; -exec rm {} \;
+
+# Remove all emacs backups under this directory.
+
+echo ' '; echo 'Deleting emacs backup files *~ and #*#'
+find . \( -name '*~' -o -name '#*#' \) -exec echo rm {} \; -exec rm {} \;
+
+# Remove configured make files.
+
+echo ' '; echo 'Deleting locally configured make files.'
+find . -name 'makefile' -exec echo rm {} \; -exec rm {} \;
+
+
+# Remove core files.
+
+echo ' '; echo "Removing core files (There shouldn't be any)."
+find . -name core -exec echo rm {} \; -exec rm {} \;
+
+echo ' ';echo 'Clean of CDFfits completed'

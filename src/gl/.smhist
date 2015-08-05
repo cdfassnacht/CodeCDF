@@ -1,0 +1,84 @@
+print {d h}
+ limits omega 0 1
+erase expand 1.2 box
+connect omega h
+xlabel \Omega_M
+expand 1.2 box
+connect omega h
+xlabel \Omega_M
+ylabel h
+expand 1.2 box
+lweight 5 connect omega h lweight 1
+xlabel \Omega_M
+ylabel h
+quit
+data d.out
+read {omega 1 lambda 2 d 3}
+echo $(omega[30] lambda[30] d[30])
+x
+echo $(omega[30]) $(lambda[30]) $(d[30])
+define dwmap (d[30])
+set h = 0.7 * d / $dwmap
+limits omega h expand 1.2 box
+connect omega h
+erase limits 0 0.6 0 1.3 expand 1.2 box
+lweight 5 connect omega h lweight 1
+xlabel Matter density \Omega_m
+ylabel Hubble parameter h
+limits 0 0.6 0 1.3 expand 1.2 box
+lweight 5 connect omega h lweight 1
+xlabel Matter density \Omega_m
+ylabel Hubble parameter h
+quit
+set omegam = 0,1.3,0.01
+set omegalam = (1.304 - omegam)/1.4067
+limits 0 1.5 -0.05 1.1 expand 1.2 box
+set lamflat = 1 - omegam
+connect omegam lamflat
+ctype red connect omegam omegalam ctype black
+print {omegam omegalam lamflat}
+print '0.63 1.4 2.1 %5.3f %5.3f -1.0\n' {omegam omegalam}
+print test2.dat '0.63 1.4 2.1 %5.3f %5.3f -1.0\n' {omegam omegalam}
+data test2.out
+read {d 10}
+set dnorm = d / 2.1931
+print {dnorm}
+set hlens = 75 * dnorm
+erase limits omegam hlens expand 1.2 box
+connect omegam hlens
+quit
+data test2.out
+read d 10
+stats d m s k
+set nd = d / $m
+read om 4
+limits om nd expand 1.2 box connect om nd
+print {om nd}
+set h = nd * 73 / 1.041
+erase limits om h expand 1.2 box connect om h
+print {om h}
+limits om h expand 1.2 box connect om h
+xlabel \Omega_M
+ylabel H_0
+quit
+data test2.out
+read {om 4 d 10}
+set h = 73 * d / 2.1984
+limits om h expand 1.2 box lweight 3 connect om h lweight 1
+data wmap3_h0_degen.dat
+read {om2 1 h2 2}
+ltype 3 connect om2 h2 ltype 1
+erase limits om2 h2 expand 1.2 box connect om2 h2
+limits om h expand 1.2 box lweight 3 connect om h lweight 1
+lweight 3 ltype 3 connect om2 h2 ltype 1 lweight 1
+!gv lens_wmap_degeneracy.eps
+ltype 0
+limits om h expand 1.2 box lweight 3 connect om h lweight 1
+lweight 3 ltype 3 connect om2 h2 ltype 0 lweight 1
+!gv lens_wmap_degeneracy.eps
+limits om h expand 1.2 box lweight 3 connect om h lweight 1
+expand 1.5 xlabel \Omega_M
+ylabel H_0
+lweight 3 ltype 3 connect om2 h2 ltype 0 lweight 1
+!gv lens_wmap_degeneracy.eps
+quit

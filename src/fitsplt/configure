@@ -11,16 +11,16 @@
 #  ./configure system_name
 #
 # Where system_name must be one of the following:
-#  sun4-gcc  -  Sun sparc running SUNOS4.* using gcc.
-#                NB. If your gcc runtime library is not installed
-#                in a directory below /usr/local/lib/gcc-lib/ you should
-#                change CCLIB in the sun4-gcc case below.
-#  sol2-gcc  -  Sun sparc running Solaris 2.* using gcc.
-#                NB. If your gcc runtime library is not installed
-#                in a directory below /usr/local/lib/gcc-lib/ you should
-#                change CCLIB in the sol2-gcc case below.
-#  linux-gcc -  PC running Linux, using the Gnu C compiler, gcc.
-#  macosx-gcc - Apple Mac Power PC running OSX with the Gnu C compiler
+#  sun4-gcc     -  Sun sparc running SUNOS4.* using gcc.
+#                   NB. If your gcc runtime library is not installed
+#                   in a directory below /usr/local/lib/gcc-lib/ you should
+#                   change CCLIB in the sun4-gcc case below.
+#  sol2-gcc     -  Sun sparc running Solaris 2.* using gcc.
+#                   NB. If your gcc runtime library is not installed
+#                   in a directory below /usr/local/lib/gcc-lib/ you should
+#                   change CCLIB in the sol2-gcc case below.
+#  linux-gcc    -  PC running Linux, using the Gnu C compiler, gcc.
+#  macosx-gcc   - Apple Mac Power PC running OSX with the Gnu C compiler
 #  macintel-gcc - Apple Mac Pro running OSX on Intel chips, with gcc
 #-----------------------------------------------------------------------
 

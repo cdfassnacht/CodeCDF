@@ -1,0 +1,69 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the libplotutil.a makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the local fits header/WCS libraries
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu).  Based on Martin Shepherd's
+#  difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the FITS library is to be specified on the loader line.
+
+FITS = -L$(LIBDIR) -lfits -lrecio -lscrfil
+
+# Specify how the local FITS header/WCS library is to be specified
+
+LOCFITSWCS = $(LIBDIR)/liblfwcs.a
+
+# Specify how the general utilities library is to be specified
+
+LIBUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: install-header
+
+install-header:	$(LOCFITSWCS) $(INCDIR)/fitswcs.h 
+
+
+#-----------------------------------------------------------------------
+# The following rules make the local FITS header/WCS library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library
+#
+LOCFWCS_OBS = fitswcs.o fitsfuncs.o
+
+$(LOCFITSWCS): $(LOCFWCS_OBS)
+	ar ru $(LOCFITSWCS) $(LOCFWCS_OBS)
+	ranlib $(LOCFITSWCS)
+
+$(INCDIR)/fitswcs.h: fitswcs.h
+	cp fitswcs.h $(INCDIR)/fitswcs.h
+	chmod ugo+r $(INCDIR)/fitswcs.h
+
+$(INCDIR)/fitsfuncs.h: fitsfuncs.h
+	cp fitsfuncs.h $(INCDIR)/fitsfuncs.h
+	chmod ugo+r $(INCDIR)/fitsfuncs.h
+
+fitswcs.o: $(INCDIR)/fitswcs.h $(INCDIR)/structdef.h $(INCDIR)/coords.h
+
+fitsfuncs.o: $(INCDIR)/fitsfuncs.h $(INCDIR)/fitswcs.h $(INCDIR)/structdef.h $(INCDIR)/coords.h
+
