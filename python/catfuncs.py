@@ -93,6 +93,10 @@ class Secat:
                self.decfield = 'f%d' % deccol
             else:
                self.decfield = None
+            if namecol is not None:
+               self.namefield = 'f%d' % namecol
+            else:
+               self.namefield = None
 
          except:
             print "  ERROR. Problem in loading file %s" % infile

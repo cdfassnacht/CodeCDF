@@ -5,7 +5,11 @@ imfuncs.py - A library of functions to do various basic image processing
 NB: Some of these functions are (slowly) being incorporated into the
 Image class, the code for which is at the beginning of this file.
 
-Functions:
+Methods (functions) in the Image class
+--------------------------------------
+
+Stand-alone functions
+---------------------
    open_fits         - opens a fits file, incorporating the possibility of
                        the "missing end" problem that affects some of the Keck
                        NIR data
@@ -75,6 +79,9 @@ class Image:
       self.infile = infile
       self.fitsmode = mode
 
+      """ Initialize figure """
+      self.fig = None
+
       """ Initialize display parameters """
       self.found_rms = False
       self.mean_clip = 0.0
@@ -92,6 +99,11 @@ class Image:
       """
 
       self.hdu.close()
+
+   #-----------------------------------------------------------------------
+
+   def onclick(event):
+      print 'foo'
 
    #-----------------------------------------------------------------------
 
