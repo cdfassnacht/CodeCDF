@@ -132,10 +132,13 @@ except:
 """ Loop through the (RA,Dec) pairs """
 incat.get_radec()
 print ''
+xx = []
+yy = []
 for i in range(incat.ra.size):
     print ''
     print 'Image Center: %11.7f %+11.7f' % (incat.ra[i],incat.dec[i])
     fig = plt.figure(1)
+    ax = fig.add_subplot(111)
     title = 'ID: %s' % incat.data[incat.namefield][i]
     infits.display(subimdef='radec',subimcent=(incat.ra[i],incat.dec[i]),
                    subimsize=(imsize,imsize),dispunits='radec',sighigh=sighi,
@@ -149,9 +152,15 @@ for i in range(incat.ra.size):
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
     plt.show()
+    xx.append(ix)
+    yy.append(iy)
 
 
 """ Clean up and exit """
+print ''
+print xx
+print yy
+print ''
 infits.close()
 del infits,incat
     
