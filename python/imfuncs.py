@@ -79,14 +79,16 @@ class Image:
       self.infile = infile
       self.fitsmode = mode
 
-      """ Initialize figure """
-      self.fig = None
+      """ Initialize figures """
+      self.fig1 = None
+      self.fig2 = None
 
       """ Initialize display parameters """
       self.found_rms = False
       self.mean_clip = 0.0
-      self.rms_clip = 0.0
-      self.statsize = 2048
+      self.rms_clip  = 0.0
+      self.statsize  = 2048
+      self.zoomsize  = 31
 
       """ Initialize other parameters """
       self.overlay_im = None
@@ -102,8 +104,85 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def onclick(event):
-      print 'foo'
+   def start_interactive(self):
+      self.cid_mouse = self.fig1.canvas.mpl_connect('button_press_event',
+                                                    self.onclick)
+      self.cid_keypress = self.fig1.canvas.mpl_connect('key_press_event',
+                                                       self.keypress)
+
+   #-----------------------------------------------------------------------
+
+   def keypress_info(self):
+      """
+      Prints useful information about what the key presses do
+      """
+      print ''
+      print 'Actions available by pressing a key in the Figure 1 window'
+      print '----------------------------------------------------------'
+      print 'Key  Action'
+      print '---  ---------------------------------'
+      print ' m   Mark the position of an object'
+      print ' q   Quit and save the position of the last marked object'
+      print ''
+
+   #-----------------------------------------------------------------------
+
+   def onclick(self, event):
+      """
+      Actions taken if a mouse button is clicked
+      """
+
+      xd,yd = event.xdata,event.ydata
+      print xd,yd
+      return
+
+   #-----------------------------------------------------------------------
+
+   def keypress(self, event):
+      """
+      Actions taken if a key on the keyboard is pressed
+      """
+
+      if event.key == 'm':
+         global xmark, ymark
+         print ''
+         print 'Marking position %8.2f %8.2f' % (event.xdata,event.ydata)
+         print ''
+         self.xmark = event.xdata
+         self.ymark = event.ydata
+         self.fig2 = plt.figure(figsize=(10,3))
+         self.fig2.add_subplot(131)
+         subimsize = (self.zoomsize,self.zoomsize)
+         subimcent = (self.xmark,self.ymark)
+         print ''
+         print 'Subimsize: (%d,%d)' % (subimsize[0],subimsize[1])
+         self.display(subimcent=subimcent,subimsize=subimsize)
+         self.fig2.add_subplot(132)
+         xsum = self.subim.sum(axis=0)
+         plt.plot(xsum)
+         plt.xlabel('Relative x Coord')
+         self.fig2.add_subplot(133)
+         ysum = self.subim.sum(axis=1)
+         plt.plot(ysum)
+         plt.xlabel('Relative y Coord')
+         self.fig2.show()
+
+      if event.key == 'q':
+         print ''
+         print 'Closing down'
+         print ''
+         if self.fig1:
+            self.fig1.canvas.mpl_disconnect(self.cid_mouse)
+            self.fig1.canvas.mpl_disconnect(self.cid_keypress)
+         #   plt.close(self.fig1)
+         #if self.fig2:
+         #   plt.close(self.fig2)
+         for ii in plt.get_fignums():
+            plt.close(ii)
+         return
+
+      self.keypress_info()
+      return
 
    #-----------------------------------------------------------------------
 
@@ -692,6 +771,9 @@ class Image:
       if title is not None:
          plt.title(title)
       #del data
+
+      """ Store the pointer to the figure """
+      self.fig1 = plt.gcf()
 
    #-----------------------------------------------------------------------
 
