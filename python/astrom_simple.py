@@ -17,7 +17,8 @@ Generic functions
 import numpy as n
 import pyfits as pf
 import imfuncs as im
-import wcs, coords 
+import wcs as wcsmwa
+import coords 
 from ccdredux import sigma_clip
 from matplotlib import pyplot as plt
 from math import pi
@@ -48,7 +49,7 @@ def select_good_ast(astcat, hdr, racol=0, deccol=1, edgedist=50.):
    ny = hdr['naxis2']
 
    mra0,mdec0 = n.loadtxt(astcat,usecols=(racol,deccol),unpack=True)
-   mx0,my0 = wcs.sky2pix(hdr,mra0,mdec0)
+   mx0,my0 = wcsmwa.sky2pix(hdr,mra0,mdec0)
    goodmask = (mx0>edgedist) & (mx0<nx-edgedist) & \
        (my0>edgedist) & (my0<ny-edgedist)
    mra  = mra0[goodmask]
@@ -361,7 +362,7 @@ def init_shifts(fitsim, astcat, xycat, rmarker=10., racol=0, deccol=1,
 
    """ Get WCS information from input fits file """
    hdr = fitsim.hdulist[hext].header.copy()
-   wcsinfo = wcs.parse_header(hdr)
+   wcsinfo = wcsmwa.parse_header(hdr)
    cdelt1,cdelt2,crota1,crota2 = coords.cdmatrix_to_rscale(wcsinfo[2])
    print ""
    print "Current parameters of image"

@@ -6,7 +6,7 @@ This program is set up to do a very basic reduction of FORS1 imaging
 import pyfits,scipy
 import numpy
 import sys,os
-import wcs
+import wcs as wcsmwa
 from scipy import stats,ndimage
 
 #######################################################################
@@ -271,8 +271,8 @@ def forsim_redux(object,filter,inbias=None,inflat=None,insky=None,infringe=None)
       #sci.data = gain_correct(f,sci.data) / totalflat
       sci.data /= totalflat
 #      shape = sci.data.shape
-#      ra = wcs.ra2deg(sci.header['RA'].strip())
-#      dec = wcs.dec2deg(sci.header['DEC'].strip())
+#      ra = wcsmwa.ra2deg(sci.header['RA'].strip())
+#      dec = wcsmwa.dec2deg(sci.header['DEC'].strip())
 #      sci.header.update('CRPIX1',shape[1]/2.)
 #      sci.header.update('CRVAL1',ra)
 #      sci.header.update('CRPIX2',shape[0]/2.)

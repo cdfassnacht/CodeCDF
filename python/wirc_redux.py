@@ -12,7 +12,8 @@ import numpy as n
 import pyfits as pf
 import imfuncs as im
 import astrom_scamp as ast
-import coords, wcs, os
+import coords, os
+import wcs as wcsmwa
 
 def wcs_clean(infiles):
    """
@@ -142,7 +143,7 @@ def fixphot(inlist, photcat, edgedist=50., dpixmax=6.):
       nx = hdr['naxis1']
       ny = hdr['naxis2']
 
-      mx0,my0 = wcs.sky2pix(hdr,astra0,astdec0)
+      mx0,my0 = wcsmwa.sky2pix(hdr,astra0,astdec0)
       goodmask = (mx0>edgedist) & (mx0<nx-edgedist) & \
           (my0>edgedist) & (my0<ny-edgedist)
       mra  = astra0[goodmask]

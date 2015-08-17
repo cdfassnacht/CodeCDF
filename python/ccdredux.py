@@ -29,7 +29,8 @@ except:
 import scipy as sp
 import numpy as n
 import imfuncs as imf
-import wcs, coords
+import wcs as wcsmwa
+import coords
 from math import cos,sin,pi,sqrt,atan2
 
 #-----------------------------------------------------------------------
@@ -407,28 +408,28 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
       phdr = phdu.header
 
       wcsread = True
-      if wcs.is_degree(hdr[rakey]):
+      if wcsmwa.is_degree(hdr[rakey]):
          ra = hdr[rakey]
       else:
          try:
-            ra  = wcs.ra2deg(hdr[rakey].strip())
+            ra  = wcsmwa.ra2deg(hdr[rakey].strip())
          except:
             try:
-               ra  = wcs.ra2deg(phdr[rakey].strip())
+               ra  = wcsmwa.ra2deg(phdr[rakey].strip())
             except:
                print 'ERROR. Attempts to read RA header card (%s) failed.' % \
                    rakey.upper()
                print 'No wcs information'
                wcsread = False
 
-      if wcs.is_degree(hdr[deckey]):
+      if wcsmwa.is_degree(hdr[deckey]):
          dec = hdr[deckey]
       else:
          try:
-            dec = wcs.dec2deg(hdr[deckey].strip())
+            dec = wcsmwa.dec2deg(hdr[deckey].strip())
          except:
             try:
-               dec = wcs.dec2deg(phdr[deckey].strip())
+               dec = wcsmwa.dec2deg(phdr[deckey].strip())
             except:
                print 'ERROR. Attempts to read Dec header card failed.'
                print 'No wcs information'
@@ -1681,7 +1682,7 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
       foundwcs = True
       badwcs = False
       try:
-         wcsinfo = wcs.parse_header(hdr)
+         wcsinfo = wcsmwa.parse_header(hdr)
       except:
          foundwcs = False
       if foundwcs:

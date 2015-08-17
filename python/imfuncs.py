@@ -38,7 +38,7 @@ import numpy as n
 from scipy import ndimage
 import matplotlib.pyplot as plt
 from math import log,sqrt
-import wcs
+import wcs as wcsmwa
 import ccdredux as ccd
 
 #-----------------------------------------------------------------------
@@ -169,20 +169,6 @@ class Image:
          subimsize = (self.zoomsize,self.zoomsize)
          subimcent = (self.xmark,self.ymark)
          self.display(subimcent=subimcent,subimsize=subimsize,show_xyproj=True)
-         #self.fig2 = plt.figure(figsize=(10,3))
-         #self.fig2.add_subplot(131)
-         #print ''
-         #print 'Subimsize: (%d,%d)' % (subimsize[0],subimsize[1])
-         #self.display(subimcent=subimcent,subimsize=subimsize)
-         #self.fig2.add_subplot(132)
-         #xsum = self.subim.sum(axis=0)
-         #plt.plot(xsum)
-         #plt.xlabel('Relative x Coord')
-         #self.fig2.add_subplot(133)
-         #ysum = self.subim.sum(axis=1)
-         #plt.plot(ysum)
-         #plt.xlabel('Relative y Coord')
-         #self.fig2.show()
 
       if event.key == 'q':
          print ''
@@ -221,7 +207,7 @@ class Image:
       """
 
       hdr = self.hdu[hext].header
-      self.wcsinfo = wcs.parse_header(hdr)
+      self.wcsinfo = wcsmwa.parse_header(hdr)
       self.pixscale = sqrt(self.wcsinfo[2][0,0]**2 + 
                            self.wcsinfo[2][1,0]**2)*3600.
 
@@ -437,14 +423,14 @@ class Image:
          return
 
       """ Convert ra and dec to decimal degrees if necessary """
-      if wcs.is_degree(ra)==False:
-         ra = wcs.ra2deg(ra)
-      if wcs.is_degree(dec)==False:
-         dec = wcs.dec2deg(dec)
+      if wcsmwa.is_degree(ra)==False:
+         ra = wcsmwa.ra2deg(ra)
+      if wcsmwa.is_degree(dec)==False:
+         dec = wcsmwa.dec2deg(dec)
 
       """ Calculate the (x,y) that is associated with the requested center"""
       inhdr = self.hdu[hext].header.copy()
-      x,y = wcs.sky2pix(inhdr,ra,dec)
+      x,y = wcsmwa.sky2pix(inhdr,ra,dec)
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -453,7 +439,7 @@ class Image:
       Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
       x-axis scale, assuming that the y-axis scale is the same.
       """
-      wcsinfo = wcs.parse_header(inhdr)
+      wcsinfo = wcsmwa.parse_header(inhdr)
       inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
       if ysize is None:
          ysize = xsize
@@ -498,11 +484,11 @@ class Image:
       """ 
       Set up the output header and do the coordinate transform preparation 
       """
-      outheader = wcs.make_header(ra,dec,self.subsizex,self.subsizey,outscale,
-                                  docdmatx=docdmatx)
+      outheader = wcsmwa.make_header(ra,dec,self.subsizex,self.subsizey,outscale,
+                                     docdmatx=docdmatx)
       coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
-      skycoords = wcs.pix2sky(outheader,coords[1],coords[0])
-      ccdcoords = wcs.sky2pix(inhdr,skycoords[0],skycoords[1])
+      skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
+      ccdcoords = wcsmwa.sky2pix(inhdr,skycoords[0],skycoords[1])
       coords[1] = ccdcoords[0]
       coords[0] = ccdcoords[1]
       print coords.shape
@@ -1057,14 +1043,14 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
    """
 
    """ Convert ra and dec to decimal degrees if necessary """
-   if wcs.is_degree(ra)==False:
-      ra = wcs.ra2deg(ra)
-   if wcs.is_degree(dec)==False:
-      dec = wcs.dec2deg(dec)
+   if wcsmwa.is_degree(ra)==False:
+      ra = wcsmwa.ra2deg(ra)
+   if wcsmwa.is_degree(dec)==False:
+      dec = wcsmwa.dec2deg(dec)
 
    """ Calculate the (x,y) that is associated with the requested center"""
    inhdr = hdu[hext].header.copy()
-   x,y = wcs.sky2pix(inhdr,ra,dec)
+   x,y = wcsmwa.sky2pix(inhdr,ra,dec)
 
    """ 
    Get rough image size in pixels for the segment of input image, since the pixel
@@ -1073,7 +1059,7 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
    Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
    x-axis scale, assuming that the y-axis scale is the same.
    """
-   wcsinfo = wcs.parse_header(inhdr)
+   wcsinfo = wcsmwa.parse_header(inhdr)
    inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
    wcsxsize = xsize * scale
    wcsysize = ysize * scale
@@ -1112,10 +1098,10 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
    inhdr.update('CRPIX2',inhdr['CRPIX2']-y0)
 
    """ Set up the output header and do the coordinate transform preparation """
-   outheader = wcs.make_header(ra,dec,xsize,ysize,scale)
+   outheader = wcsmwa.make_header(ra,dec,xsize,ysize,scale)
    coords = n.indices((ysize,xsize)).astype(n.float32)
-   skycoords = wcs.pix2sky(outheader,coords[1],coords[0])
-   ccdcoords = wcs.sky2pix(inhdr,skycoords[0],skycoords[1])
+   skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
+   ccdcoords = wcsmwa.sky2pix(inhdr,skycoords[0],skycoords[1])
    coords[1] = ccdcoords[0]
    coords[0] = ccdcoords[1]
    print coords.shape
@@ -1261,7 +1247,7 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
    """ Actually plot the data and overlay """
    coords = n.indices((outsize,outsize)).astype(n.float32)
    maxi = outsize - 1
-   #skyc   = wcs.pix2sky(hdu1.header,coords[1],coords[0])
+   #skyc   = wcsmwa.pix2sky(hdu1.header,coords[1],coords[0])
    pltc   = (coords - outsize/2.)*pixscale
    pltc[1] *= -1.
    plt.imshow(dat1,origin='bottom',vmin=vmin,vmax=vmax,cmap=plt.cm.gray,
@@ -1679,7 +1665,7 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
 
    """ Create the temporary output header """
    try:
-      outhdr = wcs.make_header(ra_tel,dec_tel,xsize,ysize,pixscale)
+      outhdr = wcsmwa.make_header(ra_tel,dec_tel,xsize,ysize,pixscale)
    except:
       print "ERROR. Could not create output header"
       print ""
@@ -1696,7 +1682,7 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
          print ""
          return
       print "Rotating header by %7.2f degrees" % rot
-      rothdr = wcs.rotate_header(outhdr,rot)
+      rothdr = wcsmwa.rotate_header(outhdr,rot)
       outhdr = rothdr.copy()
 
    print "Created header from telescope pointing info."
@@ -1758,7 +1744,7 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                                           rakey,deckey)
    except:
       print "Could not create WCS header from %s" % reffile
-   refinfo = wcs.parse_header(refwcs)
+   refinfo = wcsmwa.parse_header(refwcs)
 
    """ Copy the information into the input file """
    inhdr.update('ctype1',refwcs['ctype1'])
