@@ -9,7 +9,7 @@ Inputs:
                 in separate columns
    imsize    -  cutout image size in arcsec
    sighi     -  [OPTIONAL] upper end of display range, in sigma 
-                above the mean.  Default=10
+                above the mean.  Default=25
    racol     -  [OPTIONAL] Column in catfile containing the RA in decimal
                 degrees.  Default value (1) means that RA is in the second
                 column (since python is zero-indexed)
@@ -46,7 +46,7 @@ if len(sys.argv) < 4:
     print '               degrees in separate columns'
     print '   imsize   -  cutout image size in arcsec'
     print '   sighi    -  [OPTIONAL] upper end of display range, in sigma '
-    print '               above the mean.  Default=10'
+    print '               above the mean.  Default=25'
     print '   racol    -  [OPTIONAL] Column in catfile containing the RA in '
     print '               decimal degrees.  Default value (1) means that RA '
     print '               is in the second column (since python is zero-indexed)'
@@ -85,7 +85,7 @@ imsize = float(sys.argv[3])
 if len(sys.argv)>4:
     sighi = float(sys.argv[4])
 else:
-    sighi = 10.
+    sighi = 25.
 if len(sys.argv)>5:
     racol = int(sys.argv[5])
 else:
@@ -137,12 +137,13 @@ yy = []
 for i in range(incat.ra.size):
     print ''
     print 'Image Center: %11.7f %+11.7f' % (incat.ra[i],incat.dec[i])
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111)
     title = 'ID: %s' % incat.data[incat.namefield][i]
+    #fig = plt.figure(1)
+    #ax = fig.add_subplot(111)
     infits.display(subimdef='radec',subimcent=(incat.ra[i],incat.dec[i]),
                    subimsize=(imsize,imsize),dispunits='radec',sighigh=sighi,
-                   title=title)
+                   title=title,show_xyproj=True)
+    fig = plt.gcf()
     coords = []
 
     """ Call click func """
@@ -152,14 +153,9 @@ for i in range(incat.ra.size):
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
     plt.show()
-    xx.append(ix)
-    yy.append(iy)
 
 
 """ Clean up and exit """
-print ''
-print xx
-print yy
 print ''
 infits.close()
 del infits,incat

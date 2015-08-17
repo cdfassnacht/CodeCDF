@@ -83,12 +83,28 @@ class Image:
       self.fig1 = None
       self.fig2 = None
 
-      """ Initialize display parameters """
-      self.found_rms = False
-      self.mean_clip = 0.0
-      self.rms_clip  = 0.0
-      self.statsize  = 2048
-      self.zoomsize  = 31
+      """ 
+      Initialize default display parameters 
+
+       - The scale for the display (i.e., the data values that correspond
+         to full black and full white on a greyscale display) are set
+         in terms of the "clipped mean" and "clipped rms".  Those values
+         are the mean and rms of the data after a sigma clipping algorithm
+         has been applied to reject outliers.
+       - Once the clipped mean and rms have been calculated, the scale
+         for the display are calculated as follows, where the display
+         minimum would correspond to the value of full black on a greyscale
+         display and the maximum would correspond to the value of full white:
+         * display minimum: clipped_mean - (siglow * clipped_rms)
+         * display maximum: clipped_mean + (sighigh * clipped_rms)
+      """
+      self.found_rms = False   # Have the clipped rms and mean been calculated?
+      self.mean_clip = 0.0     # Value of the clipped mean
+      self.rms_clip  = 0.0     # Value of the clipped rms
+      self.siglow    = 1.0     # Number of sigma below clipped mean for min
+      self.sighigh   = 10.0    # Number of sigma above clipped mean for max
+      self.statsize  = 2048    # Region size for statistics if image is too big
+      self.zoomsize  = 31      # Size of postage-stamp zoom
 
       """ Initialize other parameters """
       self.overlay_im = None
@@ -150,22 +166,23 @@ class Image:
          print ''
          self.xmark = event.xdata
          self.ymark = event.ydata
-         self.fig2 = plt.figure(figsize=(10,3))
-         self.fig2.add_subplot(131)
          subimsize = (self.zoomsize,self.zoomsize)
          subimcent = (self.xmark,self.ymark)
-         print ''
-         print 'Subimsize: (%d,%d)' % (subimsize[0],subimsize[1])
-         self.display(subimcent=subimcent,subimsize=subimsize)
-         self.fig2.add_subplot(132)
-         xsum = self.subim.sum(axis=0)
-         plt.plot(xsum)
-         plt.xlabel('Relative x Coord')
-         self.fig2.add_subplot(133)
-         ysum = self.subim.sum(axis=1)
-         plt.plot(ysum)
-         plt.xlabel('Relative y Coord')
-         self.fig2.show()
+         self.display(subimcent=subimcent,subimsize=subimsize,show_xyproj=True)
+         #self.fig2 = plt.figure(figsize=(10,3))
+         #self.fig2.add_subplot(131)
+         #print ''
+         #print 'Subimsize: (%d,%d)' % (subimsize[0],subimsize[1])
+         #self.display(subimcent=subimcent,subimsize=subimsize)
+         #self.fig2.add_subplot(132)
+         #xsum = self.subim.sum(axis=0)
+         #plt.plot(xsum)
+         #plt.xlabel('Relative x Coord')
+         #self.fig2.add_subplot(133)
+         #ysum = self.subim.sum(axis=1)
+         #plt.plot(ysum)
+         #plt.xlabel('Relative y Coord')
+         #self.fig2.show()
 
       if event.key == 'q':
          print ''
@@ -679,7 +696,7 @@ class Image:
    def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
                sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
                subimcent=None, subimsize=None, subimunits='pixels', 
-               dispunits='pixels', axlabel=True):
+               dispunits='pixels', axlabel=True, show_xyproj=False):
       """
       
       """
@@ -730,6 +747,8 @@ class Image:
             self.mean_clip,self.rms_clip = ccd.sigma_clip(self.subim,
                                                           verbose=True)
             self.found_rms = True
+         self.siglow = siglow
+         self.sighigh = sighigh
          vmin = self.mean_clip - siglow*self.rms_clip
          vmax = self.mean_clip + sighigh*self.rms_clip
          print " Clipped mean: %f" % self.mean_clip
@@ -758,7 +777,27 @@ class Image:
       else:
          extval = None
 
-      """ Display the image """
+      """ 
+      Set up for displaying the image data
+       - If show_xyproj is False (the default), then just show self.subim
+       - If show_xyproj is True, then make a three panel plot, with
+          Panel 1: self.subim (i.e., what you would see in the default behavior)
+          Panel 2: Projection of data in self.subim onto the x-axis
+          Panel 3: Projection of data in self.subim onto the x-axis
+        - Setting show_xyproj=True is most useful when evaluating, e.g., a 
+          star in the image data.  The projections along the two axes of the
+          cutout can be useful for evaluating whether the object is a star and/or
+          doing centroiding (centroiding functionality has NOT been
+          implemented yet)
+      """
+      if show_xyproj:
+         self.fig2 = plt.figure(figsize=(10,3))
+         self.fig2.add_subplot(131)
+      else:
+         self.fig1 = plt.gcf()
+         self.fig1.add_subplot(111)
+
+      """ Display the image data """
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
                  interpolation='none',extent=extval)
       if axlabel is True:
@@ -767,13 +806,25 @@ class Image:
             plt.ylabel(r"$\Delta \delta$ (arcsec)")
          else:
             plt.xlabel('x (pix)')
-            plt.xlabel('y (pix)')
+            plt.ylabel('y (pix)')
       if title is not None:
          plt.title(title)
-      #del data
 
-      """ Store the pointer to the figure """
-      self.fig1 = plt.gcf()
+      """ 
+      Now add the x and y projections if requested (i.e., if show_xyproj is True
+      """
+      if show_xyproj:
+         self.fig2.add_subplot(132)
+         xsum = self.subim.sum(axis=0)
+         plt.plot(xsum)
+         plt.xlabel('Relative x Coord')
+         self.fig2.add_subplot(133)
+         ysum = self.subim.sum(axis=1)
+         plt.plot(ysum)
+         plt.xlabel('Relative y Coord')
+         self.fig2.show()
+
+      #del data
 
    #-----------------------------------------------------------------------
 
