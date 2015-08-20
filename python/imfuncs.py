@@ -148,8 +148,8 @@ class Image:
       Actions taken if a mouse button is clicked
       """
 
-      xd,yd = event.xdata,event.ydata
-      print xd,yd
+      self.xclick = event.xdata
+      self.yclick = event.ydata
       return
 
    #-----------------------------------------------------------------------
@@ -160,6 +160,10 @@ class Image:
       """
 
       if event.key == 'm':
+         """
+         Mark an object.  Hitting 'm' saves the (x,y) position into
+         the xmark and ymark variables
+         """
          global xmark, ymark
          print ''
          print 'Marking position %8.2f %8.2f' % (event.xdata,event.ydata)
@@ -170,6 +174,24 @@ class Image:
          subimcent = (self.xmark,self.ymark)
          self.display(subimcent=subimcent,subimsize=subimsize,show_xyproj=True)
 
+      if event.key == 'z':
+         """
+         Zoom in by a factor of two
+         """
+         xzoom,yzoom = event.xdata,event.ydata
+         xl1,xl2 = self.ax1.get_xlim()
+         yl1,yl2 = self.ax1.get_ylim()
+         dx = (xl2 - xl1)/4.
+         dy = (yl2 - yl1)/4.
+         xz1 = min((max(xl1,(xzoom-dx))),(xzoom-1.))
+         xz2 = max((min(xl2,(xzoom+dx))),(xzoom+1.))
+         yz1 = min((max(yl1,(yzoom-dy))),(yzoom-1.))
+         yz2 = max((min(yl2,(yzoom+dy))),(yzoom+1.))
+         self.ax1.set_xlim(xz1,xz2)
+         self.ax1.set_ylim(yz1,yz2)
+         self.fig1.show()
+         return
+
       if event.key == 'q':
          print ''
          print 'Closing down'
@@ -177,6 +199,8 @@ class Image:
          if self.fig1:
             self.fig1.canvas.mpl_disconnect(self.cid_mouse)
             self.fig1.canvas.mpl_disconnect(self.cid_keypress)
+         if self.fig2:
+            self.fig2.canvas.mpl_disconnect(self.cid_keypress2)
          #   plt.close(self.fig1)
          #if self.fig2:
          #   plt.close(self.fig2)
@@ -781,7 +805,7 @@ class Image:
          self.fig2.add_subplot(131)
       else:
          self.fig1 = plt.gcf()
-         self.fig1.add_subplot(111)
+         self.ax1 = self.fig1.add_subplot(111)
 
       """ Display the image data """
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
@@ -808,6 +832,8 @@ class Image:
          ysum = self.subim.sum(axis=1)
          plt.plot(ysum)
          plt.xlabel('Relative y Coord')
+         self.cid_keypress2 = self.fig2.canvas.mpl_connect('key_press_event',
+                                                           self.keypress)
          self.fig2.show()
 
       #del data
