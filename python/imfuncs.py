@@ -125,6 +125,8 @@ class Image:
                                                     self.onclick)
       self.cid_keypress = self.fig1.canvas.mpl_connect('key_press_event',
                                                        self.keypress)
+      self.keypress_info()
+      return
 
    #-----------------------------------------------------------------------
 
@@ -138,7 +140,8 @@ class Image:
       print 'Key  Action'
       print '---  ---------------------------------'
       print ' m   Mark the position of an object'
-      print ' q   Quit and save the position of the last marked object'
+      print ' z   Zoom in at the position of the cursor'
+      print ' q   Quit and move to the next file (if any)'
       print ''
 
    #-----------------------------------------------------------------------
@@ -176,7 +179,7 @@ class Image:
 
       if event.key == 'z':
          """
-         Zoom in by a factor of two
+         Zoom in by a factor of two at the location of the cursor
          """
          xzoom,yzoom = event.xdata,event.ydata
          xl1,xl2 = self.ax1.get_xlim()
