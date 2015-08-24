@@ -337,7 +337,7 @@ class Image:
 
       hdr = self.hdu[hdu].header
       nx = hdr['naxis1']
-      ny = hdr['naxis1']
+      ny = hdr['naxis2']
 
       """ Define subimage center """
       if subimcent is None:
