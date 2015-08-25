@@ -18,13 +18,13 @@ import ccdredux as ccd
 
 #-----------------------------------------------------------------------
 
-def clear_all(nfig=3):
+def clear_all():
    """
-   Clears nfig figures
+   Clears all of the open figures
    """
 
-   for i in range(nfig):
-      plt.figure(i+1)
+   for i in plt.get_fignums():
+      plt.figure(i)
       plt.clf()
 
 #-----------------------------------------------------------------------
@@ -980,13 +980,22 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    # Fit a polynomial to the trace
 
    if fitrange is None:
-      dpoly = np.polyfit(xgood,dgood,fitorder)
+      xpoly = xgood
+      dpoly = dgood
    else:
       fitmask = np.logical_and(xgood>=fitrange[0],xgood<fitrange[1])
-      print fitmask
-      tmpx  = xgood[fitmask]
-      tmpd  = dgood[fitmask]
-      dpoly = np.polyfit(tmpx,tmpd,fitorder)
+      #print fitmask
+      xpoly  = xgood[fitmask]
+      dpoly  = dgood[fitmask]
+
+   if fitorder == -1:
+      polyorder = 0
+   else:
+      polyorder = fitorder
+   dpoly = np.polyfit(xpoly,dpoly,polyorder)
+
+   if fitorder == -1:
+      dpoly[0] = data0
 
    # Plot the results
 
@@ -1023,6 +1032,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
       plt.ylim(ymin, ymax)
 
    # Return the parameters produced by the fit
+   print dpoly
    return dpoly
 
 
@@ -1249,9 +1259,10 @@ def combine_spectra(txt_files,outfile):
    print ""
    for f in file_list:
       print "Reading data from file %s" % f 
-      tmpdat = np.loadtxt(f)
-      wt = 1.0 / (tmpdat[:,2])
-      wtflux += wt * tmpdat[:,1]
+      wi,fi,vi = np.loadtxt(f,unpack=True)
+      wt = 1.0 / vi
+      wt[vi==0] = 0.
+      wtflux += wt * fi
       wtsum += wt
 
    """ 
@@ -1259,6 +1270,8 @@ def combine_spectra(txt_files,outfile):
    Note that the equation below for the variance only works for the case
     of inverse variance weighting.
    """
+   wtflux[wtsum==0] = 0
+   wtsum[wtsum==0] = 1
    outspec = wtflux / wtsum
    outvar  = 1.0 / wtsum
 
