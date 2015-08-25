@@ -808,7 +808,7 @@ class Image:
          self.fig2.add_subplot(131)
       else:
          self.fig1 = plt.gcf()
-         self.ax1 = self.fig1.add_subplot(111)
+         self.ax1 = plt.gca()
 
       """ Display the image data """
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
