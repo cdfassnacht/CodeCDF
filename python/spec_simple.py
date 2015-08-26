@@ -237,16 +237,15 @@ def save_spectrum(filename,x,flux,var=None):
 
 def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
                         ylabel="Relative Flux", title='Extracted Spectrum', 
-                        docolor=True, rmsoffset=0, rmsls=None, fontsize=12):
+                        docolor=True, speccolor='b', rmscolor='r', 
+                        rmsoffset=0, rmsls=None, fontsize=12):
 
    """
    Given two input arrays, plot a spectrum.
    """
 
-   if docolor:
-      speccolor = 'b'
-      rmscolor  = 'r'
-   else:
+   """ Override color assignments if docolor is False"""
+   if not docolor:
       speccolor = 'k'
       rmscolor  = 'k'
    plt.axhline(color='k')
@@ -278,8 +277,8 @@ def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
 
 def plot_spectrum(filename, varspec=True, informat="text", 
                   xlabel="Wavelength (Angstroms)", ylabel="Relative Flux",
-                  title='default',
-                  fontsize=12, docolor=True, rmsoffset=0, rmsls=None,
+                  title='default', fontsize=12, docolor=True, speccolor='b', 
+                  rmscolor='r', rmsoffset=0, rmsls=None,
                   add_atm_trans=False, atmscale=1.05, atmfwhm=15.,
                   atmoffset=0., atmls='-', verbose=True):
    """
@@ -307,11 +306,13 @@ def plot_spectrum(filename, varspec=True, informat="text",
       title = 'Spectrum for %s' % filename
    if varspec:
       plot_spectrum_array(wavelength,flux,var=var,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,rmsoffset=rmsoffset,
+                          title=title,docolor=docolor,speccolor=speccolor,
+                          rmscolor=rmscolor,rmsoffset=rmsoffset,
                           rmsls=rmsls,fontsize=fontsize)
    else:
       plot_spectrum_array(wavelength,flux,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,rmsoffset=rmsoffset,
+                          title=title,docolor=docolor,speccolor=speccolor,
+                          rmscolor=rmscolor,rmsoffset=rmsoffset,
                           fontsize=fontsize)
 
    """ Plot the atmospheric transmission if requested """
@@ -323,6 +324,86 @@ def plot_spectrum(filename, varspec=True, informat="text",
    del flux
    if(varspec):
       del var
+
+#-----------------------------------------------------------------------
+
+def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
+                      bscale=10., xlim=[3000.,9500.], title='default', 
+                      z=None, mark_em=False, mark_abs=True):
+   """
+   Creates a single plot given files that contain data from the blue and red
+   sides of a spectrograph.
+
+   Required inputs:
+      bluefile - file containing the blue-side spectral data, which (for now)
+                 is expected to be a text file containing two or three columns:
+                    wavelength flux [variance]
+      redfile  - file containing the red-side spectral data.  Same format
+                 as for bluefile
+   Optional inputs:
+      outfile      - Name of output file containing the plot.  The default value
+                     (None) means no output file.
+      smooth_width - The input spectra will be smoothed by a boxcar of 
+                     width = smooth_width (default value = 7).  If no
+                     smoothing is desired, then set smooth_width=None
+      bscale       - Factor to multiply the blue-side flux by in order to
+                     get it to match (roughly) the red-side flux where
+                     the two spectra meet/overlap. Default value = 10.
+      xlim         - x-axis range to be shown on the plot. Default=[3000.,9500.]
+      z            - Redshift of the object.  Default (None) means that no
+                     spectral lines are marked.  If z is not None, then
+                     mark spectral lines, as set by the mark_em and mark_abs
+                     parameters
+      mark_em      - Mark emission lines on the spectrum. Default=False
+      mark_abs     - Mark absorption lines on the spectrum. Default=True
+   """
+
+   """ Read in the spectra, including the scaling for the blue side """
+   wb,fb,vb = read_spectrum(bluefile)
+   wr,fr,vr = read_spectrum(redfile)
+   fb *= bscale
+   if vb is not None:
+      vb *= bscale
+
+   """ Smooth the data """
+   if smooth_width is None:
+      smb  = fb
+      smvb = vb
+      smr  = fr
+      smvr = vr
+   else:
+      from scipy.ndimage.filters import uniform_filter as unif_filt
+      if vb is None:
+         tmpvb = np.ones(wb.size)
+      else:
+         tmpvb = vb
+      if vr is None:
+         tmpvr = np.ones(wr.size)
+      else:
+         tmpvr = vr
+      wtb = 1./tmpvb
+      wtr = 1./tmpvr
+      tmpb = wtb * fb
+      tmpr = wtr * fr
+      smb = unif_filt(tmpb,smooth_width)
+      smb /= unif_filt(wtb,smooth_width)
+      smr = unif_filt(tmpr,smooth_width)
+      smr /= unif_filt(wtr,smooth_width)
+      if vb is None:
+         smvb = None
+      else:
+         smvb = 1.0 / (smooth_width * unif_filt(wtb,smooth_width))
+      if vr is None:
+         smvr = None
+      else:
+         smvr = 1.0 / (smooth_width * unif_filt(wtr,smooth_width))
+      
+
+   """ Plot the spectra """
+   plot_spectrum_array(wb,smb,smvb,rmscolor='k')
+   plot_spectrum_array(wr,smr,smvr,speccolor='r',rmscolor='k')
+   plt.xlim(xlim[0],xlim[1])
+
 
 #-----------------------------------------------------------------------
 
