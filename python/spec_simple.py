@@ -45,35 +45,201 @@ class Spec2d:
    be stored in a Spec1d class.
    """
 
-   def __init__(self, infile, hext=0, verbose=True):
+   def __init__(self, infile, hext=0, xtrim=None, ytrim=None, transpose=False,
+                verbose=True):
       """
       Reads in the 2-dimensional spectrum from a input fits file and
       stores it in a Spec2d class container.
 
       Required inputs:
-         infile  - name of input fits file
+         infile    - name of input fits file
 
       Optional inputs:
-         hext    - The header-data unit (HDU) that contains the 2-dimensional
-                   spectroscopic data.  The default value (hdu=0) should work
-                   for most fits files.
-         verbose - Set to True (the default) for information about the 
-                   input file to be printed.
+         hext      - The header-data unit (HDU) that contains the 2-dimensional
+                     spectroscopic data.  The default value (hdu=0) should work
+                     for most fits files.
+         xtrim     - Change from the default value (None) if the input spectrum
+                     needs to be trimmed along the x-axis.
+                     Example format for trimming:  xtrim=[300,701]
+         ytrim     - Change from the default value (None) if the input spectrum
+                     needs to be trimmed along the y-axis.
+                     Example format for trimming:  ytrim=[300,701]
+         transpose - If transpose=True, transpose the x and y dimensions of the
+                     input spectrum.  This is done, e.g., to change the 
+                     dispersion axis from vertical to horizontal. 
+                     NOTE: If transpose=True, the transpose action happens AFTER
+                     any trimming that is done if xtrim and/or ytrim have
+                     a value different from None
+                     Default = False.
+         verbose   - Set to True (the default) for information about the 
+                     input file to be printed.
       """
 
+      """ Initialize some variables """
+      self.dispaxis = 'x'
+      self.sky1d    = None
+      self.sky2d    = None
+      self.skysub   = None
+      self.fitrange = None
+      self.muorder  = 3
+      self.sigorder = 3
+      self.fig1     = None
+      self.fig2     = None
+
       """ Open the input file using the imfuncs.py Image class"""
+      self.infile = infile
       self.image = imf.Image(infile)
 
+      """ Set the portion of the input spectrum that should be used """
+      hdr = self.image.hdu[hext].header
+      nx = hdr['naxis1']
+      ny = hdr['naxis2']
+      trimmed = False
+      if xtrim is not None:
+         xmin = xtrim[0]
+         xmax = xtrim[1]+1
+         trimmed = True
+      else:
+         xmin = 0
+         xmax = nx
+      if ytrim is not None:
+         ymin = ytrim[0]
+         ymax = ytrim[1]+1
+         trimmed = True
+      else:
+         ymin = 0
+         ymax = ny
+
       """ Put the data in the appropriate container """
-      self.data = self.image.hdu[hext].data
+      if transpose:
+         self.data = (self.image.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
+      else:
+         self.data = self.image.hdu[hext].data[ymin:ymax,xmin:xmax]
+      print ''
+      print '------------------------------------------------------------------'
+      print ''
+      print 'Read in 2-dimensional spectrum from %s' % self.infile
+      if trimmed:
+         print 'The input dataset was trimmed'
+      if transpose:
+         print 'The input dataset was transposed'
+      print 'Final data dimensions (x y): %d x %d' % \
+          (self.data.shape[1],self.data.shape[0])
+      print ''
 
    #-----------------------------------------------------------------------
+
+   def get_dispaxis(self):
+      """
+      The dispersion axis is the axis corresponding to the spectral direction
+      in a 2-dimensional spectrum.  get_dispaxis does the simple task of
+      showing the current value of the dispaxis variable, either 'x' or 'y'
+      """
+
+      print ''
+      print 'Current value of dispaxis: %s' % self.dispaxis
+      print ''
+
+   #-----------------------------------------------------------------------
+
+   def set_dispaxis(self, dispaxis):
+      """
+      The dispersion axis is the axis corresponding to the spectral direction
+      in a 2-dimensional spectrum.  
+      set_dispaxis is used to change the value of the dispaxis variable.
+
+      For example, if the 2d spectrum was loaded as:
+        myspec = Spec2d('myspec.fits')
+      then to change the dispersion axis from x to y (the only two choices)
+      type: 
+        myspec.set_dispaxis('y')
+
+      Required input:
+         dispaxis - Dispersion axis: 'x' and 'y' are the only two possible
+                    choices
+      """
+
+      oldval = self.dispaxis
+      if dispaxis == 'x' or dispaxis == 'y':
+         self.dispaxis = dispaxis
+         print ''
+         print 'Old value of dispaxis: %s' % oldval
+         print 'New value of dispaxis: %s' % self.dispaxis
+         print ''
+         return
+      else:
+         print ''
+         print "ERROR: dispaxis must be either 'x' or 'y'"
+         print '%s is not a valid value' % dispaxis
+         print ''
+         print 'Keeping current value for dispaxis:  %s' % self.dispaxis
+         print ''
+         return
+
+   #-----------------------------------------------------------------------
+
+   def display(self, show_skysub=True):
+      """
+      Displays the two-dimensional spectrum and also, by default, the
+      same spectrum after a crude sky subtraction.  To show only the
+      input spectrum without the additional sky-subtracted version,
+      just set show_skysub=False
+
+      Optional inputs:
+         show_skysub - If this is True (the default) then make a second
+                       plot, showing the 2-D spectrum after a crude
+                       sky-subtraction has been performed.
+      """
+
+      if show_skysub:
+         """ Subtract the sky if this has not already been done """
+         if self.skysub is None:
+            self.subtract_sky_2d()
+
+         """ Plot the input spectrum """
+
+
+   #-----------------------------------------------------------------------
+
+   def subtract_sky_2d(self, outfile=None, outsky=None):
+      """
+      Given the input 2D spectrum, creates a median sky and then subtracts
+      it from the input data.  Two outputs are saved: the 2D sky-subtracted
+      data and a 1D sky spectrum.
+
+      Optional inputs:
+      data       - array containing the 2D spectrum
+      outfile    - name for output fits file containing sky-subtracted spectrum
+      outskyspec - name for output 1D sky spectrum
+      """
+
+      """ Set the dispersion axis direction """
+      if self.dispaxis == 'y':
+         spaceaxis = 1
+      else:
+         spaceaxis = 0
+   
+      """ Take the median along the spatial direction to estimate the sky """
+      if self.data.ndim < 2:
+         print ''
+         print 'ERROR: subtract_sky needs a 2 dimensional data set'
+         return
+      else:
+         self.sky1d = n.median(self.data,axis=spaceaxis)
+
+      """ Turn the 1-dimension sky spectrum into a 2-dimensional form """
+      self.sky2d = n.tile(self.sky1d,(self.data.shape[spaceaxis],1))
+
+      """ Subtract the sky from the data """
+      self.skysub = self.data - self.sky2d
 
 #-----------------------------------------------------------------------
 
 def load_2d_spectrum(filename, hdu=0):
    """
    Reads in a raw 2D spectrum from a fits file
+
+   NOTE: This has now been replace
    """
    data = pf.open(filename)[hdu].data
    print ''
