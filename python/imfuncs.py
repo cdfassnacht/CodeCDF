@@ -706,6 +706,22 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def display_data(self, data):
+      """
+      The routine called by the display method to actually do the call
+      to imshow.  This functionality has been split out of display in order
+      to accommodate data that are not contained in a HDU.  As an example,
+      imagine that an Image class has been created from a fits file, and
+      that something has been done to the data (e.g., sky subtraction).
+      Instead of saving the result of that process to a new fits file and
+      creating a new image, just display the data.
+
+      self.display_data(self.subim,cmap,absrange,siglow,sighigh,extval
+
+      """
+
+   #-----------------------------------------------------------------------
+
    def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
                sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
                subimcent=None, subimsize=None, subimunits='pixels', 
