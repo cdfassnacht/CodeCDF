@@ -1316,14 +1316,16 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
 
 #---------------------------------------------------------------------------
 
-def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None,
-                     rms2=None, sighigh=10., title=None, showradec=True,
+def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, 
+                     sighigh=10., rms2=None, ccolor2='r', 
+                     infile3=None, rms3=None, ccolor3='b',
+                     title=None, showradec=True,
                      verbose=True):
    """
    Creates a postage-stamp cutout (of size imgsize arcsec) of the data in the
     Image class and then overlays contours from the second image (infile2).
 
-   Inputs:
+   Required inputs:
       infile1   - fits file containing the data for the first image
       infile2   - fits file containing the data for the second image
       ra        - single number containing RA for image center
@@ -1331,15 +1333,28 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
       dec       - single number containing Dec for image center
                   (best if in decimal degrees)
       imsize    - length of one side of output image, in arcsec
+   Optional inputs:
       pixscale  - pixel scale of output image, in arcsec/pix
-                  If pixscale is None (the default) then just use the
-                  native pixel scale of each of the input images.
-      rms1      - user-requested rms for data in the first image. If set to 
-                   None (the default) then calculate rms from the cutout data
-                   themselves
+                   If pixscale is None (the default) then just use the
+                   native pixel scale of each of the input images.
+      sighigh   - upper range for plotting the greyscale in the first image,
+                   expressed as the number of sigma above the clipped mean.
+                   Default = 10.
       rms2      - user-requested rms for data in the second image. If set to 
                    None (the default) then calculate rms from the cutout data
                    themselves
+      ccolor2   - color for the contours from infile2.  Default='r'
+      infile3   - OPTIONAL name of a third image, to be used for a second set
+                   of contours in a different line style.  Default=None
+      rms3      - user-requested rms for data in the optional third image. If 
+                   set to  None (the default) then calculate rms from the
+                   cutout data themselves
+      ccolor3   - color for the contours from infile3.  Default='b' (black)
+      title     - title for the figure.  The default value (None) will show
+                   no title
+      showradec - print the RA and Dec of the center of the image, in decimal
+                   degrees, on the figure.  Default=True
+      verbose   - print out useful information while running.  Default=True
    """
 
    """ Read the input images """
@@ -1378,7 +1393,7 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, rms1=None
 
    """ Plot the contours """
    extval2 = im2.set_wcsextent()
-   plt.contour(im2.subim,clevs,colors='r',extent=extval2)
+   plt.contour(im2.subim,clevs,colors=ccolor2,extent=extval2)
 
    """ Clean up """
    im1.close()
