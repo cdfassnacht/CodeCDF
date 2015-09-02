@@ -106,7 +106,12 @@ class Image:
       self.statsize  = 2048    # Region size for statistics if image is too big
       self.zoomsize  = 31      # Size of postage-stamp zoom
 
+      """ Initialize contouring parameters """
+      self.contbase = sqrt(3.)
+      self.clevs    = None
+
       """ Initialize other parameters """
+      self.subim      = None
       self.overlay_im = None
 
    #-----------------------------------------------------------------------
@@ -117,6 +122,63 @@ class Image:
       """
 
       self.hdu.close()
+      return
+
+   #-----------------------------------------------------------------------
+
+   def sigma_clip(self, nsig=3., hext=0, verbose=False):
+      """
+      Runs a sigma-clipping on image data.  The code iterates over
+      the following steps until it has converged:
+         1. Compute mean and rms noise in the (clipped) data set
+         2. Reject (clip) data points that are more than nsig * rms from
+            the newly computed mean (using the newly computed rms)
+         3. Repeat until no new points are rejected
+      Once convergence has been reached, the final clipped mean and clipped
+      rms are stored in the mean_clip and rms_clip variables
+
+      Optional inputs:
+         nsig    - Number of sigma from the mean beyond which points are
+                    rejected.  Default=3.
+         hext    - Image HDU containing the data.  The default (hext=0) should
+                    work for all single-extension fits files and may 
+                    work for some multi-extension files.
+                    NOTE: hext is ignored if the subim variable is already set
+                    by, e.g., def_subim_xy or def_subim_radec
+         verbose - If False (the default) no information is printed
+      """
+
+      """ Determine what the input data set is """
+      if self.subim is not None:
+         data = self.subim.copy()
+      else:
+         data = self.hdu[hext].data.copy()
+
+      """ Report the number of valid data points """
+      if verbose:
+         print " sigma_clip: Full size of data       = %d" % data.size
+         print " sigma_clip: Number of finite values = %d" % \
+             data[n.isfinite(data)].size
+
+      """ Reject the non-finite data points and compute the initial values """
+      d = data[n.isfinite(data)].flatten()
+      avg = d.mean()
+      std = d.std()
+   
+      """ Iterate until convergence """
+      delta = 1
+      while delta:
+         size = d.size
+         d = d[abs(d-avg)<nsig*std]
+         avg = d.mean()
+         std = d.std()
+         delta = size-d.size
+
+      """ Store the results and clean up """
+      del data,d
+      self.mean_clip = avg
+      self.rms_clip  = std
+      return
 
    #-----------------------------------------------------------------------
 
@@ -276,7 +338,33 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def read_overlay_image(self,file2name):
+   def set_contours(self, rms=None, verbose=True):
+      """
+      Sets the contouring levels for an image.  If a subimage (i.e., cutout)
+      has already been defined, then its properties are used.  Otherwise,
+      the full image is used.
+
+      The levels are set in terms of an rms
+      """
+      """ """
+      if rms is None:
+         self.sigma_clip()
+
+      maxcont = int(log((im2.subim.max()/rms2),contbase))
+      if maxcont < 3:
+         self.clevs = n.array([-3.,3.,contbase**3])
+      else:
+         poslevs = n.logspace(2.,maxcont,maxcont-1,base=contbase)
+         self.clevs = n.concatenate(([-contbase**2],poslevs))
+                                     
+      if verbose:
+         print "Contour levels: %f *" % rms2
+         print clevs
+      self.clevs *= rms2
+
+   #-----------------------------------------------------------------------
+
+   def read_overlay_image(self, file2name):
       """
       Reads in a second fits image in order to do an contour overlay
       on the main image.  This process is separated from the overlay_contour
@@ -750,8 +838,6 @@ class Image:
       else:
          self.get_subim_bounds(hext,subimsize,subimcent)
          self.def_subim_xy(hext)
-         #data = self.hdu[hext].data[self.suby1:self.suby2,
-         #                              self.subx1:self.subx2].copy()
          print "Display image center (x,y): (%d, %d)" % \
              (self.subcentx,self.subcenty)
       print "Displayed image size (x y): %dx%d" % \
