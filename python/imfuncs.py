@@ -1172,45 +1172,10 @@ def poststamp(infile,centx,centy,xsize,ysize,outfile):
      creates a new fits file that is cutout of part of the original image.
    """
 
-   try:
-      hdu_list = open_fits(infile)
-   except:
-      return
-
-   """ Get info about input image """
-   inhdr = hdu_list[0].header.copy()
-   xmax = inhdr["NAXIS1"]
-   ymax = inhdr["NAXIS2"]
-   print "poststamp: Image %s has dimensions %d x %d" % (infile,xmax,ymax)
-
-   """ Check to make sure requested size isn't bigger than the input image """
-   """ (to be done) """
-
-   """ Make sure that everything is in integer format """
-   cx = int(centx)
-   cy = int(centy)
-   sz = [int(xsize),int(ysize)]
-   print sz
-   halfx = int(xsize/2.0)
-   halfy = int(ysize/2.0)
-
-   """ Calculate output region 
-   For now does not deal with regions partially outside the input file
-   """
-   x1 = cx - halfx
-   x2 = cx + halfx
-   y1 = cy - halfy
-   y2 = cy + halfy
-
-   """ Update the header with cutout information """
-   inhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]' % \
-                   (infile,x1,x2,y1,y2))
-
-   """ """
-   outdat = n.zeros(sz)
-   outdat = hdu_list[0].data[y1:y2,x1:x2]
-   outhdu = pf.PrimaryHDU(data=outdat,header=inhdr)
-   outhdu.writeto(outfile)
+   im = Image(infile)
+   im.poststamp_xy(centx,centy,(xsize,ysize),outfile)
+   im.close()
+   del im
 
    return
 
@@ -1649,7 +1614,7 @@ def display_image(infile,inhdu=0,cmap='gray',siglow=1.0,sighigh=10.0):
    # Display the image.  Note that for now this call does not include
    #  all of the possible parameters defined in the Image.display method
    #  (missing, e.g., wtfile, statsize, extent)
-   image.display(hdu=inhdu, cmap=cmap, siglow=siglow, sighigh=sighigh)
+   image.display(hext=inhdu, cmap=cmap, siglow=siglow, sighigh=sighigh)
 
    return image
 
