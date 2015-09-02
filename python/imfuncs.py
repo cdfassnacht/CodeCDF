@@ -107,12 +107,29 @@ class Image:
       self.zoomsize  = 31      # Size of postage-stamp zoom
 
       """ Initialize contouring parameters """
-      self.contbase = sqrt(3.)
-      self.clevs    = None
+      self.contbase   = sqrt(3.)
+      self.clevs      = None
+      self.overlay_im = None  # Not currently used
 
       """ Initialize other parameters """
-      self.subim      = None
-      self.overlay_im = None
+      self.reset_subim()
+
+   #-----------------------------------------------------------------------
+
+   def reset_subim(self):
+      """
+      Returns the sub-image variables to their initial, unset, state
+      """
+
+      self.subim = None
+      self.subx1 = None
+      self.subx2 = None
+      self.suby1 = None
+      self.suby2 = None
+      self.subsizex = None
+      self.subsizey = None
+      self.subcentx = None
+      self.subcenty = None
 
    #-----------------------------------------------------------------------
 
@@ -338,15 +355,40 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def set_contours(self, rms=None, verbose=True):
+   def set_contours(self, rms=None, hext=0, verbose=True):
       """
       Sets the contouring levels for an image.  If a subimage (i.e., cutout)
       has already been defined, then its properties are used.  Otherwise,
       the full image is used.
 
-      The levels are set in terms of an rms
+      The levels are set in terms of an rms, which is either passed
+      explicitly via the optional rms parameter, or is determined from
+      the properties of the data themselves (if rms=None).  The contours
+      are multiples of (1) the rms, and (2) the contour base level (contbase), 
+      which has a default value of sqrt(3).  Thus:
+
+         clev = [-contbase**2, contbase**2, contbase**3, contbase**4,...] * rms
+
+      Optional inputs:
+         rms     - If rms is None (the default), then use the data to determine
+                    the rms.  If it is not None, then use the passed value.
+         hext    - Image HDU containing the data.  The default (hext=0) should
+                    work for all single-extension fits files and may 
+                    work for some multi-extension files.
+                    NOTE: hext is ignored if the subim variable is already set
+                    by, e.g., def_subim_xy or def_subim_radec
+         verbose - Report contour levels if True (the default)
       """
-      """ """
+
+      """ 
+      Set the portion of the data to be used.  This may already have been
+      set before calling set_contours.  If it has already been set, then
+      self.subim will contain the data and the hext parameter will be ignored.
+      If it has not been set, i.e., if self.subim is None, then set the
+      data to be the full image.
+      """
+      #if self.subim is None:
+
       if rms is None:
          self.sigma_clip()
 
@@ -418,22 +460,24 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def get_subim_bounds(self, hdu, subimsize, subimcent):
+   def get_subim_bounds(self, subimsize, hext=0):
       """
       Defines a subimage based on a subimage size and center
       """
 
-      hdr = self.hdu[hdu].header
+      """ Get the full size of the image """
+      hdr = self.hdu[hext].header
       nx = hdr['naxis1']
       ny = hdr['naxis2']
 
-      """ Define subimage center """
-      if subimcent is None:
+      """ 
+      If the subimage center is not already set, then define it as the
+      center of the full data set
+      """
+      if self.subcentx is None:
          self.subcentx = int((nx+1.)/2.)
+      if self.subcenty is None:
          self.subcenty = int((ny+1.)/2.)
-      else:
-         self.subcentx = int(subimcent[0])
-         self.subcenty = int(subimcent[1])
 
       """ 
       Define limits of subimage 
@@ -463,7 +507,7 @@ class Image:
          self.subsizey = ny
    #-----------------------------------------------------------------------
 
-   def def_subim_xy(self, hext=0):
+   def def_subim_xy(self, hext=0, verbose=True):
       """
 
       Selects the data in the subimage defined by the bounds x1, x2, y1, y2.
@@ -473,7 +517,7 @@ class Image:
 
       Inputs:
          hext    - Image HDU number that contains the full image
-
+         verbose - Print out useful information if True (the default)
       """
 
       """ Cut out the subimage based on the bounds """
@@ -481,22 +525,40 @@ class Image:
                                        self.subx1:self.subx2].copy()
       self.subimhdr = self.hdu[hext].header.copy()
 
+      """ Print out useful information """
+      if verbose:
+         print "Cutout image center (x,y): (%d, %d)" % \
+             (self.subcentx,self.subcenty)
+         print "Cutout image size (x y): %dx%d" % \
+             (self.subsizex,self.subsizey)
+
       """ 
       Update the header info, including updating the CRPIXn values if they
       are present.
       """
-      self.subimhdr.update('ORIG_IM','Copied from %s with region[%d:%d,%d:%d]'\
-                              % (self.infile,self.subx1,self.subx2,self.suby1,
-                                 self.suby2))
-
+      self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
+      self.subimhdr['ORIG_REG'] = 'Region in original image: [%d:%d,%d:%d]' % \
+                    (self.subx1,self.subx2,self.suby1,self.suby2)
       """ Update the headers to reflect the cutout center"""
       try:
-         self.subimhdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
+         hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
       except:
          pass
       try:
-         self.subimhdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
+         hdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
       except:
+         pass
+
+      """ Update the headers to reflect the cutout center"""
+      try:
+         self.subimhdr['CRPIX1'] -= self.subx1
+      except:
+         print 'Warning: CRPIX1 header not found in %s' % self.infile
+         pass
+      try:
+         self.subimhdr['CRPIX2'] -= self.suby1
+      except:
+         print 'Warning: CRPIX2 header not found in %s' % self.infile
          pass
 
    #-----------------------------------------------------------------------
@@ -617,7 +679,7 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def poststamp_xy(self, centx, centy, xsize, ysize, outfile, hext=0):
+   def poststamp_xy(self, centx, centy, imsize, outfile, hext=0):
       """
       Creates a new fits file that is a cutout of the original image.  For
       this method, the image center is defined by its (x,y) coordinate
@@ -626,8 +688,12 @@ class Image:
       Inputs:
          centx   - x coordinate of cutout center
          centy   - y coordinate of cutout center
-         xsize   - size of cutout in x direction
-         ysize   - size of cutout in x direction
+         imsize  - size of cutout (postage stamp) image, in pixels
+                   imsize can take any of the following formats:
+                     1. A single number (which will produce a square image)
+                     2. A 2-element numpy array
+                     3. A 2-element list:  [xsize,ysize] 
+                     4. A 2-element tuple: (xsize,ysize)
          outfile - name of output file
          hext    - HDU containing the image data in the input image (default=0)
       """
@@ -637,39 +703,16 @@ class Image:
       print "Output file: %s" % outfile
 
       """ Read in relevant data """
-      subimsize = (xsize,ysize)
-      subimcent = (centx,centy)
-      self.get_subim_bounds(hext,subimsize,subimcent)
-      data = self.hdu[hext].data[self.suby1:self.suby2,
-                                    self.subx1:self.subx2].copy()
-      hdr = self.hdu[hext].header.copy()
-      print "Cutout image center (x,y): (%d, %d)" % \
-          (self.subcentx,self.subcenty)
-      print "Cutout image size (x y): %dx%d" % \
-          (self.subsizex,self.subsizey)
-      print ''
+      self.subcentx = centx
+      self.subcenty = centy
 
-      """ 
-      Update the header info, including updating the CRPIXn values if they
-      are present.
-      """
-      hdr.update('ORIG_IM','Copied from %s' % self.infile)
-      hdr.update('ORIG_REG','Region in original image: [%d:%d,%d:%d]' % \
-                    (self.subx1,self.subx2,self.suby1,self.suby2))
-      """ Update the headers to reflect the cutout center"""
-      try:
-         hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
-      except:
-         pass
-      try:
-         hdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
-      except:
-         pass
+      """ Make the cutout """
+      self.get_subim_bounds(imsize,hext)
+      self.def_subim_xy(hext)
 
       """ Write to the output file and clean up"""
-      pf.PrimaryHDU(data,hdr).writeto(outfile)
+      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile)
       print "Wrote postage stamp cutout to %s" % outfile
-      del data,hdr
 
    #-----------------------------------------------------------------------
 
@@ -810,12 +853,26 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display(self, hext=0, wtfile=None, cmap='gaia', absrange=None, siglow=1.0,
+   def display(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
                sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
                subimcent=None, subimsize=None, subimunits='pixels', 
                dispunits='pixels', axlabel=True, show_xyproj=False):
       """
-      
+      The main way to display the image data contained in the Image class.
+      The default is to display the entire image, but it is possible to display
+      cutouts (subimages), which can be defined either by (RA,Dec) or (x,y)
+
+      Optional inputs:
+         subimsize - size of the subimage to be displayed, either in pixels
+                      (the default) or arcsec (if subimdef='radec').  The
+                      default, designated by subimsize=None, is to display
+                      the entire image.  The subimsize parameter can take
+                      any of the following formats:
+                         1. A single number (which will produce a square image)
+                         2. A 2-element numpy array
+                         3. A 2-element list:  [xsize,ysize] 
+                         4. A 2-element tuple: (xsize,ysize)
+
       """
       print ""
       print "Input file:  %s" % self.infile
@@ -836,7 +893,13 @@ class Image:
             ysize = subimsize[1]
          self.def_subim_radec(ra,dec,xsize,ysize,hext=hext)
       else:
-         self.get_subim_bounds(hext,subimsize,subimcent)
+         if subimcent is None:
+            self.subcentx = None
+            self.subcenty = None
+         else:
+            self.subcentx = int(subimcent[0])
+            self.subcenty = int(subimcent[1])
+         self.get_subim_bounds(subimsize,hext)
          self.def_subim_xy(hext)
          print "Display image center (x,y): (%d, %d)" % \
              (self.subcentx,self.subcenty)
