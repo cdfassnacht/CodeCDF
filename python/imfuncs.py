@@ -387,22 +387,27 @@ class Image:
       If it has not been set, i.e., if self.subim is None, then set the
       data to be the full image.
       """
-      #if self.subim is None:
+      if self.subim is None:
+         self.subcentx = None
+         self.subcenty = None
+         self.get_subim(None)
 
+      """ If no rms value has been requested, calculate the rms from the data """
       if rms is None:
          self.sigma_clip()
 
-      maxcont = int(log((im2.subim.max()/rms2),contbase))
+      """ Set the contours based on the rms and the contour base """
+      maxcont = int(log((self.subim.max()/rms),self.contbase))
       if maxcont < 3:
-         self.clevs = n.array([-3.,3.,contbase**3])
+         self.clevs = n.array([-3.,3.,self.contbase**3])
       else:
-         poslevs = n.logspace(2.,maxcont,maxcont-1,base=contbase)
-         self.clevs = n.concatenate(([-contbase**2],poslevs))
+         poslevs = n.logspace(2.,maxcont,maxcont-1,base=self.contbase)
+         self.clevs = n.concatenate(([-self.contbase**2],poslevs))
                                      
       if verbose:
-         print "Contour levels: %f *" % rms2
-         print clevs
-      self.clevs *= rms2
+         print "Contour levels: %f *" % rms
+         print self.clevs
+      self.clevs *= rms
 
    #-----------------------------------------------------------------------
 
