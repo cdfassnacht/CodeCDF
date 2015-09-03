@@ -395,6 +395,7 @@ class Image:
       """ If no rms value has been requested, calculate the rms from the data """
       if rms is None:
          self.sigma_clip()
+         rms = self.rms_clip
 
       """ Set the contours based on the rms and the contour base """
       maxcont = int(log((self.subim.max()/rms),self.contbase))
@@ -525,13 +526,23 @@ class Image:
          verbose - Print out useful information if True (the default)
       """
 
-      """ Cut out the subimage based on the bounds """
-      self.subim = self.hdu[hext].data[self.suby1:self.suby2,
-                                       self.subx1:self.subx2].copy()
+      """ 
+      Cut out the subimage based on the bounds.
+      Note that radio images often have 4 dimensions (x,y,freq,stokes)
+       so for those just take the x and y data
+      """
+      if  inhdr['naxis'] == 4:
+         self.subim = self.hdu[hext].data[0,0,self.suby1:self.suby2,
+                                          self.subx1:self.subx1].copy()
+      else:
+         self.subim = self.hdu[hext].data[self.suby1:self.suby2,
+                                          self.subx1:self.subx2].copy()
+      self.subim[~n.isfinite(data)] = 0.
       self.subimhdr = self.hdu[hext].header.copy()
 
       """ Print out useful information """
       if verbose:
+         print ''
          print "Cutout image center (x,y): (%d, %d)" % \
              (self.subcentx,self.subcenty)
          print "Cutout image size (x y): %dx%d" % \
@@ -544,15 +555,6 @@ class Image:
       self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
       self.subimhdr['ORIG_REG'] = 'Region in original image: [%d:%d,%d:%d]' % \
                     (self.subx1,self.subx2,self.suby1,self.suby2)
-      """ Update the headers to reflect the cutout center"""
-      try:
-         hdr.update('CRPIX1',hdr['CRPIX1']-self.subx1)
-      except:
-         pass
-      try:
-         hdr.update('CRPIX2',hdr['CRPIX2']-self.suby1)
-      except:
-         pass
 
       """ Update the headers to reflect the cutout center"""
       try:
@@ -634,6 +636,7 @@ class Image:
 
       """ Summarize the request """
       if verbose:
+         print ''
          print " Requested center (RA,Dec): %11.7f %+10.6f" % (ra,dec)
          print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
          print " Requested image size (arcsec): %6.2f %6.2f" % \
@@ -1497,22 +1500,11 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
 
    """ Set contour levels for the second image """
-   if rms2 is None:
-      m2,rms2 = ccd.sigma_clip(im2.subim)
-   contbase = sqrt(3.)
-   maxcont = int(log((im2.subim.max()/rms2),contbase))
-   if maxcont < 3:
-      clevs = n.array([-3.,3.,contbase**3])
-   else:
-      clevs = n.concatenate(([-contbase**2],
-                             n.logspace(2.,maxcont,maxcont-1,base=contbase)))
-   print "Contour levels: %f *" % rms2
-   print clevs
-   clevs *= rms2
+   im2.set_contours(rms2)
 
    """ Plot the contours """
    extval2 = im2.set_wcsextent()
-   plt.contour(im2.subim,clevs,colors=ccolor2,extent=extval2)
+   plt.contour(im2.subim,im2.clevs,colors=ccolor2,extent=extval2)
 
    """ Clean up """
    im1.close()
