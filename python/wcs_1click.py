@@ -8,7 +8,7 @@ not quite agree.  An object that is in all of the images with know (RA,Dec)
 coordinates is selected and the user interactively marks the position
 of the star in each file.
 
-Usage: python apply_crval_interactive [ra] [dec] [fitsfile(s)]
+Usage: python wcs_1click [ra] [dec] [fitsfile(s)]
 
 Inputs:
     1. ra  - RA in decimal degrees
@@ -35,7 +35,7 @@ import sys
 """ Check command line syntax """
 if len(sys.argv)<4:
     print ''
-    print 'Usage: python apply_crval_interactive.py [ra] [dec] [fitsfile(s)]'
+    print 'Usage: python wcs_1click.py [ra] [dec] [fitsfile(s)]'
     print ''
     print 'Inputs:'
     print '  1. ra  - RA in decimal degrees'

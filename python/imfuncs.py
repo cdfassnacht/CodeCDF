@@ -531,13 +531,14 @@ class Image:
       Note that radio images often have 4 dimensions (x,y,freq,stokes)
        so for those just take the x and y data
       """
-      if  inhdr['naxis'] == 4:
+      hdr = self.hdu[hext].header
+      if  hdr['naxis'] == 4:
          self.subim = self.hdu[hext].data[0,0,self.suby1:self.suby2,
-                                          self.subx1:self.subx1].copy()
+                                          self.subx1:self.subx2].copy()
       else:
          self.subim = self.hdu[hext].data[self.suby1:self.suby2,
                                           self.subx1:self.subx2].copy()
-      self.subim[~n.isfinite(data)] = 0.
+      self.subim[~n.isfinite(self.subim)] = 0.
       self.subimhdr = self.hdu[hext].header.copy()
 
       """ Print out useful information """
@@ -930,8 +931,7 @@ class Image:
          if self.found_rms == False:
             print "Calculating display limits"
             print "--------------------------"
-            self.mean_clip,self.rms_clip = ccd.sigma_clip(self.subim,
-                                                          verbose=True)
+            self.sigma_clip()
             self.found_rms = True
          self.siglow = siglow
          self.sighigh = sighigh
@@ -943,9 +943,9 @@ class Image:
          print " vmax (mean + %2d sigma):  %f" % (sighigh,vmax)
 
       """ Set the color map """
-      if cmap == 'gray':
+      if cmap == 'gray' or cmap == 'grey':
          cmap = plt.cm.gray
-      elif cmap == 'gray_inv':
+      elif cmap == 'gray_inv' or cmap == 'grey_inv':
          cmap = plt.cm.gray_r
       elif cmap == 'heat' or cmap == 'hot':
          cmap = plt.cm.hot
