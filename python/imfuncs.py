@@ -34,6 +34,7 @@ try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
+from astropy import wcs
 import numpy as n
 from scipy import ndimage
 import matplotlib.pyplot as plt
@@ -78,6 +79,10 @@ class Image:
       """ Set parameters related to image properties """
       self.infile = infile
       self.fitsmode = mode
+
+      """ Do an initial import of the WCS information from the header """
+      self.found_wcs = False
+      self.get_wcs()
 
       """ Initialize figures """
       self.fig1 = None
@@ -216,22 +221,37 @@ class Image:
       print ''
       print 'Actions available by pressing a key in the Figure 1 window'
       print '----------------------------------------------------------'
-      print 'Key  Action'
-      print '---  ---------------------------------'
-      print ' m   Mark the position of an object'
-      print ' z   Zoom in at the position of the cursor'
-      print ' q   Quit and move to the next file (if any)'
+      print 'Key      Action'
+      print '-------  ---------------------------------'
+      print '[click]  Report (x,y) position, and (RA,Dec) if file has WCS'
+      print '   m     Mark the position of an object'
+      print '   z     Zoom in at the position of the cursor'
+      print '   q     Quit and close the window'
       print ''
 
    #-----------------------------------------------------------------------
 
    def onclick(self, event):
       """
-      Actions taken if a mouse button is clicked
+      Actions taken if a mouse button is clicked.  In this case the
+      following are done:
+        (1) Store and print (x,y) value of cursor
+        (2) If the image has wcs info (i.e., if found_wcs is True) then
+            store and print the (RA,Dec) value associated with the (x,y)
       """
-
       self.xclick = event.xdata
       self.yclick = event.ydata
+      print ''
+      print 'Mouse click x, y:   %7.1f %7.1f' % (self.xclick,self.yclick)
+      if self.found_wcs:
+         pix = n.zeros((1,self.wcsinfo.naxis))
+         pix[0,0] = self.xclick
+         pix[0,1] = self.yclick
+         radec = self.wcsinfo.wcs_pix2world(pix,0)
+         self.raclick  = radec[0,0]
+         self.decclick = radec[0,1]
+         print 'Mouse click ra, dec: %11.7f %+11.7f' % \
+             (self.raclick,self.decclick)
       return
 
    #-----------------------------------------------------------------------
@@ -283,9 +303,6 @@ class Image:
             self.fig1.canvas.mpl_disconnect(self.cid_keypress)
          if self.fig2:
             self.fig2.canvas.mpl_disconnect(self.cid_keypress2)
-         #   plt.close(self.fig1)
-         #if self.fig2:
-         #   plt.close(self.fig2)
          for ii in plt.get_fignums():
             plt.close(ii)
          return
@@ -298,24 +315,33 @@ class Image:
    def get_wcs(self, hext=0):
       """
       Reads in WCS information from the header and stores it in 
-      new wcsinfo (see below) and pixscale variables
+      new wcsinfo (see below) and pixscale variables.
+      NOTE: This used to use Matt Auger's wcs library, but it has
+       been converted to the astropy wcs module
 
       Inputs:
          hext - Header extension that contains the WCS info.  Default=0
 
-      wcsinfo components:
-       0: crval
-       1: crpix
-       2: cd matrix
-       3: ctype1
-       4: ctype2
-       5: projection
       """
 
       hdr = self.hdu[hext].header
-      self.wcsinfo = wcsmwa.parse_header(hdr)
-      self.pixscale = sqrt(self.wcsinfo[2][0,0]**2 + 
-                           self.wcsinfo[2][1,0]**2)*3600.
+      self.wcsinfo = wcs.WCS(hdr)
+      if self.wcsinfo.wcs.ctype[0][0:2].upper() == 'RA':
+         try:
+            self.pixscale = sqrt(self.wcsinfo.wcs.cd[0,0]**2 + 
+                                 self.wcsinfo.wcs.cd[1,0]**2)*3600.
+         except:
+            try:
+               self.pixscale = sqrt(self.wcsinfo.wcs.pc[0,0]**2 + 
+                                    self.wcsinfo.wcs.pc[1,0]**2) * \
+                                    self.wcsinfo.cdelt[0] * 3600.
+            except:
+               self.pixscale = abs(self.wcsinfo.wcs.cdelt[0]) * 3600.
+         print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
+         self.found_wcs = True
+      else:
+         print 'Warning: no WCS info in header %d' % hext
+         self.found_wcs = False
 
    #-----------------------------------------------------------------------
 
