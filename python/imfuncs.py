@@ -345,7 +345,7 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def set_wcsextent(self, hext=0):
+   def set_wcsextent(self, hext=0, zeropos=None):
       """
       For making plots with WCS information, it is necessary to define
       the boundaries in terms of RA and Dec offsets from the center, in
@@ -355,8 +355,15 @@ class Image:
       This set_wcsextent method will use the WCS information in the fits
       header to properly set the extent parameter values and return them.
 
-      Inputs:
-         hext - HDU containing the WCS info.  Default=0
+      Optional inputs:
+         hext    - HDU containing the WCS info.  Default=0
+         zeropos - By default, which happens when zeropos=None, the (0,0)
+                      point on the output image, as designated by the image
+                      axis labels, will be at the center of the image.  However,
+                      you can shift the (0,0) point to be somewhere else by
+                      setting zeropos.  For example, zeropos=(0.5,0.3) will
+                      shift the origin to the point that would have been
+                      (0.5,0.3) if the origin were at the center of the image
 
       Output:
          extval - a four-element tuple containing the coordinates of the
@@ -375,6 +382,18 @@ class Image:
       exty1 = pltc[0][0,0]
       extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
       exty2 = pltc[0][maxi[1],maxi[1]]+self.pixscale
+
+      if zeropos is not None:
+         dx = zeropos[0]
+         dy = zeropos[1]
+      else:
+         dx = 0.
+         dy = 0.
+      extx1 -= dx
+      extx2 -= dx
+      exty1 -= dy
+      exty2 -= dy
+
       extval = (extx1,extx2,exty1,exty2)
 
       return extval
@@ -891,7 +910,8 @@ class Image:
    def display(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
                sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
                subimcent=None, subimsize=None, subimunits='pixels', 
-               dispunits='pixels', axlabel=True, show_xyproj=False):
+               dispunits='pixels', zeropos=None, axlabel=True, 
+               show_xyproj=False):
       """
       The main way to display the image data contained in the Image class.
       The default is to display the entire image, but it is possible to display
@@ -907,6 +927,14 @@ class Image:
                          2. A 2-element numpy array
                          3. A 2-element list:  [xsize,ysize] 
                          4. A 2-element tuple: (xsize,ysize)
+         zeropos   - NOTE: Only used if dispunits='radec'
+                      By default, which happens when zeropos=None, the (0,0)
+                      point on the output image, as designated by the image
+                      axis labels, will be at the center of the image.  However,
+                      you can shift the (0,0) point to be somewhere else by
+                      setting zeropos.  For example, zeropos=(0.5,0.3) will
+                      shift the origin to the point that would have been
+                      (0.5,0.3) if the origin were at the center of the image
 
       """
       print ""
@@ -985,7 +1013,7 @@ class Image:
 
       """ Set the displayed axes to be in WCS offsets, if requested """
       if dispunits == 'radec':
-         extval = self.set_wcsextent(hext)
+         extval = self.set_wcsextent(hext,zeropos)
       else:
          extval = None
 
@@ -1465,7 +1493,7 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
 #---------------------------------------------------------------------------
 
 def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, 
-                     sighigh=10., rms2=None, ccolor2='r', 
+                     zeropos=None, sighigh=10., rms2=None, ccolor2='r', 
                      infile3=None, rms3=None, ccolor3='b',
                      title=None, showradec=True,
                      verbose=True):
@@ -1485,6 +1513,13 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
       pixscale  - pixel scale of output image, in arcsec/pix
                    If pixscale is None (the default) then just use the
                    native pixel scale of each of the input images.
+      zeropos   - By default, which happens when zeropos=None, the (0,0)
+                   point on the output image, as designated by the image
+                   axis labels, will be at the center of the image.  However,
+                   you can shift the (0,0) point to be somewhere else by
+                   setting zeropos.  For example, zeropos=(0.5,0.3) will
+                   shift the origin to the point that would have been
+                   (0.5,0.3) if the origin were at the center of the image
       sighigh   - upper range for plotting the greyscale in the first image,
                    expressed as the number of sigma above the clipped mean.
                    Default = 10.
@@ -1522,21 +1557,42 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    For the first image this is done via a call to display
    """
    im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
-               subimsize=(imsize,imsize),dispunits='radec',sighigh=sighigh)
+               subimsize=(imsize,imsize),dispunits='radec',sighigh=sighigh,
+               zeropos=zeropos)
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
 
    """ Set contour levels for the second image """
    im2.set_contours(rms2)
 
+   """ 
+   Change the axis labels to be offsets in arcseconds from a fiducial point
+   in the image, which is set to be the origin.
+   Default value for the origin is the center of the image.
+   Override the default value by setting the zeropos parameter
+   """
+   extval2 = im2.set_wcsextent(zeropos=zeropos)
+
    """ Plot the contours """
-   extval2 = im2.set_wcsextent()
    plt.contour(im2.subim,im2.clevs,colors=ccolor2,extent=extval2)
+
+   """ If there is a third image, plot contours from it """
+   if infile3 is not None:
+      try:
+         im3 = Image(infile3)
+      except:
+         return
+      im3.def_subim_radec(ra,dec,imsize,outscale=pixscale)
+      im3.set_contours(rms3)
+      extval3 = im3.set_wcsextent(zeropos=zeropos)
+      plt.contour(im3.subim,im3.clevs,colors=ccolor3,extent=extval3)
 
    """ Clean up """
    im1.close()
    im2.close()
    del im1,im2
-
+   if infile3 is not None:
+      im3.close()
+      del im3
 
 #---------------------------------------------------------------------------
 
