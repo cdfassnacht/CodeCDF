@@ -646,21 +646,25 @@ class Image:
 
       """ First check to make sure that a subimage is even requested """
       if ra is None or dec is None or xsize is None:
-         self.subim     = self.hdu[hext].data.copy()
-         self.subimhdr  = self.hdu[hext].header.copy()
+         self.subim    = self.hdu[hext].data.copy()
+         self.subimhdr = self.hdu[hext].header.copy()
          self.subsizex = self.hdu[hext].data.shape[1]
          self.subsizey = self.hdu[hext].data.shape[0]
          return
 
       """ Convert ra and dec to decimal degrees if necessary """
       if wcsmwa.is_degree(ra)==False:
-         ra = wcsmwa.ra2deg(ra)
+         self.ra = wcsmwa.ra2deg(ra)
+      else:
+         self.ra = ra
       if wcsmwa.is_degree(dec)==False:
-         dec = wcsmwa.dec2deg(dec)
+         self.dec = wcsmwa.dec2deg(dec)
+      else:
+         self.dec = dec
 
       """ Calculate the (x,y) that is associated with the requested center"""
-      inhdr = self.hdu[hext].header.copy()
-      x,y = wcsmwa.sky2pix(inhdr,ra,dec)
+      self.subimhdr = self.hdu[hext].header.copy()
+      x,y = wcsmwa.sky2pix(self.subimhdr,self.ra,self.dec)
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -669,7 +673,7 @@ class Image:
       Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
       x-axis scale, assuming that the y-axis scale is the same.
       """
-      wcsinfo = wcsmwa.parse_header(inhdr)
+      wcsinfo = wcsmwa.parse_header(self.subimhdr)
       inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
       if ysize is None:
          ysize = xsize
@@ -683,7 +687,7 @@ class Image:
       """ Summarize the request """
       if verbose:
          print ''
-         print " Requested center (RA,Dec): %11.7f %+10.6f" % (ra,dec)
+         print " Requested center (RA,Dec): %11.7f %+10.6f" % (self.ra,self.dec)
          print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
          print " Requested image size (arcsec): %6.2f %6.2f" % \
              (xsize,ysize)
@@ -695,31 +699,40 @@ class Image:
       (by a factor of 2, if the image is large enough).
       """
       x0 = max(0,int(x-inpixxsize))
-      x1 = min(inhdr['naxis1'],int(x+inpixxsize))
+      x1 = min(self.subimhdr['naxis1'],int(x+inpixxsize))
       y0 = max(0,int(y-inpixysize))
-      y1 = min(inhdr['naxis2'],int(y+inpixysize))
+      y1 = min(self.subimhdr['naxis2'],int(y+inpixysize))
       if verbose:
          print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
 
       """ Actually get the data in the large region """
-      if  inhdr['naxis'] == 4:
+      if  self.subimhdr['naxis'] == 4:
          data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
       else:
          data = self.hdu[dext].data[y0:y1,x0:x1].copy()
       data[~n.isfinite(data)] = 0.
 
       """ Update the headers to reflect the cutout center"""
-      inhdr.update('CRPIX1',inhdr['CRPIX1']-x0)
-      inhdr.update('CRPIX2',inhdr['CRPIX2']-y0)
+      try:
+         self.subimhdr['CRPIX1'] -= x0
+      except:
+         print 'Warning: CRPIX1 header not found in %s' % self.infile
+         pass
+      try:
+         self.subimhdr['CRPIX2'] -= y0
+      except:
+         print 'Warning: CRPIX2 header not found in %s' % self.infile
+         pass
 
       """ 
       Set up the output header and do the coordinate transform preparation 
       """
-      outheader = wcsmwa.make_header(ra,dec,self.subsizex,self.subsizey,outscale,
+      outheader = wcsmwa.make_header(self.ra,self.dec,self.subsizex,
+                                     self.subsizey,outscale,
                                      docdmatx=docdmatx)
       coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
       skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
-      ccdcoords = wcsmwa.sky2pix(inhdr,skycoords[0],skycoords[1])
+      ccdcoords = wcsmwa.sky2pix(self.subimhdr,skycoords[0],skycoords[1])
       coords[1] = ccdcoords[0]
       coords[0] = ccdcoords[1]
       print coords.shape
@@ -891,6 +904,42 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def mark_fov(self, ra, dec, size, pa=0.0, color='g', lw=1):
+      """
+      Draws a rectangle on the currently displayed image data.  This rectangle
+      can represent the FOV of a camera or, for example, the slit for a
+      spectrograph.
+
+      Required inputs:
+        ra    - RA of the center of the rectangle
+        dec   - Dec of the center of the rectangle
+        size  - size of the rectangle IN ARCSEC.  This can be in one of the
+                 following formats:
+                  1. A single number (which will produce a square image)
+                  2. A 2-element numpy array
+                  3. A 2-element list:  [xsize,ysize] 
+                  4. A 2-element tuple: (xsize,ysize)
+                NOTE: The convention for a slit is for the narrow dimension
+                 (i.e., the slit width) to be given as the xsize and the
+                 long dimension (the slit length) to be given as the ysize
+
+      Optional inputs: 
+        pa    - Position angle of the FOV, in units of degrees E of N
+                Default value of 0.0 will produce a vertical slit
+        color - Line color for drawing the rectangle.  Default='g'
+        lw    - Line width for drawing the rectangle.  Default=1
+      """
+
+      """ Set the rectangle size """
+      imsize = n.atleast_1d(size) # Converts size to a numpy array
+      xsize  = imsize[0]
+      if imsize.size>1:
+         ysize = imsize[1]
+      else:
+         ysize = xsize
+
+   #-----------------------------------------------------------------------
+
    def display_data(self, data):
       """
       The routine called by the display method to actually do the call
@@ -901,15 +950,15 @@ class Image:
       Instead of saving the result of that process to a new fits file and
       creating a new image, just display the data.
 
-      self.display_data(self.subim,cmap,absrange,siglow,sighigh,extval
+      self.display_data(self.subim,cmap,absrange,siglow,sighigh,extval)
 
       """
 
    #-----------------------------------------------------------------------
 
    def display(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
-               sighigh=10.0, statsize=2048, title=None, subimdef='xy', 
-               subimcent=None, subimsize=None, subimunits='pixels', 
+               sighigh=10.0, statsize=2048, title=None, 
+               subimdef='xy', subimcent=None, subimsize=None, 
                dispunits='pixels', zeropos=None, axlabel=True, 
                show_xyproj=False):
       """
@@ -1013,7 +1062,14 @@ class Image:
 
       """ Set the displayed axes to be in WCS offsets, if requested """
       if dispunits == 'radec':
-         extval = self.set_wcsextent(hext,zeropos)
+         if not self.found_wcs:
+            print ''
+            print "WARNING: dispunits='radec' but no WCS info in image header"
+            print 'Using pixels instead'
+            print ''
+            extval = None
+         else:
+            extval = self.set_wcsextent(hext,zeropos)
       else:
          extval = None
 
