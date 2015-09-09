@@ -35,10 +35,13 @@ try:
 except:
    import pyfits as pf
 from astropy import wcs
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import numpy as n
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from math import log,sqrt
+from math import log,sqrt,pi
+from math import cos as mcos,sin as msin
 import wcs as wcsmwa
 import ccdredux as ccd
 
@@ -82,6 +85,9 @@ class Image:
 
       """ Do an initial import of the WCS information from the header """
       self.found_wcs = False
+      self.radec = None
+      self.ra  = None
+      self.dec = None
       self.get_wcs()
 
       """ Initialize figures """
@@ -103,13 +109,15 @@ class Image:
          * display minimum: clipped_mean - (siglow * clipped_rms)
          * display maximum: clipped_mean + (sighigh * clipped_rms)
       """
-      self.found_rms = False   # Have the clipped rms and mean been calculated?
-      self.mean_clip = 0.0     # Value of the clipped mean
-      self.rms_clip  = 0.0     # Value of the clipped rms
-      self.siglow    = 1.0     # Number of sigma below clipped mean for min
-      self.sighigh   = 10.0    # Number of sigma above clipped mean for max
-      self.statsize  = 2048    # Region size for statistics if image is too big
-      self.zoomsize  = 31      # Size of postage-stamp zoom
+      self.found_rms = False    # Have the clipped rms and mean been calculated?
+      self.mean_clip = 0.0      # Value of the clipped mean
+      self.rms_clip  = 0.0      # Value of the clipped rms
+      self.siglow    = 1.0      # Number of sigma below clipped mean for min
+      self.sighigh   = 10.0     # Number of sigma above clipped mean for max
+      self.statsize  = 2048     # Region size for statistics if image is too big
+      self.zoomsize  = 31       # Size of postage-stamp zoom
+      self.dispunits = 'radec'  # Default display units are arcsec offsets
+      self.extval    = None     # Just label the axes by pixels
 
       """ Initialize contouring parameters """
       self.contbase   = sqrt(3.)
@@ -243,13 +251,26 @@ class Image:
       self.yclick = event.ydata
       print ''
       print 'Mouse click x, y:   %7.1f %7.1f' % (self.xclick,self.yclick)
+
+      """ 
+      Also show the (RA,Dec) of the clicked position if the input file has WCS
+      NOTE: This needs to be handled differently if the displayed image has
+       axes in pixels or in arcsec offsets
+      """
       if self.found_wcs:
-         pix = n.zeros((1,self.wcsinfo.naxis))
-         pix[0,0] = self.xclick
-         pix[0,1] = self.yclick
-         radec = self.wcsinfo.wcs_pix2world(pix,0)
-         self.raclick  = radec[0,0]
-         self.decclick = radec[0,1]
+         if self.dispunits == 'pixels':
+            pix = n.zeros((1,self.wcsinfo.naxis))
+            pix[0,0] = self.xclick
+            pix[0,1] = self.yclick
+            radec = self.wcsinfo.wcs_pix2world(pix,0)
+            self.raclick  = radec[0,0]
+            self.decclick = radec[0,1]
+         else:
+            """ For now use small-angle formula """
+            cosdec = mcos(self.radec.dec.radian)
+            self.raclick = self.radec.ra.degree + \
+                (self.xclick + self.zeropos[0]) / (3600. * cosdec)
+            self.decclick = self.radec.dec.degree + self.yclick/3600. + self.zeropos[1]
          print 'Mouse click ra, dec: %11.7f %+11.7f' % \
              (self.raclick,self.decclick)
       return
@@ -312,6 +333,35 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def radec_to_skycoord(self, ra, dec):
+      """
+      Converts a (RA,Dec) pair into the astropy.coordinates SkyCoord format
+
+      Required inputs:
+        ra   - RA in one of three formats:
+                Decimal degrees:  ddd.ddddddd  (as many significant figures as desired)
+                Sexigesimal:      hh mm ss.sss (as many significant figures as desired)
+                Sexigesimal:      hh:mm:ss.sss (as many significant figures as desired)
+        dec  - Dec in one of three formats:
+                Decimal degrees:  sddd.ddddddd, where "s" is + or -
+                Sexigesimal:      sdd mm ss.sss (as many significant figures as desired)
+                Sexigesimal:      sdd:mm:ss.sss (as many significant figures as desired)
+      """
+
+      """ Get RA format """
+      if type(ra)==float or type(ra)==n.float32 or type(ra)==n.float64:
+         rafmt = u.deg
+      else:
+         rafmt = u.hourangle
+
+      """ Dec format is always degrees, even if in Sexigesimal format """
+      decfmt = u.deg
+
+      """ Do the conversion """
+      self.radec = SkyCoord(ra,dec,unit=(rafmt,decfmt))
+
+   #-----------------------------------------------------------------------
+
    def get_wcs(self, hext=0):
       """
       Reads in WCS information from the header and stores it in 
@@ -324,8 +374,18 @@ class Image:
 
       """
 
+      """ Read in the header and use it to set the WCS information"""
       hdr = self.hdu[hext].header
       self.wcsinfo = wcs.WCS(hdr)
+
+      """ Get the RA and Dec of the center of the image """
+      xcent = hdr['naxis1'] / 2.
+      ycent = hdr['naxis2'] / 2.
+      imcent = n.array([[xcent,ycent]])
+      imcentradec = self.wcsinfo.wcs_pix2world(imcent,1)
+      self.radec_to_skycoord(imcentradec[0,0],imcentradec[0,1])
+
+      """ Calculate the pixel scale """
       if self.wcsinfo.wcs.ctype[0][0:2].upper() == 'RA':
          try:
             self.pixscale = sqrt(self.wcsinfo.wcs.cd[0,0]**2 + 
@@ -354,6 +414,9 @@ class Image:
       
       This set_wcsextent method will use the WCS information in the fits
       header to properly set the extent parameter values and return them.
+      These are put into the "extval" container, which is part of the Image
+      class.  extval is a four-element tuple containing the coordinates of the
+      lower left and upper right corners, in terms of RA and Dec offsets.
 
       Optional inputs:
          hext    - HDU containing the WCS info.  Default=0
@@ -364,11 +427,6 @@ class Image:
                       setting zeropos.  For example, zeropos=(0.5,0.3) will
                       shift the origin to the point that would have been
                       (0.5,0.3) if the origin were at the center of the image
-
-      Output:
-         extval - a four-element tuple containing the coordinates of the
-                  lower left and upper right corners, in terms of
-                  RA and Dec offsets.
       """
 
       self.get_wcs(hext)
@@ -394,9 +452,9 @@ class Image:
       exty1 -= dy
       exty2 -= dy
 
-      extval = (extx1,extx2,exty1,exty2)
-
-      return extval
+      """ Set the extval values, and also record the zerpos values used """
+      self.extval  = (extx1,extx2,exty1,exty2)
+      self.zeropos = (dx,dy)
 
    #-----------------------------------------------------------------------
 
@@ -556,6 +614,7 @@ class Image:
          self.suby2 = ny
          self.subsizex = nx
          self.subsizey = ny
+
    #-----------------------------------------------------------------------
 
    def def_subim_xy(self, hext=0, verbose=True):
@@ -652,19 +711,12 @@ class Image:
          self.subsizey = self.hdu[hext].data.shape[0]
          return
 
-      """ Convert ra and dec to decimal degrees if necessary """
-      if wcsmwa.is_degree(ra)==False:
-         self.ra = wcsmwa.ra2deg(ra)
-      else:
-         self.ra = ra
-      if wcsmwa.is_degree(dec)==False:
-         self.dec = wcsmwa.dec2deg(dec)
-      else:
-         self.dec = dec
+      """ Convert ra and dec into astropy.coordinates SkyCoord format """
+      self.radec_to_skycoord(ra,dec)
 
       """ Calculate the (x,y) that is associated with the requested center"""
       self.subimhdr = self.hdu[hext].header.copy()
-      x,y = wcsmwa.sky2pix(self.subimhdr,self.ra,self.dec)
+      x,y = wcsmwa.sky2pix(self.subimhdr,self.radec.ra.degree,self.radec.dec.degree)
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -687,7 +739,13 @@ class Image:
       """ Summarize the request """
       if verbose:
          print ''
-         print " Requested center (RA,Dec): %11.7f %+10.6f" % (self.ra,self.dec)
+         rastr = '%02d %02d %06.3f' % \
+             (self.radec.ra.hms.h,self.radec.ra.hms.m,self.radec.ra.hms.s)
+         decstr = '%+03d %02d %05.2f' % \
+             (self.radec.dec.hms.h,self.radec.dec.hms.m,self.radec.dec.hms.s)
+         print " Requested center (RA,Dec): %11.7f   %+10.6f" % \
+             (self.radec.ra.deg,self.radec.dec.deg)
+         print " Requested center (RA,Dec):  %s %s" % (rastr,decstr)
          print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
          print " Requested image size (arcsec): %6.2f %6.2f" % \
              (xsize,ysize)
@@ -727,15 +785,14 @@ class Image:
       """ 
       Set up the output header and do the coordinate transform preparation 
       """
-      outheader = wcsmwa.make_header(self.ra,self.dec,self.subsizex,
-                                     self.subsizey,outscale,
+      outheader = wcsmwa.make_header(self.radec.ra.degree,self.radec.dec.degree,
+                                     self.subsizex,self.subsizey,outscale,
                                      docdmatx=docdmatx)
       coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
       skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
       ccdcoords = wcsmwa.sky2pix(self.subimhdr,skycoords[0],skycoords[1])
       coords[1] = ccdcoords[0]
       coords[0] = ccdcoords[1]
-      print coords.shape
 
       """ Transform the coordinates """
       self.subim = ndimage.map_coordinates(data,coords,output=n.float64,order=5)
@@ -930,6 +987,18 @@ class Image:
         lw    - Line width for drawing the rectangle.  Default=1
       """
 
+      """ 
+      This function is meaningless if the input image does not have WCS
+      information in it.  Check on this before proceeding
+      """
+
+      if self.found_wcs==False:
+         print ''
+         print 'ERROR: Requested a FOV plot, but input image (%s)' % self.infile
+         print ' does not have WCS information in it.'
+         print ''
+         exit()
+
       """ Set the rectangle size """
       imsize = n.atleast_1d(size) # Converts size to a numpy array
       xsize  = imsize[0]
@@ -937,6 +1006,47 @@ class Image:
          ysize = imsize[1]
       else:
          ysize = xsize
+
+      """ Set the original vertices of the FOV marker, in terms of dx and dy """
+      dw = 1. * xsize / 2.
+      dh = 1. * ysize / 2.
+      dx0 = n.array([dw,dw,-dw,-dw,dw])
+      dy0 = n.array([-dh,dh,dh,-dh,-dh])
+
+      """ 
+      Rotate the vertices.
+      NOTE: With the standard convention of RA increasing to the left (i.e.,
+       north up, east left) and the PA defined as north through east, we
+       have to set the user's PA to its negative to get what the user wanted
+       in this astronomical convention.
+      """
+      parad = -1. * pa * pi / 180.
+      cpa = mcos(parad)
+      spa = msin(parad)
+      dx = dx0 * cpa - dy0 * spa
+      dy = dx0 * spa + dy0 * cpa
+
+      """ 
+      Find the center point of the FOV.
+      For now assume that it is close enough to the center point of the
+       image that we can use the small-angle approximation to calculate
+       the offsets.
+      Note that we have to include the zeropos offset to get the alignment
+       to be correct, since the origin of the axes may not be at the center
+       pixel.
+      """
+      cosdec = mcos(self.radec.dec.radian)
+      fovx0 = 3600. * cosdec * (ra - self.radec.ra.deg) - self.zeropos[0]
+      fovy0 = 3600. * (dec - self.radec.dec.deg) - self.zeropos[1]
+      fovx = fovx0 + dx
+      fovy = fovy0 + dy
+
+      """ Plot the FOV """
+      xlim = plt.xlim()
+      ylim = plt.ylim()
+      plt.plot(fovx,fovy,color=color,lw=lw)
+      plt.xlim(xlim)
+      plt.ylim(ylim)
 
    #-----------------------------------------------------------------------
 
@@ -950,7 +1060,7 @@ class Image:
       Instead of saving the result of that process to a new fits file and
       creating a new image, just display the data.
 
-      self.display_data(self.subim,cmap,absrange,siglow,sighigh,extval)
+      self.display_data(self.subim,cmap,absrange,siglow,sighigh)
 
       """
 
@@ -991,12 +1101,18 @@ class Image:
 
       """ Read in relevant data """
       if subimdef == 'radec':
+         """ If requesting a (RA,Dec) cutout, make the display units arcsec """
+         self.dispunits = 'radec'
+
+         """ Set the display center"""
          if subimcent == None:
             ra = None
             dec = None
          else:
             ra = subimcent[0]
             dec = subimcent[1]
+
+         """ Set the display size """
          if subimsize == None:
             xsize = None
             ysize = None
@@ -1005,6 +1121,7 @@ class Image:
             ysize = subimsize[1]
          self.def_subim_radec(ra,dec,xsize,ysize,hext=hext)
       else:
+         self.dispunits = dispunits
          if subimcent is None:
             self.subcentx = None
             self.subcenty = None
@@ -1061,17 +1178,18 @@ class Image:
          cmap = plt.cm.YlOrBr_r
 
       """ Set the displayed axes to be in WCS offsets, if requested """
-      if dispunits == 'radec':
+      if self.dispunits == 'radec':
          if not self.found_wcs:
             print ''
             print "WARNING: dispunits='radec' but no WCS info in image header"
             print 'Using pixels instead'
             print ''
-            extval = None
+            self.dispunits = 'pixels'
+            self.extval = None
          else:
-            extval = self.set_wcsextent(hext,zeropos)
+            self.set_wcsextent(hext,zeropos)
       else:
-         extval = None
+         self.extval = None
 
       """ 
       Set up for displaying the image data
@@ -1095,9 +1213,9 @@ class Image:
 
       """ Display the image data """
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
-                 interpolation='none',extent=extval)
+                 interpolation='none',extent=self.extval)
       if axlabel is True:
-         if dispunits == 'radec':
+         if self.dispunits == 'radec':
             plt.xlabel(r"$\Delta \alpha$ (arcsec)")
             plt.ylabel(r"$\Delta \delta$ (arcsec)")
          else:
@@ -1626,10 +1744,10 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    Default value for the origin is the center of the image.
    Override the default value by setting the zeropos parameter
    """
-   extval2 = im2.set_wcsextent(zeropos=zeropos)
+   im2.set_wcsextent(zeropos=zeropos)
 
    """ Plot the contours """
-   plt.contour(im2.subim,im2.clevs,colors=ccolor2,extent=extval2)
+   plt.contour(im2.subim,im2.clevs,colors=ccolor2,extent=im2.extval)
 
    """ If there is a third image, plot contours from it """
    if infile3 is not None:
@@ -1639,8 +1757,8 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
          return
       im3.def_subim_radec(ra,dec,imsize,outscale=pixscale)
       im3.set_contours(rms3)
-      extval3 = im3.set_wcsextent(zeropos=zeropos)
-      plt.contour(im3.subim,im3.clevs,colors=ccolor3,extent=extval3)
+      im3.set_wcsextent(zeropos=zeropos)
+      plt.contour(im3.subim,im3.clevs,colors=ccolor3,extent=im3.extval)
 
    """ Clean up """
    im1.close()
