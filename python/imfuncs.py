@@ -376,7 +376,22 @@ class Image:
 
       """ Read in the header and use it to set the WCS information"""
       hdr = self.hdu[hext].header
-      self.wcsinfo = wcs.WCS(hdr)
+      try:
+         self.wcsinfo = wcs.WCS(hdr)
+      except:
+         print 'get_wcs: No WCS information in file header'
+         self.found_wcs = False
+         return
+
+      """ 
+      Make sure that the WCS information is actually WCS-like and not,
+      for example, pixel-based
+      """
+
+      if self.wcsinfo.wcs.ctype[0][0:2] != 'RA':
+         print 'get_wcs: No valid WCS information in file header'
+         self.found_wcs = False
+         return
 
       """ Get the RA and Dec of the center of the image """
       xcent = hdr['naxis1'] / 2.
@@ -1213,7 +1228,7 @@ class Image:
 
       """ Display the image data """
       plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
-                 interpolation='none',extent=self.extval)
+                 interpolation='nearest',extent=self.extval)
       if axlabel is True:
          if self.dispunits == 'radec':
             plt.xlabel(r"$\Delta \alpha$ (arcsec)")
