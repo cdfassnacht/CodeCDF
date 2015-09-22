@@ -81,6 +81,14 @@ for i in range(len(files)):
     hdr['crval2'] = dec
     hdr['crpix1'] = crpix1[i]
     hdr['crpix2'] = crpix2[i]
+    try:
+        foo = hdr['ctype1']
+    except:
+        hdr['ctype1'] = 'RA---TAN'
+    try:
+        foo = hdr['ctype2']
+    except:
+        hdr['ctype2'] = 'DEC--TAN'
     hdu.flush()
     f = files[i][:-5]
     print '%-24s %11.7f %+11.7f %8.2f %8.2f' % (f,ra,dec,crpix1[i],crpix2[i])
