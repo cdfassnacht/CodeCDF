@@ -30,12 +30,16 @@ Stand-alone functions
                        positions of the catalog objects.
 """
 
+import astropy
 try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
 from astropy import wcs
-from astropy.coordinates import SkyCoord
+if astropy.__version__[:3] == '0.3':
+   from astropy.coordinates import ICRS as SkyCoord
+else:
+   from astropy.coordinates import SkyCoord
 from astropy import units as u
 import numpy as n
 from scipy import ndimage
