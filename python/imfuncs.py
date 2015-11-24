@@ -343,13 +343,18 @@ class Image:
 
       Required inputs:
         ra   - RA in one of three formats:
-                Decimal degrees:  ddd.ddddddd  (as many significant figures as desired)
-                Sexigesimal:      hh mm ss.sss (as many significant figures as desired)
-                Sexigesimal:      hh:mm:ss.sss (as many significant figures as desired)
+                Decimal degrees:  ddd.ddddddd  (as many significant figures
+                  as desired)
+                Sexigesimal:      hh mm ss.sss (as many significant figures
+                  as desired)
+                Sexigesimal:      hh:mm:ss.sss (as many significant figures
+                  as desired)
         dec  - Dec in one of three formats:
                 Decimal degrees:  sddd.ddddddd, where "s" is + or -
-                Sexigesimal:      sdd mm ss.sss (as many significant figures as desired)
-                Sexigesimal:      sdd:mm:ss.sss (as many significant figures as desired)
+                Sexigesimal:      sdd mm ss.sss (as many significant figures
+                  as desired)
+                Sexigesimal:      sdd:mm:ss.sss (as many significant figures
+                  as desired)
       """
 
       """ Get RA format """
@@ -735,7 +740,8 @@ class Image:
 
       """ Calculate the (x,y) that is associated with the requested center"""
       self.subimhdr = self.hdu[hext].header.copy()
-      x,y = wcsmwa.sky2pix(self.subimhdr,self.radec.ra.degree,self.radec.dec.degree)
+      x,y = wcsmwa.sky2pix(self.subimhdr,self.radec.ra.degree,
+                           self.radec.dec.degree)
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -812,6 +818,7 @@ class Image:
       ccdcoords = wcsmwa.sky2pix(self.subimhdr,skycoords[0],skycoords[1])
       coords[1] = ccdcoords[0]
       coords[0] = ccdcoords[1]
+      self.coords = coords.copy()
 
       """ Transform the coordinates """
       self.subim = ndimage.map_coordinates(data,coords,output=n.float64,order=5)
@@ -1312,7 +1319,7 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
       whtfits.poststamp_radec(ra,dec,imsize,imsize,scale,outwht,hext=hext,
                               dext=dext,verbose=verbose)
 
-   """ Make output RMS file, if requesed """
+   """ Make output RMS file, if requested """
    # CODE STILL TO COME
 
    """ Clean up """
@@ -1526,35 +1533,6 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
    out.header = outheader.copy()
 
    return out
-
-#-----------------------------------------------------------------------
-
-def image_cutout(infile, ra, dec, imsize, pixscale, nohist=False,
-                 verbose=True):
-   """
-   This function takes as an input a fits file, a central position (RA,Dec),
-   an image size in pixels, and a pixel scale and produces an output postage
-   stamp fits file.  All of the heavy lifting is actually done by
-   image_cutout_hdu, which is a very slightly modified version of Matt
-   Auger's image_cutout from imagelib.py.
-
-   Inputs:
-      infile   - input fits file
-      ra       - RA of postage stamp center
-      dec      - RA of postage stamp center
-      imsize   - image size in pixels
-      pixscale - pixel scale in arcsec/pix
-      nohist   - [OPTIONAL] Boolean flag set to True to delete the HISTORY cards
-                 in the fits header.  Default=False.
-      verbose  - [OPTIONAL] Boolean flag set to True for verbose output.
-                 Default=True
-   """
-
-   if verbose:
-      print ""
-      print "     Input image              RA         Dec    "
-      print "------------------------- ----------- ----------"
-      print "%-25s %11.7f %+10.6f" % (infile,ra,dec)
 
 #-----------------------------------------------------------------------
 
