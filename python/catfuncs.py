@@ -34,7 +34,7 @@ class Secat:
    """
 
    def __init__(self, infile, catformat='ldac', verbose=True, namecol=None,
-                racol=None, deccol=None):
+                racol=None, deccol=None, usecols=False):
       """
       This method gets called when the user types something like
          secat = Secat(infile)
