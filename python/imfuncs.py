@@ -92,7 +92,11 @@ class Image:
       self.radec = None
       self.ra  = None
       self.dec = None
-      self.get_wcs()
+      try:
+         self.get_wcs()
+      except:
+         print 'Could not load WCS info for %s' % self.infile
+         self.found_wcs = False
 
       """ Initialize figures """
       self.fig1 = None
@@ -405,7 +409,9 @@ class Image:
       """ Get the RA and Dec of the center of the image """
       xcent = hdr['naxis1'] / 2.
       ycent = hdr['naxis2'] / 2.
-      imcent = n.array([[xcent,ycent]])
+      imcent = n.ones((1,hdr['naxis']))
+      imcent[0,0] = xcent
+      imcent[0,1] = ycent
       imcentradec = self.wcsinfo.wcs_pix2world(imcent,1)
       self.radec_to_skycoord(imcentradec[0,0],imcentradec[0,1])
 
@@ -1715,11 +1721,15 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    try:
       im1 = Image(infile1)
    except:
+      print ''
+      print 'ERROR: Could not properly open %s' % infile1
       return
    print "   .... Done"
    try:
       im2 = Image(infile2)
    except:
+      print ''
+      print 'ERROR: Could not properly open %s' % infile2
       return
    print "   .... Done"
 
@@ -1751,6 +1761,8 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
       try:
          im3 = Image(infile3)
       except:
+         print ''
+         print 'ERROR: Could not properly open %s' % infile3
          return
       im3.def_subim_radec(ra,dec,imsize,outscale=pixscale)
       im3.set_contours(rms3)
