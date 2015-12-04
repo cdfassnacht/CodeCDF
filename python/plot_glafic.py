@@ -7,6 +7,7 @@ import numpy as n
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib import patches
+import plot_lensmod as pltlm
 
 def read_glafic_point(infile):
    """
@@ -171,82 +172,20 @@ def plot_mesh(prefix, suff='mesh.dat'):
 def plot_crit(prefix, icolor='b', scolor='r', suff='crit.dat'):
    """
    Plots the critical curves and caustics contained in prefix_crit.dat.  
-
-   Each line of the input file contains the start and end points of a line
-    segment that, when all are drawn, will show the mesh used for the modeling.
-
-   The format of the input file is:
-       xi1 yi1 xs1 ys1 xi2 yi2 xs2 ys2
-    where the "i" variables are used to draw the image-plane mesh (i.e., the
-    line segments go from (xi1,yi1) to (xi2,yi2)) and the "s" variables are
-    used for the source-plane mesh.
-
-   Note: The simplest coding to draw the curves, once the arrays have been
-    loaded, is just:
-
-      plot([xi1,xi2],[yi1,yi2])
-
-    This format works even if the xi1, etc., are arrays rather than scalars.
-    However, even though it is more complex, the code in this function is much
-    faster, since only a single LineCollection object needs to be plotted
-    rather than hundreds of Line2D objects.
+   Now all of the work has been transferred to the new plot_critcaust
+   function in plot_lensmod.py
 
    Inputs:
     prefix - the prefix part of the input file name (i.e. the part that
-             preceeds "_mesh.dat"
+             preceeds "_crit.dat"
 
    """
 
-   # Load the data
    infile = "%s_%s" % (prefix,suff)
-   print ""
-   try:
-      xi1,yi1,xs1,ys1,xi2,yi2,xs2,ys2 = n.loadtxt(infile,unpack=True)
-   except:
-      print "ERROR: plot_crit. Unable to read %s." % infile
-      print "Will not plot critical curves and caustics"
-      print ""
-      return
-   print "Read data from input file %s" % infile
-   
-   # Set up the line collection object.  Start by creating a 3d array
-   segs_i = n.zeros((xi1.size,2,2))
-   segs_s = n.zeros((xs1.size,2,2))
-   for i in range(segs_i.shape[0]):
-       segs_i[i,0,0] = xi1[i]
-       segs_i[i,1,0] = xi2[i]
-       segs_i[i,0,1] = yi1[i]
-       segs_i[i,1,1] = yi2[i]
-       segs_s[i,0,0] = xs1[i]
-       segs_s[i,1,0] = xs2[i]
-       segs_s[i,0,1] = ys1[i]
-       segs_s[i,1,1] = ys2[i]
-   line_segs_i = LineCollection(segs_i,colors=icolor,linewidths=2.)
-   line_segs_s = LineCollection(segs_s,colors=scolor,linewidths=2.)
-
-   # Actually do the plotting
-   print "Plotting critical curves"
    plt.figure(1)
-   xmini = min((xi1.min(),xi2.min()))
-   xmaxi = max((xi1.max(),xi2.max()))
-   xd = xmaxi - xmini
-   xmini -= 0.05*xd
-   xmaxi += 0.05*xd
-   ymini = min((yi1.min(),yi2.min()))
-   ymaxi = max((yi1.max(),yi2.max()))
-   yd = ymaxi - ymini
-   ymini -= 0.05*yd
-   ymaxi += 0.05*yd
-   ax_i = plt.axes()
-   ax_i.set_xlim(xmini, xmaxi)
-   ax_i.set_ylim(ymini, ymaxi)
-   ax_i.add_collection(line_segs_i)
-   print "Plotting caustics"
+   pltlm.plot_critcaust(infile,'crit')
    plt.figure(2)
-   ax_s = plt.axes()
-   ax_s.set_xlim(xs1.min(), xs2.max())
-   ax_s.set_ylim(ys1.min(), ys2.max())
-   ax_s.add_collection(line_segs_s)
+   pltlm.plot_critcaust(infile,'caust')
    plt.show()
 
 #-----------------------------------------------------------------------
