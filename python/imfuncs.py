@@ -469,6 +469,7 @@ class Image:
       extx1 = pltc[1][0,0]
       exty1 = pltc[0][0,0]
       extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
+      # *** IS THIS A BUG? SHOULD THE FF USE maxi[0]??? ***
       exty2 = pltc[0][maxi[1],maxi[1]]+self.pixscale
 
       if zeropos is not None:

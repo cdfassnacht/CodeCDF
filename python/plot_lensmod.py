@@ -11,7 +11,8 @@ from matplotlib import patches
 
 #-----------------------------------------------------------------------
 
-def plot_critcaust(infile, plottype, icolor='b', scolor='r'):
+def plot_critcaust(infile, plottype, icolor='b', scolor='r', ils='-',
+                   sls='-'):
     """
 
     Plots either the critical curves or the caustics contained in the input file.
@@ -65,8 +66,10 @@ def plot_critcaust(infile, plottype, icolor='b', scolor='r'):
         segs_s[i,1,0] = xs2[i]
         segs_s[i,0,1] = ys1[i]
         segs_s[i,1,1] = ys2[i]
-    line_segs_i = LineCollection(segs_i,colors=icolor,linewidths=2.)
-    line_segs_s = LineCollection(segs_s,colors=scolor,linewidths=2.)
+    line_segs_i = LineCollection(segs_i,colors=icolor,linewidths=2.,
+                                 linestyles=ils)
+    line_segs_s = LineCollection(segs_s,colors=scolor,linewidths=2.,
+                                 linestyles=sls)
 
     """ Actually do the plotting.  Only plot the requested curve """
     if plottype[:6]=='caust':
