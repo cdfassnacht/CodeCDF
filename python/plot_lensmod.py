@@ -11,7 +11,7 @@ from matplotlib import patches
 
 #-----------------------------------------------------------------------
 
-def plot_critcaust(infile, plottype, icolor='b', scolor='r', ils='-',
+def plot_critcaust(infile, plottype, ax=None, icolor='b', scolor='r', ils='-',
                    sls='-'):
     """
 
@@ -37,6 +37,8 @@ def plot_critcaust(infile, plottype, icolor='b', scolor='r', ils='-',
     Inputs:
      infile   - input file containing the line segment info
      plottype - which curves to plot, either 'crit' or 'caust'
+     ax       - the matplotlib axis to which to add the plotted curve.
+                The default (None) should be fine for most applications.
      icolor   - color for the critical curves.  Default is 'b'
      scolor   - color for the caustic curves.   Default is 'r'
 
@@ -74,10 +76,14 @@ def plot_critcaust(infile, plottype, icolor='b', scolor='r', ils='-',
     """ Actually do the plotting.  Only plot the requested curve """
     if plottype[:6]=='caust':
         print "Plotting caustics"
-        ax_s = plt.axes()
-        ax_s.set_xlim(xs1.min(), xs2.max())
-        ax_s.set_ylim(ys1.min(), ys2.max())
-        ax_s.add_collection(line_segs_s)
+        if ax is None:
+            ax = plt.axes()
+        ax.set_xlim(xs1.min(), xs2.max())
+        ax.set_ylim(ys1.min(), ys2.max())
+        ax.add_collection(line_segs_s)
+        #ax_s.set_xlim(xs1.min(), xs2.max())
+        #ax_s.set_ylim(ys1.min(), ys2.max())
+        #ax_s.add_collection(line_segs_s)
     else:
         print "Plotting critical curves"
         xmini = min((xi1.min(),xi2.min()))
@@ -90,8 +96,13 @@ def plot_critcaust(infile, plottype, icolor='b', scolor='r', ils='-',
         yd = ymaxi - ymini
         ymini -= 0.05*yd
         ymaxi += 0.05*yd
-        ax_i = plt.axes()
-        ax_i.set_xlim(xmini, xmaxi)
-        ax_i.set_ylim(ymini, ymaxi)
-        ax_i.add_collection(line_segs_i)
+        if ax is None:
+            ax = plt.axes()
+        ax.set_xlim(xmini, xmaxi)
+        ax.set_ylim(ymini, ymaxi)
+        ax.add_collection(line_segs_i)
+        #ax_i = plt.axes()
+        #ax_i.set_xlim(xmini, xmaxi)
+        #ax_i.set_ylim(ymini, ymaxi)
+        #ax_i.add_collection(line_segs_i)
 
