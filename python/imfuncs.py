@@ -1671,8 +1671,9 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
 #---------------------------------------------------------------------------
 
 def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, 
-                     zeropos=None, sighigh=10., rms2=None, ccolor2='r', 
-                     infile3=None, rms3=None, ccolor3='b',
+                     zeropos=None, sighigh=10., hext1=0, 
+                     hext2=0, rms2=None, ccolor2='r', 
+                     infile3=None, hext3=0, rms3=None, ccolor3='b',
                      title=None, showradec=True,
                      verbose=True):
    """
@@ -1701,12 +1702,18 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
       sighigh   - upper range for plotting the greyscale in the first image,
                    expressed as the number of sigma above the clipped mean.
                    Default = 10.
+      hext1     - HDU containing the actual image data for the first file
+                   default=0
+      hext2     - HDU containing the actual image data for the second file
+                   default=0
       rms2      - user-requested rms for data in the second image. If set to 
                    None (the default) then calculate rms from the cutout data
                    themselves
       ccolor2   - color for the contours from infile2.  Default='r'
       infile3   - OPTIONAL name of a third image, to be used for a second set
                    of contours in a different line style.  Default=None
+      hext3     - HDU containing the actual image data for the third file
+                   default=0
       rms3      - user-requested rms for data in the optional third image. If 
                    set to  None (the default) then calculate rms from the
                    cutout data themselves
@@ -1738,7 +1745,7 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    Make cutouts of the appropriate size for each of the input images
    For the first image this is done via a call to display
    """
-   im1.display(cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
+   im1.display(hext=hext1,cmap='gray_inv',subimdef='radec',subimcent=(ra,dec),
                subimsize=(imsize,imsize),dispunits='radec',sighigh=sighigh,
                zeropos=zeropos)
    im2.def_subim_radec(ra,dec,imsize,outscale=pixscale)
