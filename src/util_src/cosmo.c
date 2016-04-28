@@ -178,6 +178,9 @@ void get_cosmo(Cosmo *cosmo)
  *    t_L  - Lookback time
  *    H(z) - Hubble constant at z2
  *
+ * NOTE: if either of the input redshifts is less than 0.0, then set all
+ *  values = -99.0
+ *
  *
  * Inputs: double z1           lower redshift
  *         double z2           lower redshift
@@ -198,6 +201,24 @@ Cosdist calc_cosdist(double z1, double z2, Cosmo cosmo)
   double sqrtomk;       /* Square root of absolute value of Omega_k */
   double zp1;           /* 1 + z */
   Cosdist cosdist;      /* Structure to be filled with distance measures */
+
+  /*
+   * First check that both input redshifts are valid.
+   * If either one is less than 0, then set all the cosdist values to -99
+   *  and return.
+   */
+
+  if(z1<0. || z2<0.) {
+    cosdist.ez  = -99.;
+    cosdist.hz  = -99.;
+    cosdist.t_l = -99.;
+    cosdist.d_c = -99.;
+    cosdist.d_m = -99.;
+    cosdist.d_a = -99.;
+    cosdist.d_l = -99.;
+    cosdist.DM  = -99.;
+    return cosdist;
+  }
 
   /*
    * Calculate Omega_k (curvature density) for this cosmology

@@ -440,9 +440,12 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
    */
 
   if(ofp) {
-    fprintf(ofp,
-	    "%5.3f %5.3f %4.2f %5.2f %5.2f %5.2f %4.0f %4.0f %4.0f %7.4f\n",
-	    zl,zs,theta,cosmo.omega_m,cosmo.omega_de,cosmo.w,
+    fprintf(ofp,"%6.3f %6.3f %5.2f %5.2f %5.2f %5.2f ",
+	    zl,zs,theta,cosmo.omega_m,cosmo.omega_de,cosmo.w);
+    if(cdl.d_a < 0.)
+      fprintf(ofp," -99  -99  -99 -99\n");
+    else
+      fprintf(ofp,"%4.0f %4.0f %4.0f %7.4f\n",
 	    cdl.d_a/MPC2CM,cds.d_a/MPC2CM,cdls.d_a/MPC2CM,d);
   }
   else {
