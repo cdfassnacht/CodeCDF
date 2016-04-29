@@ -24,6 +24,9 @@
  *  12Jul2006 CDF, Cleaned up input and transferred many of the calculations
  *                  to the new calc_cosdist function in cosmo.c
  *                 **** NB: calc_errs has not been fixed yet ****
+ *  28Apr2016 CDF, Changed the output (when printing to an output file)
+ *                  to handle the case when one of the input redshifts is
+ *                  unknown (indicated by a value less than 0).
  *
  */
 
@@ -49,9 +52,11 @@ int calc_interactive();
 int calc_batch(char *inname, char *outname);
 void calc_params(double zl, double zs, double dzl, double dzs, double theta, 
 		 double dtheta, Cosmo cosmo, FILE *ofp);
+#if 0
 void calc_errs(double zl, double zs, double dzl, double dzs, double theta, 
 	       double dtheta, double omega0, double lambda, double dl,
 	       double ds, double dls, double d, double me);
+#endif
 
 /*.......................................................................
  *
@@ -120,7 +125,7 @@ int main(int argc, char *argv[])
 
 
   if(no_error) {
-    printf("\nCompleted program distcalc.\n\n");
+    printf("\nCompleted program phys_units.\n\n");
     return 0;
   }
   else {
@@ -312,7 +317,7 @@ int calc_batch(char *inname, char *outname)
       fprintf(stderr,"ERROR: calc_batch\n");
       return 1;
     }
-    fprintf(ofp,"#z_l z_s theta omega_m omega_de w D_l D_s D_ls D\n");
+    fprintf(ofp,"# z_l    z_s  theta  O_m   O_de   w    D_l  D_s D_ls   D\n");
   }
 
   /*
@@ -377,27 +382,14 @@ int calc_batch(char *inname, char *outname)
 void calc_params(double zl, double zs, double dzl, double dzs, double theta, 
 		 double dtheta, Cosmo cosmo, FILE *ofp)
 {
-  double dl;           /* Ang. diam. dist. to lens */
-  double ds;           /* Ang. diam. dist. to source */
-  double dls;          /* Ang. diam. dist. btwn source and lens */
-  double d;            /* D_l D_s / D_ls */
+  double d;            /* D = D_l D_s / D_ls */
   double theta2;       /* 0.5 * theta (estimate of Einstein ring radius) */
   double me;           /* Mass enclosed in Einstein ring */
   double r_phys;       /* Physical radius of Einstein ring */
   double v_circ;       /* Implied circular velocity, given M_E */
-  double sigbn;        /* Velocity dispersion from Blandford & Narayan eqn. */
-  double sigma_crit;   /* Sigma_critical */
+  double sigbn;          /* Velocity dispersion from Blandford & Narayan eqn. */
+  double sigma_crit;     /* Sigma_critical */
   Cosdist cdl,cds,cdls;  /* Distance measures */
-
-  /*
-   * Compute the angular diameter distances in Mpc
-   */
-
-  /*
-  dl = ang_dist(0.0,zl,cosmo.omega_m,cosmo.omega_de) / MPC2CM;
-  ds = ang_dist(0.0,zs,cosmo.omega_m,cosmo.omega_de) / MPC2CM;
-  dls = ang_dist(zl,zs,cosmo.omega_m,cosmo.omega_de) / MPC2CM;
-  */
 
   /*
    * Calculate the distances with calc_cosdist
@@ -411,7 +403,6 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
    * Compute D and M_E -- put D in Gpc
    */
 
-  /* d = dl * ds / (dls * 1000.0); */
   d = cdl.d_a * cds.d_a / (cdls.d_a * 1000.0 * MPC2CM);
   theta2 = theta / 2.0;
   me = C*C*MPC2CM*1000.0*d*theta2*theta2 / (4.0*G*RAD2ASEC*RAD2ASEC*MSUN);
@@ -442,11 +433,24 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
   if(ofp) {
     fprintf(ofp,"%6.3f %6.3f %5.2f %5.2f %5.2f %5.2f ",
 	    zl,zs,theta,cosmo.omega_m,cosmo.omega_de,cosmo.w);
-    if(cdl.d_a < 0.)
-      fprintf(ofp," -99  -99  -99 -99\n");
+    if(cdl.d_a < 0.) {
+      fprintf(ofp," -99 ");
+      d = -99.;
+    }
     else
-      fprintf(ofp,"%4.0f %4.0f %4.0f %7.4f\n",
-	    cdl.d_a/MPC2CM,cds.d_a/MPC2CM,cdls.d_a/MPC2CM,d);
+      fprintf(ofp,"%4.0f ",cdl.d_a/MPC2CM);
+
+    if(cds.d_a < 0.) {
+      fprintf(ofp," -99 ");
+      d = -99.;
+    }
+    else
+      fprintf(ofp,"%4.0f ",cds.d_a/MPC2CM);
+
+    if(cdls.d_a < 0.)
+      fprintf(ofp," -99 -99\n");
+    else
+      fprintf(ofp,"%4.0f %7.4f\n",cdls.d_a/MPC2CM,d);
   }
   else {
     fprintf(stdout,
@@ -466,13 +470,14 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
   /*
    * Compute errors on computed values, if redshift errors entered
    */
-
+#if 0
   if(dzl > 0.0 || dzs > 0.0)
-    calc_errs(zl,zs,dzl,dzs,theta,dtheta,cosmo.omega_m,cosmo.omega_de,
-	      dl,ds,dls,d,me);
+    calc_errs(zl,zs,dzl,dzs,theta,dtheta,cosmo,cdl,cds,cdls,me);
+#endif
 
 }
 
+#if 0
 /*.......................................................................
  *
  * Function calc_errs
@@ -486,12 +491,11 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
  *         double dzs           error on zs
  *         double theta         image separation in arcsec
  *         double dtheta        uncertainty in theta
- *         double omega0        Omega_M
- *         double lambda        Omega_Lambda
- *         double dl            lens angular diameter distance
- *         double dl            source angular diameter distance
- *         double dl            lens-source angular diameter distance
- *         double d             ratio of distances
+ *         Cosmo cosmo          cosmological world model
+ *         Cosdist cdl          container for cosmological distances to zl
+ *         Cosdist cds          container for cosmological distances to zs
+ *         Cosdist cdls         container for cosmological distances between 
+ *                               zl and zs
  *         double me            Einstein ring mass
  *
  * Output: none
@@ -499,27 +503,18 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
  */
 
 void calc_errs(double zl, double zs, double dzl, double dzs, double theta, 
-	       double dtheta, double omega0, double lambda, double dl,
-	       double ds, double dls, double d, double me)
+	       double dtheta, Cosmo cosmo, Cosdist cdl, Cosdist cds, 
+	       Cosdist cdls,  double me)
 {
   double ddl,dds,ddls; /* Errors on D_l, D_s and D_ls */
   double dd;           /* Error on D */
   double dme;          /* Error on M_E */
 
   /*
-   * Do the calculations for angular diameter distances -- answers in Mpc
-   */
-
-  /*
-  ddl = ang_dist_err(0.0,zl,0.0,dzl) / MPC2CM;
-  dds = ang_dist_err(0.0,zs,0.0,dzs) / MPC2CM;
-  ddls = ang_dist_err(zl,zs,dzl,dzs) / MPC2CM;
-  */
-
-  /*
    * Error on D -- answer in Gpc
    */
 
+  d = cdl.d_a * cds.d_a / (cdls.d_a * 1000.0 * MPC2CM);
   dd = d * sqrt(ddl*ddl/(dl*dl) + dds*dds/(ds*ds) + ddls*ddls/(dls*dls));
 
   /*
@@ -540,3 +535,4 @@ void calc_errs(double zl, double zs, double dzl, double dzs, double theta,
   printf("   dM_E  = %9.3e h^{-1} M_sun\n\n",dme);
 
 }
+#endif
