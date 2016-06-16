@@ -10,6 +10,7 @@ Classes (UNDER CONSTRUCTION)
   Spec2d
 """
 
+import sys
 from math import sqrt,pi
 try:
    from astropy.io import fits as pf
@@ -34,6 +35,191 @@ def clear_all():
    for i in plt.get_fignums():
       plt.figure(i)
       plt.clf()
+
+#-----------------------------------------------------------------------
+
+class Spec1d:
+   """
+   A class to process and analyze 1-dimensional spectra.
+   """
+
+   def __init__(self, infile=None, informat='text', 
+                wav=None, flux=None, var=None):
+      """
+      Reads in the input 1-dimensional spectrum.
+      This can be done in two mutually exclusive ways:
+        1. By providing the name of a file that contains the spectrum.
+            There are two possible input file formats:
+              mwa:  A multi-extension fits file with wavelength info in
+                    the fits header
+                    Extension 1 is the extracted spectrum (flux)
+                    Extension 3 is the variance spectrum
+              text: An ascii text file with information in columns:
+                 Column 1 is the wavelength
+                 Column 2 is the extracted spectrum
+                 Column 3 (optional) is the variance spectrum
+        2. By providing some 1-d arrays containing the wavelength vector,
+           the flux vector, and, optionally, the variance vector.
+
+      Inputs:
+         infile     - Name of the input file.  If infile is None, then the
+                       spectrum must be provided via the wavelength and flux
+                       vectors.
+         informat   - format of input file ("mwa" or "text"). Default = 'text'
+         wav        - 1-dimensional array containing "wavelength" information,
+                       either as actual wavelength or in pixels
+         flux       - 1-dimensional array containing the flux information for
+                      the extracted spectrum
+         var        - [OPTIONAL] 1-dimensional array containing the flux 
+                      information from the extracted spectrum
+      """
+
+      """ Initialize some variables """
+      self.wav = None
+      self.flux = None
+      self.var = None
+      self.varspec = None
+      self.infile = None
+
+      """ Check inputs """
+      if infile is not None:
+         self.infile = infile
+         try:
+            self.read_from_file(informat)
+         except:
+            print ''
+            print 'Could not read input file %s' % infile
+            print ''
+            return
+      elif wav is not None and flux is not None:
+         self.wav = wav
+         self.flux = flux
+         if var is not None:
+            self.var = var
+      else:
+         print ''
+         print 'ERROR: Must provide either:'
+         print '  1. A name of an input file containing the spectrum'
+         print '  2. Both a wavelength vector (wav) AND a flux vector (flux)'
+         print '     A variance vector (var) can optionally be provided'
+         print ''
+         return
+
+   #-----------------------------------------------------------------------
+
+   def read_from_file(self, informat, verbose=True):
+      if verbose:
+         print ""
+         print "Reading spectrum from %s" % self.infile
+
+      """ Read in the input spectrum """
+      if informat=="mwa":
+         hdu = pf.open(self.infile)
+         self.flux = hdu[1].data.copy()
+         self.var  = hdu[3].data.copy()
+         self.varspec = True
+         self.wav = n.arange(self.flux.size)
+         hdr1 = hdulist[1].header
+         self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
+         del hdulist
+      else:
+         spec = n.loadtxt(self.infile)
+         self.wav  = spec[:,0]
+         self.flux = spec[:,1]
+         if spec.shape[1] > 2:
+            self.var = spec[:,2]
+         del spec
+
+      if verbose:
+         print " Spectrum Start: %8.2f" % self.wav[0]
+         print " Spectrum End:   %8.2f" % self.wav[-1]
+         print " Dispersion (1st pixel): %6.2f" % (self.wav[1]-self.wav[0])
+         print " Dispersion (average):   %6.2f" % \
+             ((self.wav[-1]-self.wav[0])/(self.wav.size-1))
+         print ""
+
+   #-----------------------------------------------------------------------
+
+   def plot(self, xlabel='Wavelength (Angstroms)', ylabel='Relative Flux', 
+            title='default', docolor=True, speccolor='b', rmscolor='r', 
+            rmsoffset=0, rmsls=None, fontsize=12, add_atm_trans=False, 
+            atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', verbose=True):
+      """
+      Plots the spectrum
+      """
+
+      """ Set the title """
+      if title == 'default':
+         if self.infile is None:
+            title = 'Extracted Spectrum'
+         else:
+            title = 'Spectrum for %s' % self.infile
+
+      """ Override color assignments if docolor is False"""
+      if not docolor:
+         speccolor = 'k'
+         rmscolor  = 'k'
+
+      """ Draw the flux=0 line"""
+      plt.axhline(color='k')
+
+      """ Plot the spectrum """
+      plt.plot(self.wav,self.flux,speccolor,linestyle='steps',label='Flux')
+      plt.tick_params(labelsize=fontsize)
+      plt.xlabel(xlabel,fontsize=fontsize)
+
+      """ Plot the RMS spectrum if the variance spectrum exists """
+      if self.var is not None:
+         rms = n.sqrt(self.var)+rmsoffset
+         if rmsls is None:
+            if docolor:
+               rlinestyle = 'steps'
+            else:
+               rlinestyle = 'steps:'
+         else:
+            rlinestyle = 'steps%s' % rmsls
+         if docolor:
+            plt.plot(self.wav,rms,rmscolor,linestyle=rlinestyle,label='RMS')
+         else:
+            plt.plot(self.wav,rms,rmscolor,linestyle=rlinestyle,label='RMS',lw=2)
+
+      """ More plot labels """
+      plt.ylabel(ylabel,fontsize=fontsize)
+      if(title):
+         plt.title(title)
+      if(self.wav[0] > self.wav[-1]):
+         plt.xlim([self.wav[-1],self.wav[0]])
+      else:
+         plt.xlim([self.wav[0],self.wav[-1]])
+
+      """ Plot the atmospheric transmission if requested """
+      if add_atm_trans:
+         plot_atm_trans(self.wav, atmfwhm, self.flux, scale=atmscale, 
+                        offset=atmoffset, linestyle=atmls)
+
+   #-----------------------------------------------------------------------
+
+   def save(self,outfile):
+      """
+      Saves a spectrum as a text file
+      """
+
+      if self.var is not None:
+         outdata = n.zeros((self.wav.shape[0],3))
+         outdata[:,2] = self.var
+         fmtstring = '%7.2f %9.3f %10.4f'
+      else:
+         outdata = n.zeros((self.wav.shape[0],2))
+         fmtstring = '%7.2f %9.3f'
+      outdata[:,0] = self.wav
+      outdata[:,1] = self.flux
+      print ""
+      print "Saving spectrum to file %s" % outfile
+      n.savetxt(outfile,outdata,fmt=fmtstring)
+      del outdata
+
+   #-----------------------------------------------------------------------
+   #-----------------------------------------------------------------------
 
 #-----------------------------------------------------------------------
 
@@ -83,6 +269,7 @@ class Spec2d:
       self.sky2d     = None
       self.skysub    = None
       self.fitrange  = None
+      self.aper      = [-4.,4.]
       self.muorder   = 3
       self.sigorder  = 3
       self.fig1      = None
@@ -199,11 +386,15 @@ class Spec2d:
                 Default = 0
       """
 
-      dim = specaxis + 1
+      if self.dispaxis == 'y':
+         dim = 2
+      else:
+         dim = 1
       cdkey = 'cd%d_%d' % (dim,dim)
       crpix = 'crpix%d' % dim
       crval = 'crval%d' % dim
       hdr = self.image.hdu[hext].header
+      #print cdkey,crpix,crval
       self.has_cdmatx = True
       try:
          dw = hdr[cdkey]
@@ -221,8 +412,10 @@ class Spec2d:
          self.has_cdmatx = False
          wpix = 0
 
-      wsize = self.data.shape[specaxis]
-      self.wavelength = wstart + (arange(wsize) - wpix) * dw
+      #print dw, wstart, wpix
+
+      wsize = self.data.shape[self.specaxis]
+      self.wavelength = wstart + (n.arange(wsize) - wpix) * dw
 
    #-----------------------------------------------------------------------
 
@@ -287,8 +480,7 @@ class Spec2d:
    #-----------------------------------------------------------------------
 
    def find_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,fixsig=False,
-                  showplot=True,do_subplot=False,verbose=True,
-                  apmin=-4.,apmax=4.):
+                  showplot=True,do_subplot=False,verbose=True):
       """
       Compresses a 2d spectrum along the dispersion axis so that
        the trace of the spectrum can be automatically located by fitting
@@ -389,8 +581,8 @@ class Spec2d:
          xmod = n.arange(1,cdat.shape[0]+1,0.1)
          ymod = make_gauss_plus_bkgd(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
          plt.plot(xmod,ymod)
-         plt.axvline(p_out[1]+apmin,color='k')
-         plt.axvline(p_out[1]+apmax,color='k')
+         plt.axvline(p_out[1]+self.aper[0],color='k')
+         plt.axvline(p_out[1]+self.aper[1],color='k')
          plt.xlabel('Pixel number in the spatial direction')
          plt.title('Compressed Spatial Plot')
 
@@ -468,9 +660,8 @@ class Spec2d:
 
    #-----------------------------------------------------------------------
 
-   def find_and_trace(self, apmin=-4., apmax=4., stepsize=25,
-                      muorder=3, sigorder=4, fitrange=None, do_plot=True,
-                      do_subplot=True):
+   def find_and_trace(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
+                      do_plot=True, do_subplot=True):
 
       """
       The first step in the spectroscopy reduction process.
@@ -492,16 +683,14 @@ class Spec2d:
       function and the the trace_spectrum function.
       """
 
-      self.mu0,self.sig0 = self.find_trace(apmin=apmin,apmax=apmax,
-                                           showplot=do_plot,do_subplot=do_subplot)
+      self.mu0,self.sig0 = self.find_trace(showplot=do_plot,do_subplot=do_subplot)
 
       self.trace_spectrum(stepsize,muorder,sigorder,
                           fitrange,do_plot,do_subplot)
 
    #-----------------------------------------------------------------------
 
-   def extract_spectrum(self,apmin=-4.,apmax=4.,
-                        weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
+   def extract_spectrum(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
                         do_plot=True, do_subplot=True, outfile=None):
       """
       Second step in reduction process.
@@ -538,6 +727,8 @@ class Spec2d:
       """ Extract the spectrum """
       print ""
       print "Extracting the spectrum..."
+      apmin = self.aper[0]
+      apmax = self.aper[1]
       for i in pix:
          if self.specaxis == 0:
             tmpdata = self.data[i,:]
@@ -552,13 +743,14 @@ class Spec2d:
                                         gain=gain,rdnoise=rdnoise,sky=skyval,
                                         weight=weight)
       print "   Done"
-      self.flux = amp
-      self.varspec = var
 
       """ Get the wavelength/pixel vector """
-      get_wavelength()
+      self.get_wavelength()
 
-      """ Plot the extracted spectrum """
+      """ Create a Spec1d container for the extracted spectrum """
+      self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var)
+
+      """ Plot the extracted spectrum if desired """
       if do_plot:
          print ""
          print "Plotting the spectrum"
@@ -571,15 +763,13 @@ class Spec2d:
             xlab = 'Wavelength'
          else:
             xlab = 'Pixel number along the %s axis' % self.dispaxis
-         plot_spectrum_array(self.wavelength,amp,title='Extracted spectrum',
-                             xlabel=xlab)
+         self.extracted.plot(xlabel=xlab,title='Extracted spectrum')
+         #plot_spectrum_array(self.wavelength,amp,title='Extracted spectrum',
+         #                    xlabel=xlab)
 
-      """ Save the extracted spectrum """
+      """ Save the extracted spectrum to a file if requested """
       if outfile is not None:
-         save_spectrum(outfile,pix,amp,var)
-
-      """ Return the extracted spectrum """
-      return self.wavelength,amp,var
+         self.extracted.save(outfile)
 
    #-----------------------------------------------------------------------
 
