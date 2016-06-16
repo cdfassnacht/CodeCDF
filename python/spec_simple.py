@@ -76,15 +76,17 @@ class Spec2d:
       """
 
       """ Initialize some variables """
-      self.dispaxis = 'x'
-      self.sky1d    = None
-      self.sky2d    = None
-      self.skysub   = None
-      self.fitrange = None
-      self.muorder  = 3
-      self.sigorder = 3
-      self.fig1     = None
-      self.fig2     = None
+      self.dispaxis  = 'x'
+      self.specaxis  = 1
+      self.spaceaxis = 0
+      self.sky1d     = None
+      self.sky2d     = None
+      self.skysub    = None
+      self.fitrange  = None
+      self.muorder   = 3
+      self.sigorder  = 3
+      self.fig1      = None
+      self.fig2      = None
 
       """ Open the input file using the imfuncs.py Image class"""
       self.infile = infile
@@ -115,6 +117,10 @@ class Spec2d:
          self.data = (self.image.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
       else:
          self.data = self.image.hdu[hext].data[ymin:ymax,xmin:xmax]
+      self.xmin = xmin
+      self.xmax = xmax
+      self.ymin = ymin
+      self.ymax = ymax
       print ''
       print '------------------------------------------------------------------'
       print ''
@@ -162,6 +168,12 @@ class Spec2d:
       oldval = self.dispaxis
       if dispaxis == 'x' or dispaxis == 'y':
          self.dispaxis = dispaxis
+         if self.dispaxis == "y":
+            self.specaxis  = 0
+            self.spaceaxis = 1
+         else:
+            self.specaxis  = 1
+            self.spaceaxis = 0
          print ''
          print 'Old value of dispaxis: %s' % oldval
          print 'New value of dispaxis: %s' % self.dispaxis
@@ -175,6 +187,42 @@ class Spec2d:
          print 'Keeping current value for dispaxis:  %s' % self.dispaxis
          print ''
          return
+
+   #-----------------------------------------------------------------------
+
+   def get_wavelength(self, hext=0):
+      """
+      Gets a wavelength vector from the fits header, if it exists
+
+      Inputs:
+         hext - Header extension that contains the wavelength info, if any
+                Default = 0
+      """
+
+      dim = specaxis + 1
+      cdkey = 'cd%d_%d' % (dim,dim)
+      crpix = 'crpix%d' % dim
+      crval = 'crval%d' % dim
+      hdr = self.image.hdu[hext].header
+      self.has_cdmatx = True
+      try:
+         dw = hdr[cdkey]
+      except:
+         self.has_cdmatx = False
+         dw = 1
+      try:
+         wstart = hdr[crval]
+      except:
+         self.has_cdmatx = False
+         wstart = 0
+      try:
+         wpix = hdr[crpix] - self.xmin - 1
+      except:
+         self.has_cdmatx = False
+         wpix = 0
+
+      wsize = self.data.shape[specaxis]
+      self.wavelength = wstart + (arange(wsize) - wpix) * dw
 
    #-----------------------------------------------------------------------
 
@@ -238,12 +286,10 @@ class Spec2d:
 
    #-----------------------------------------------------------------------
 
-   def find_trace(self,mu0=None,sig0=None,fixmu=False,fixsig=False,
+   def find_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,fixsig=False,
                   showplot=True,do_subplot=False,verbose=True,
                   apmin=-4.,apmax=4.):
       """
-      The first step in the reduction process.
-
       Compresses a 2d spectrum along the dispersion axis so that
        the trace of the spectrum can be automatically located by fitting
        a gaussian + background to the spatial direction.  The function
@@ -252,18 +298,24 @@ class Spec2d:
        set the dispaxis to "y" with the set_dispaxis method in this Spec2d class.
       """
 
-      """ Set the dispersion axis direction """
-      if self.dispaxis == "y":
-         specaxis = 0
+      """ Set the data range in which to find the trace """
+      if pixrange is not None:
+         if self.data.ndim < 2:
+            tmpdat = self.data[pixrange[0]:pixrange[1]]
+         else:
+            if self.specaxis == 0:
+               tmpdat = self.data[pixrange[0]:pixrange[1],:]
+            else:
+               tmpdat = self.data[:,pixrange[0]:pixrange[1]]
       else:
-         specaxis = 1
+         tmpdat = self.data.copy()
+         
 
       """ Compress the data along the dispersion axis and find the max value """
       if self.data.ndim < 2:
-         cdat = data.copy()
+         cdat = tmpdat
       else:
-         cdat = n.median(self.data,axis=specaxis)
-         print cdat.shape
+         cdat = n.median(tmpdat,axis=self.specaxis)
       x = n.arange(1,cdat.shape[0]+1)
 
       """ Set initial guesses """
@@ -296,10 +348,10 @@ class Spec2d:
          print ""
          print "Initial guesses for Gaussian plus background fit"
          print "------------------------------------------------"
-         print " mu         = %7.2f%s"   % (mu0,fixmunote)
-         print " sigma      =   %5.2f%s" % (sig0,fixsignote)
-         print " amplitude  = %f"        % amp0
-         print " background = %f"        % bkgd0
+         print " centroid      = %7.2f%s"   % (mu0,fixmunote)
+         print " width (sigma) =   %5.2f%s" % (sig0,fixsignote)
+         print " amplitude     = %f"        % amp0
+         print " background    = %f"        % bkgd0
          print "Parameters marked with a ** are held fixed during the fit"
          print ""
 
@@ -319,10 +371,10 @@ class Spec2d:
       if(verbose):
          print "Fitted values for Gaussian plus background fit"
          print "----------------------------------------------"
-         print " mu         = %7.2f%s"   % (p_out[1],fixmunote)
-         print " sigma      =   %5.2f%s" % (p_out[2],fixsignote)
-         print " amplitude  = %f"        % p_out[3]
-         print " background = %f"        % p_out[0]
+         print " centroid      = %7.2f%s"   % (p_out[1],fixmunote)
+         print " width (sigma) =   %5.2f%s" % (p_out[2],fixsignote)
+         print " amplitude     = %f"        % p_out[3]
+         print " background    = %f"        % p_out[0]
          print "Parameters marked with a ** are held fixed during the fit"
          print ""
 
@@ -342,28 +394,23 @@ class Spec2d:
          plt.xlabel('Pixel number in the spatial direction')
          plt.title('Compressed Spatial Plot')
 
-      """ Save the relevant parameters of the fit """
-      self.mu0  = p[1]
-      self.sig0 = p[2]
+      """ 
+      Return the relevant parameters of the fit 
+        p_out[1] = mu, the location of the peak of the fit to the trace
+        p_out[2] = sigma, the width of the fit to the trace
+      """
+      return p_out[1],p_out[2]
 
    #-----------------------------------------------------------------------
 
    def trace_spectrum(self,stepsize=25,muorder=3,sigorder=4,
                       fitrange=None,do_plot=True,do_subplot=False):
       """
-      Second step in the reduction process.
       Fits a gaussian plus background to portions of the spectrum separated
       by stepsize pixels (default is 25).
       """
 
-      """ Set the dispersion axis direction """
-      if self.dispaxis == "y":
-         specaxis  = 0
-         spaceaxis = 1
-      else:
-         specaxis  = 1
-         spaceaxis = 0
-      xlength   = data.shape[specaxis]
+      xlength   = self.data.shape[self.specaxis]
 
       """
       Define the slices through the 2D spectrum that will be used to find
@@ -385,13 +432,9 @@ class Spec2d:
           nsteps.shape[0]
       print"   the 2D spectrum..."
       for i in nsteps:
-         if(specaxis == 0):
-            tmpdata = data[xstep[i]:xstep[i]+stepsize,:]
-         else:
-            tmpdata = data[:,xstep[i]:xstep[i]+stepsize]
-            ptmp = find_peak(tmpdata,dispaxis=dispaxis,showplot=False,verbose=False)
-            mu[i]    = ptmp[1]
-            sigma[i] = ptmp[2]
+         pixrange = [xstep[i],xstep[i]+stepsize]
+         mu[i],sigma[i] = self.find_trace(pixrange=pixrange,
+                                          showplot=False,verbose=False)
       print "   Done"
 
       """ Fit a polynomial to the trace """
@@ -403,7 +446,7 @@ class Spec2d:
             plt.clf()
       print "Fitting a polynomial of order %d to the location of the trace" \
           % muorder
-      mupoly = fit_poly_to_trace(xstep,mu,muorder,mu0,xlength,fitrange,
+      mupoly = fit_poly_to_trace(xstep,mu,muorder,self.mu0,xlength,fitrange,
                                  do_plot=do_plot)
 
       """ Fit a polynomial to the width of the trace """
@@ -414,7 +457,7 @@ class Spec2d:
          plt.clf()
       print "Fitting a polynomial of order %d to the width of the trace" \
           % sigorder
-      sigpoly = fit_poly_to_trace(xstep,sigma,sigorder,sig0,xlength,fitrange,
+      sigpoly = fit_poly_to_trace(xstep,sigma,sigorder,self.sig0,xlength,fitrange,
                                   markformat='go',title='Width of Peak',
                                   ylabel='Width of trace (Gaussian sigma)',
                                   do_plot=do_plot)
@@ -422,6 +465,121 @@ class Spec2d:
       """ Save the fitted parameters """
       self.mupoly  = mupoly
       self.sigpoly = sigpoly
+
+   #-----------------------------------------------------------------------
+
+   def find_and_trace(self, apmin=-4., apmax=4., stepsize=25,
+                      muorder=3, sigorder=4, fitrange=None, do_plot=True,
+                      do_subplot=True):
+
+      """
+      The first step in the spectroscopy reduction process.
+
+      The find_and_trace function will:
+        1. Locate roughly where the target object is in the spatial direction 
+           (usually the y axis is the spatial direction) by taking the
+           median in the spectral direction so the peak in the spatial
+           direction stands out.  This step provides the initial guesses
+           for the location (mu0) and width (sig0) of the peak that are
+           then used in the second step.
+        2. Once the rough location of the peak has been found, determines how
+           its location and width change in the spectral direction.
+           That is, this will find where the peak falls in each column.
+           It returns the position (pos) and width (width) of the peak as
+           a function of x location
+
+      This function accomplishes these tasks by calling first the find_trace
+      function and the the trace_spectrum function.
+      """
+
+      self.mu0,self.sig0 = self.find_trace(apmin=apmin,apmax=apmax,
+                                           showplot=do_plot,do_subplot=do_subplot)
+
+      self.trace_spectrum(stepsize,muorder,sigorder,
+                          fitrange,do_plot,do_subplot)
+
+   #-----------------------------------------------------------------------
+
+   def extract_spectrum(self,apmin=-4.,apmax=4.,
+                        weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
+                        do_plot=True, do_subplot=True, outfile=None):
+      """
+      Second step in reduction process.
+
+      This function extracts a 1D spectrum from the input 2D spectrum
+      It uses the information about the trace that has been generated by
+      the trace_spectrum function.  In particular, it takes the two
+      polynomials generated by trace_spectrum as the inputs mupoly and sigpoly.
+      """
+
+      """ Set the wavelength axis """
+      pix = n.arange(self.data.shape[self.specaxis])
+      
+      """
+      Set the fixed mu and sigma for the Gaussian fit at each point in the
+      spectrum, using the input polynomials
+      """
+
+      fitx = n.arange(self.data.shape[self.specaxis]).astype(n.float32)
+      mu = 0.0 * fitx
+      for i in range(self.mupoly.size):
+         mu += self.mupoly[i] * fitx**(self.mupoly.size - 1 - i)
+      sig = 0.0 * fitx
+      for i in range(self.sigpoly.size):
+         sig += self.sigpoly[i] * fitx**(self.sigpoly.size - 1 - i)
+
+      """
+      Set up the containers for the amplitude and variance of the spectrum
+      along the trace
+      """
+      amp = 0.0 * pix
+      var = 0.0 * pix
+
+      """ Extract the spectrum """
+      print ""
+      print "Extracting the spectrum..."
+      for i in pix:
+         if self.specaxis == 0:
+            tmpdata = self.data[i,:]
+         else:
+            tmpdata = self.data[:,i]
+         if (sky == None):
+            skyval = None
+         else:
+            skyval = sky[i]
+
+         amp[i],var[i] = extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],
+                                        gain=gain,rdnoise=rdnoise,sky=skyval,
+                                        weight=weight)
+      print "   Done"
+      self.flux = amp
+      self.varspec = var
+
+      """ Get the wavelength/pixel vector """
+      get_wavelength()
+
+      """ Plot the extracted spectrum """
+      if do_plot:
+         print ""
+         print "Plotting the spectrum"
+         if(do_subplot):
+            plt.subplot(224)
+         else:
+            plt.figure(4)
+            plt.clf()
+         if self.has_cdmatx:
+            xlab = 'Wavelength'
+         else:
+            xlab = 'Pixel number along the %s axis' % self.dispaxis
+         plot_spectrum_array(self.wavelength,amp,title='Extracted spectrum',
+                             xlabel=xlab)
+
+      """ Save the extracted spectrum """
+      if outfile is not None:
+         save_spectrum(outfile,pix,amp,var)
+
+      """ Return the extracted spectrum """
+      return self.wavelength,amp,var
 
    #-----------------------------------------------------------------------
 
@@ -436,7 +594,7 @@ def load_2d_spectrum(filename, hdu=0):
    """
    Reads in a raw 2D spectrum from a fits file
 
-   NOTE: This has now been replace
+   NOTE: This has now been replaced by the Spec2d class.
    """
    data = pf.open(filename)[hdu].data
    print ''
@@ -1281,6 +1439,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
          xerr = xtmp - fitrange[0]
          ytmp = fity.min() - 0.2 * fity.min()
          plt.errorbar(xtmp,ytmp,xerr=xerr,ecolor="g",capsize=10)
+      plt.xlim(0,x_max)
       plt.ylim(ymin, ymax)
 
    # Return the parameters produced by the fit
