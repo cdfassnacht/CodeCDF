@@ -87,8 +87,9 @@ for f in files:
          texpname = 'itime'
       elif inst == 'NIRSPEC':
          usecoadd = True
-         texpname = 'itime'
+         texpname = 'itime2'
          filtname = 'filname'
+         coaddname = 'coadds2'
 
       ### Subaru Instruments ###
       elif inst == 'MOIRCS':
