@@ -58,6 +58,7 @@ class Spec1d:
                  Column 1 is the wavelength
                  Column 2 is the extracted spectrum
                  Column 3 (optional) is the variance spectrum
+                 Column 4 (optional) is the sky spectrum [NOT YET IMPLEMENTED]
         2. By providing some 1-d arrays containing the wavelength vector,
            the flux vector, and, optionally, the variance vector.
 
@@ -223,12 +224,16 @@ class Spec1d:
 
 #-----------------------------------------------------------------------
 
-class Spec2d:
+class Spec2d(imf.Image):
    """
    A class to process 2-dimensional spectra, i.e., the CCD data that
-   comes out of a typical spectrograph.  The processing eventually
-   leads to the extraction of a 1-dimensional spectrum, which will
-   be stored in a Spec1d class.
+   comes out of a typical spectrograph.  
+   The main purpose of this Spec2d class and its associated functions is to
+    extract a 1-dimensional spectrum from a 2-dimensional spectrum.
+   The extracted 1-dimensional spectrum will, in the end, be output into a file
+    that can be analyzed using the Spec1d class.
+   NOTE: Spec2d inherits the properties of the Image class that is defined
+    in imfuncs.py
    """
 
    def __init__(self, infile, hext=0, xtrim=None, ytrim=None, transpose=False,
@@ -272,15 +277,16 @@ class Spec2d:
       self.aper      = [-4.,4.]
       self.muorder   = 3
       self.sigorder  = 3
-      self.fig1      = None
-      self.fig2      = None
 
-      """ Open the input file using the imfuncs.py Image class"""
-      self.infile = infile
-      self.image = imf.Image(infile)
+      """ Call the superclass initialization for useful Image attributes """
+      imf.Image.__init__(self,infile)
 
+      #""" Open the input file using the imfuncs.py Image class"""
+      #self.infile = infile
+      #self.image = imf.Image(infile)
+      
       """ Set the portion of the input spectrum that should be used """
-      hdr = self.image.hdu[hext].header
+      hdr = self.hdu[hext].header
       nx = hdr['naxis1']
       ny = hdr['naxis2']
       trimmed = False
@@ -298,12 +304,12 @@ class Spec2d:
       else:
          ymin = 0
          ymax = ny
-
+      
       """ Put the data in the appropriate container """
       if transpose:
-         self.data = (self.image.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
+         self.data = (self.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
       else:
-         self.data = self.image.hdu[hext].data[ymin:ymax,xmin:xmax]
+         self.data = self.hdu[hext].data[ymin:ymax,xmin:xmax]
       self.xmin = xmin
       self.xmax = xmax
       self.ymin = ymin
@@ -393,7 +399,7 @@ class Spec2d:
       cdkey = 'cd%d_%d' % (dim,dim)
       crpix = 'crpix%d' % dim
       crval = 'crval%d' % dim
-      hdr = self.image.hdu[hext].header
+      hdr = self.hdu[hext].header
       #print cdkey,crpix,crval
       self.has_cdmatx = True
       try:
@@ -419,7 +425,7 @@ class Spec2d:
 
    #-----------------------------------------------------------------------
 
-   def display(self, show_skysub=True):
+   def display_spec(self, show_skysub=True):
       """
       Displays the two-dimensional spectrum and also, by default, the
       same spectrum after a crude sky subtraction.  To show only the
