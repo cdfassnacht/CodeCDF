@@ -356,8 +356,10 @@ class Spec2d(imf.Image):
       showing the current value of the dispaxis variable, either 'x' or 'y'
       """
 
+      self.npix = self.data.shape[self.specaxis]
       print ''
-      print 'Current value of dispaxis: %s' % self.dispaxis
+      print 'Current value of dispaxis:              %s' % self.dispaxis
+      print 'Number of pixels along dispersion axis: %d' % self.npix
       print ''
 
    #-----------------------------------------------------------------------
@@ -390,7 +392,7 @@ class Spec2d(imf.Image):
             self.spaceaxis = 0
          print ''
          print 'Old value of dispaxis: %s' % oldval
-         print 'New value of dispaxis: %s' % self.dispaxis
+         self.get_dispaxis()
          print ''
          return
       else:
@@ -440,9 +442,7 @@ class Spec2d(imf.Image):
          wpix = 0
 
       #print dw, wstart, wpix
-
-      wsize = self.data.shape[self.specaxis]
-      self.wavelength = wstart + (n.arange(wsize) - wpix) * dw
+      self.wavelength = wstart + (n.arange(self.npix) - wpix) * dw
 
    #-----------------------------------------------------------------------
 
@@ -506,8 +506,8 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def find_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,fixsig=False,
-                  showplot=True,do_subplot=False,verbose=True):
+   def locate_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,
+                    fixsig=False,showplot=True,do_subplot=False,verbose=True):
       """
       Compresses a 2d spectrum along the dispersion axis so that
        the trace of the spectrum can be automatically located by fitting
@@ -542,7 +542,7 @@ class Spec2d(imf.Image):
       if fixmu:
          if mu0 is None:
             print ""
-            print "ERROR: find_trace.  mu is fixed, but no value for mu0 given"
+            print "ERROR: locate_trace.  mu is fixed, but no value for mu0 given"
             return
          fixmunote = "**"
       else:
@@ -553,7 +553,7 @@ class Spec2d(imf.Image):
       if fixsig:
          if sig0 is None:
             print ""
-            print "ERROR: find_trace."  
+            print "ERROR: locate_trace."  
             print 'sigma is fixed, but no value for sig0 given'
             return
          fixsignote = "**"
@@ -622,6 +622,88 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
+   def fit_poly_to_trace(self, x, data, fitorder, data0, fitrange=None,
+                         do_plot=True, markformat='bo', 
+                         ylabel='Centroid of Trace', 
+                         title='Location of the Peak'):
+
+      """ Do a sigma clipping to reject clear outliers """
+      if fitrange is None:
+         tmpfitdat = data
+      else:
+         fitmask = n.logical_and(x>=fitrange[0],x<fitrange[1])
+         tmpfitdat = data[fitmask]
+      dmu,dsig = ccd.sigma_clip(tmpfitdat,3.0)
+      goodmask = n.absolute(data - dmu)<3.0*dsig
+      badmask  = n.absolute(data - dmu)>=3.0*dsig
+      dgood    = data[goodmask]
+      dbad     = data[badmask]
+      xgood    = x[goodmask]
+      xbad     = x[badmask]
+
+      """ Fit a polynomial to the trace """
+
+      if fitrange is None:
+         xpoly = xgood
+         dpoly = dgood
+      else:
+         fitmask = n.logical_and(xgood>=fitrange[0],xgood<fitrange[1])
+         xpoly  = xgood[fitmask]
+         dpoly  = dgood[fitmask]
+
+      if fitorder == -1:
+         polyorder = 0
+      else:
+         polyorder = fitorder
+      dpoly = n.polyfit(xpoly,dpoly,polyorder)
+
+      if fitorder == -1:
+         dpoly[0] = data0
+
+      """ Calculate the fitted function """
+      fitx  = n.arange(self.npix).astype(n.float32)
+      fity  = 0.0 * fitx
+      for i in range(dpoly.size):
+         fity += dpoly[i] * fitx**(dpoly.size - 1 - i)
+
+      """ Plot the results """
+      ymin = dmu - 4.5*dsig
+      ymax = dmu + 4.5*dsig
+      if do_plot:
+         plt.plot(x,data,markformat)
+         plt.xlabel("Pixel number in the dispersion direction")
+         plt.ylabel(ylabel)
+         plt.title(title)
+
+         """ Show the value from the compressed spatial profile """
+         plt.axhline(data0,color='k',linestyle='--')
+
+         """ Mark the bad points that were not included in the fit """
+         plt.plot(xbad,dbad,"rx",markersize=10,markeredgewidth=2)
+
+         """ Show the fitted function """
+         plt.plot(fitx,fity,"r")
+
+         """
+         Show the range of points included in the fit, if fitrange was set
+         """
+         if fitrange is not None:
+            plt.axvline(fitrange[0],color='k',linestyle=':')
+            plt.axvline(fitrange[1],color='k',linestyle=':')
+            xtmp = 0.5 * (fitrange[1] + fitrange[0])
+            xerr = xtmp - fitrange[0]
+            ytmp = fity.min() - 0.2 * fity.min()
+            plt.errorbar(xtmp,ytmp,xerr=xerr,ecolor="g",capsize=10)
+         plt.xlim(0,self.npix)
+         plt.ylim(ymin, ymax)
+
+      """ Return the parameters produced by the fit and the fitted function """
+      print dpoly
+      return dpoly,fity
+
+
+   #-----------------------------------------------------------------------
+
    def trace_spectrum(self,stepsize=25,muorder=3,sigorder=4,
                       fitrange=None,do_plot=True,do_subplot=False):
       """
@@ -629,19 +711,17 @@ class Spec2d(imf.Image):
       by stepsize pixels (default is 25).
       """
 
-      xlength   = self.data.shape[self.specaxis]
-
       """
       Define the slices through the 2D spectrum that will be used to find
        the centroid and width of the object spectrum as it is traced down 
        the chip
       """
-      xstep = n.arange(0,xlength-stepsize,stepsize)
+      xstep = n.arange(0,self.npix-stepsize,stepsize)
 
       """ Set up containers for mu and sigma along the trace """
-      mu = 0.0 * xstep
-      sigma = 0.0 * xstep
-      nsteps = n.arange(xstep.shape[0])
+      mustep  = 0.0 * xstep
+      sigstep = 0.0 * xstep
+      nsteps  = n.arange(xstep.shape[0])
 
       """ Step through the data """
       print ''
@@ -652,8 +732,8 @@ class Spec2d(imf.Image):
       print"   the 2D spectrum..."
       for i in nsteps:
          pixrange = [xstep[i],xstep[i]+stepsize]
-         mu[i],sigma[i] = self.find_trace(pixrange=pixrange,
-                                          showplot=False,verbose=False)
+         mustep[i],sigstep[i] = \
+             self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
       print "   Done"
 
       """ Fit a polynomial to the trace """
@@ -665,7 +745,8 @@ class Spec2d(imf.Image):
             plt.clf()
       print "Fitting a polynomial of order %d to the location of the trace" \
           % muorder
-      mupoly = fit_poly_to_trace(xstep,mu,muorder,self.mu0,xlength,fitrange,
+      self.mupoly,self.mu = \
+          self.fit_poly_to_trace(xstep,mustep,muorder,self.mu0,fitrange,
                                  do_plot=do_plot)
 
       """ Fit a polynomial to the width of the trace """
@@ -676,15 +757,12 @@ class Spec2d(imf.Image):
          plt.clf()
       print "Fitting a polynomial of order %d to the width of the trace" \
           % sigorder
-      sigpoly = fit_poly_to_trace(xstep,sigma,sigorder,self.sig0,xlength,fitrange,
-                                  markformat='go',title='Width of Peak',
-                                  ylabel='Width of trace (Gaussian sigma)',
-                                  do_plot=do_plot)
+      self.sigpoly,self.sig = \
+          self.fit_poly_to_trace(xstep,sigstep,sigorder,self.sig0,fitrange,
+                                 markformat='go',title='Width of Peak',
+                                 ylabel='Width of trace (Gaussian sigma)',
+                                 do_plot=do_plot)
       
-      """ Save the fitted parameters """
-      self.mupoly  = mupoly
-      self.sigpoly = sigpoly
-
    #-----------------------------------------------------------------------
 
    def find_and_trace(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
@@ -700,17 +778,21 @@ class Spec2d(imf.Image):
            direction stands out.  This step provides the initial guesses
            for the location (mu0) and width (sig0) of the peak that are
            then used in the second step.
+
+           * This step is done by a call to the locate_trace method
+
         2. Once the rough location of the peak has been found, determines how
            its location and width change in the spectral direction.
            That is, this will find where the peak falls in each column.
            It returns the position (pos) and width (width) of the peak as
            a function of x location
 
-      This function accomplishes these tasks by calling first the find_trace
-      function and the the trace_spectrum function.
+           * This step is done by a call to the trace_spectrum method
+
       """
 
-      self.mu0,self.sig0 = self.find_trace(showplot=do_plot,do_subplot=do_subplot)
+      self.mu0,self.sig0 = self.locate_trace(showplot=do_plot,
+                                             do_subplot=do_subplot)
 
       self.trace_spectrum(stepsize,muorder,sigorder,
                           fitrange,do_plot,do_subplot)
@@ -731,19 +813,6 @@ class Spec2d(imf.Image):
       """ Set the wavelength axis """
       pix = n.arange(self.data.shape[self.specaxis])
       
-      """
-      Set the fixed mu and sigma for the Gaussian fit at each point in the
-      spectrum, using the input polynomials
-      """
-
-      fitx = n.arange(self.data.shape[self.specaxis]).astype(n.float32)
-      mu = 0.0 * fitx
-      for i in range(self.mupoly.size):
-         mu += self.mupoly[i] * fitx**(self.mupoly.size - 1 - i)
-      sig = 0.0 * fitx
-      for i in range(self.sigpoly.size):
-         sig += self.sigpoly[i] * fitx**(self.sigpoly.size - 1 - i)
-
       """
       Set up the containers for the amplitude and variance of the spectrum
       along the trace
@@ -768,8 +837,9 @@ class Spec2d(imf.Image):
             skyval = sky[i]
       
          amp[i],var[i],skyspec[i] = \
-             extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],gain=gain,\
-                                  rdnoise=rdnoise,sky=skyval,weight=weight)
+             extract_wtsum_col(tmpdata,self.mu[i],apmin,apmax,sig=self.sig[i],
+                               gain=gain,rdnoise=rdnoise,sky=skyval,
+                               weight=weight)
       print "   Done"
 
       """ Get the wavelength/pixel vector """
