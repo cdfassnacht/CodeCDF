@@ -44,7 +44,7 @@ class Spec1d:
    """
 
    def __init__(self, infile=None, informat='text', 
-                wav=None, flux=None, var=None):
+                wav=None, flux=None, var=None, sky=None):
       """
       Reads in the input 1-dimensional spectrum.
       This can be done in two mutually exclusive ways:
@@ -59,6 +59,12 @@ class Spec1d:
                  Column 2 is the extracted spectrum
                  Column 3 (optional) is the variance spectrum
                  Column 4 (optional) is the sky spectrum [NOT YET IMPLEMENTED]
+                 
+                 Therefore, an input text file could have one of three formats:
+                    A.  wavelength flux
+                    B.  wavelength flux variance
+                    C.  wavelength flux variance sky
+
         2. By providing some 1-d arrays containing the wavelength vector,
            the flux vector, and, optionally, the variance vector.
 
@@ -71,14 +77,16 @@ class Spec1d:
                        either as actual wavelength or in pixels
          flux       - 1-dimensional array containing the flux information for
                       the extracted spectrum
-         var        - [OPTIONAL] 1-dimensional array containing the flux 
-                      information from the extracted spectrum
+         var        - [OPTIONAL] 1-dimensional array containing the variance
+                      spectrum.  Remember: rms = sqrt(variance)
+         sky        - [OPTIONAL] 1-dimensional array containing the sky spectrum
       """
 
       """ Initialize some variables """
-      self.wav = None
+      self.wav  = None
       self.flux = None
-      self.var = None
+      self.var  = None
+      self.sky  = None
       self.varspec = None
       self.infile = None
 
@@ -97,12 +105,18 @@ class Spec1d:
          self.flux = flux
          if var is not None:
             self.var = var
+         if sky is not None:
+            self.sky = sky
       else:
          print ''
          print 'ERROR: Must provide either:'
          print '  1. A name of an input file containing the spectrum'
-         print '  2. Both a wavelength vector (wav) AND a flux vector (flux)'
-         print '     A variance vector (var) can optionally be provided'
+         print '  2. At minimum, both of the following:'
+         print '       A. a wavelength vector (wav)'
+         print '       B. a flux vector (flux)'
+         print '     and optionally one or both of the following'
+         print '       C. a variance vector (var)'
+         print '       D. a sky spectrum vector (sky)'
          print ''
          return
 
@@ -129,6 +143,8 @@ class Spec1d:
          self.flux = spec[:,1]
          if spec.shape[1] > 2:
             self.var = spec[:,2]
+         if spec.shape[1] > 3:
+            self.sky = spec[:,3]
          del spec
 
       if verbose:
@@ -206,9 +222,14 @@ class Spec1d:
       """
 
       if self.var is not None:
-         outdata = n.zeros((self.wav.shape[0],3))
+         if self.sky is not None:
+            outdata = n.zeros((self.wav.shape[0],4))
+            fmtstring = '%7.2f %9.3f %10.4f %9.3f'
+            outdata[:,3] = self.sky
+         else:
+            outdata = n.zeros((self.wav.shape[0],3))
+            fmtstring = '%7.2f %9.3f %10.4f'
          outdata[:,2] = self.var
-         fmtstring = '%7.2f %9.3f %10.4f'
       else:
          outdata = n.zeros((self.wav.shape[0],2))
          fmtstring = '%7.2f %9.3f'
@@ -729,6 +750,7 @@ class Spec2d(imf.Image):
       """
       amp = 0.0 * pix
       var = 0.0 * pix
+      skyspec = 0.0 * pix
 
       """ Extract the spectrum """
       print ""
@@ -744,17 +766,19 @@ class Spec2d(imf.Image):
             skyval = None
          else:
             skyval = sky[i]
-
-         amp[i],var[i] = extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],
-                                        gain=gain,rdnoise=rdnoise,sky=skyval,
-                                        weight=weight)
+      
+         amp[i],var[i],skyspec[i] = \
+             extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],gain=gain,\
+                                  rdnoise=rdnoise,sky=skyval,weight=weight)
       print "   Done"
 
       """ Get the wavelength/pixel vector """
       self.get_wavelength()
 
       """ Create a Spec1d container for the extracted spectrum """
-      self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var)
+      if sky is not None:
+         skyspec = sky
+      self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
 
       """ Plot the extracted spectrum if desired """
       if do_plot:
@@ -770,8 +794,6 @@ class Spec2d(imf.Image):
          else:
             xlab = 'Pixel number along the %s axis' % self.dispaxis
          self.extracted.plot(xlabel=xlab,title='Extracted spectrum')
-         #plot_spectrum_array(self.wavelength,amp,title='Extracted spectrum',
-         #                    xlabel=xlab)
 
       """ Save the extracted spectrum to a file if requested """
       if outfile is not None:
@@ -1546,7 +1568,7 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
       varspec = (gain * (spatialdat + sky) + rdnoise**2)/gain**2
       var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
 
-   return wtsum, var
+   return wtsum, var, bkgd
 
 #-----------------------------------------------------------------------
 
