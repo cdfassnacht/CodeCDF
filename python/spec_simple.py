@@ -341,6 +341,7 @@ class Spec2d(imf.Image):
       print 'Read in 2-dimensional spectrum from %s' % self.infile
       if trimmed:
          print 'The input dataset was trimmed'
+         print ' xrange: %d:%d.  yrange: %d:%d' % (xmin,xmax,ymin,ymax)
       if transpose:
          print 'The input dataset was transposed'
       print 'Final data dimensions (x y): %d x %d' % \
@@ -623,7 +624,7 @@ class Spec2d(imf.Image):
    #-----------------------------------------------------------------------
 
    def fit_poly_to_trace(self, x, data, fitorder, data0, fitrange=None,
-                         do_plot=True, markformat='bo', 
+                         doplot=True, markformat='bo', 
                          ylabel='Centroid of Trace', 
                          title='Location of the Peak'):
 
@@ -669,7 +670,7 @@ class Spec2d(imf.Image):
       """ Plot the results """
       ymin = dmu - 4.5*dsig
       ymax = dmu + 4.5*dsig
-      if do_plot:
+      if doplot:
          plt.plot(x,data,markformat)
          plt.xlabel("Pixel number in the dispersion direction")
          plt.ylabel(ylabel)
@@ -705,7 +706,7 @@ class Spec2d(imf.Image):
    #-----------------------------------------------------------------------
 
    def trace_spectrum(self,stepsize=25,muorder=3,sigorder=4,
-                      fitrange=None,do_plot=True,do_subplot=False):
+                      fitrange=None,doplot=True,do_subplot=False):
       """
       Fits a gaussian plus background to portions of the spectrum separated
       by stepsize pixels (default is 25).
@@ -737,7 +738,7 @@ class Spec2d(imf.Image):
       print "   Done"
 
       """ Fit a polynomial to the trace """
-      if do_plot:
+      if doplot:
          if(do_subplot):
             plt.subplot(222)
          else:
@@ -747,7 +748,7 @@ class Spec2d(imf.Image):
           % muorder
       self.mupoly,self.mu = \
           self.fit_poly_to_trace(xstep,mustep,muorder,self.mu0,fitrange,
-                                 do_plot=do_plot)
+                                 doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
       if(do_subplot):
@@ -761,12 +762,12 @@ class Spec2d(imf.Image):
           self.fit_poly_to_trace(xstep,sigstep,sigorder,self.sig0,fitrange,
                                  markformat='go',title='Width of Peak',
                                  ylabel='Width of trace (Gaussian sigma)',
-                                 do_plot=do_plot)
+                                 doplot=doplot)
       
    #-----------------------------------------------------------------------
 
    def find_and_trace(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
-                      do_plot=True, do_subplot=True):
+                      doplot=True, do_subplot=True):
 
       """
       The first step in the spectroscopy reduction process.
@@ -791,16 +792,16 @@ class Spec2d(imf.Image):
 
       """
 
-      self.mu0,self.sig0 = self.locate_trace(showplot=do_plot,
+      self.mu0,self.sig0 = self.locate_trace(showplot=doplot,
                                              do_subplot=do_subplot)
 
       self.trace_spectrum(stepsize,muorder,sigorder,
-                          fitrange,do_plot,do_subplot)
+                          fitrange,doplot,do_subplot)
 
    #-----------------------------------------------------------------------
 
    def extract_spectrum(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
-                        do_plot=True, do_subplot=True, outfile=None):
+                        doplot=True, do_subplot=True, outfile=None):
       """
       Second step in reduction process.
 
@@ -851,7 +852,7 @@ class Spec2d(imf.Image):
       self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
 
       """ Plot the extracted spectrum if desired """
-      if do_plot:
+      if doplot:
          print ""
          print "Plotting the spectrum"
          if(do_subplot):
@@ -1642,7 +1643,7 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
 
 #-----------------------------------------------------------------------
 
-def find_trace(data,dispaxis="x",apmin=-4.,apmax=4.,do_plot=True,
+def find_trace(data,dispaxis="x",apmin=-4.,apmax=4.,doplot=True,
                do_subplot=False):
    """
    First step in the reduction process.  
@@ -1650,7 +1651,7 @@ def find_trace(data,dispaxis="x",apmin=-4.,apmax=4.,do_plot=True,
     guess for trace_spectrum.
    """
    p = find_peak(data,dispaxis=dispaxis,apmin=apmin,apmax=apmax,
-                 showplot=do_plot,do_subplot=do_subplot)
+                 showplot=doplot,do_subplot=do_subplot)
    mu0  = p[1]
    sig0 = p[2]
    return mu0,sig0
@@ -1658,7 +1659,7 @@ def find_trace(data,dispaxis="x",apmin=-4.,apmax=4.,do_plot=True,
 #-----------------------------------------------------------------------
 
 def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
-                      do_plot=True, markformat='bo', ylabel='Centroid of Trace',
+                      doplot=True, markformat='bo', ylabel='Centroid of Trace',
                       title='Location of the Peak'):
 
    # Do a sigma clipping to reject clear outliers
@@ -1699,7 +1700,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
 
    ymin = dmu - 4.5*dsig
    ymax = dmu + 4.5*dsig
-   if do_plot:
+   if doplot:
       plt.plot(x,data,markformat)
       #plt.plot(xstep,mu,marker='o',mec='b',mfc='w',markersize=8,linestyle='')
       plt.xlabel("Pixel number in the dispersion direction")
@@ -1738,7 +1739,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
 #-----------------------------------------------------------------------
 
 def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
-   sigorder=4,fitrange=None,do_plot=True,do_subplot=False):
+   sigorder=4,fitrange=None,doplot=True,do_subplot=False):
    """
    Second step in the reduction process.
    Fits a gaussian plus background to portions of the spectrum separated
@@ -1782,7 +1783,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
    print "   Done"
 
    # Fit a polynomial to the trace
-   if do_plot:
+   if doplot:
       if(do_subplot):
          plt.subplot(222)
       else:
@@ -1791,7 +1792,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
    print "Fitting a polynomial of order %d to the location of the trace" \
        % muorder
    mupoly = fit_poly_to_trace(xstep,mu,muorder,mu0,xlength,fitrange,
-                              do_plot=do_plot)
+                              doplot=doplot)
 
    # Fit a polynomial to the width of the trace
    if(do_subplot):
@@ -1803,7 +1804,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
    sigpoly = fit_poly_to_trace(xstep,sigma,sigorder,sig0,xlength,fitrange,
                                markformat='go',title='Width of Peak',
                                ylabel='Width of trace (Gaussian sigma)',
-                               do_plot=do_plot)
+                               doplot=doplot)
 
    # Return the fitted parameters
    return mupoly,sigpoly
@@ -1811,7 +1812,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
 #--------------------------------------------------------------------------
 
 def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
-                   muorder=3, sigorder=4, fitrange=None, do_plot=True,
+                   muorder=3, sigorder=4, fitrange=None, doplot=True,
                    do_subplot=False):
 
    """
@@ -1833,10 +1834,10 @@ def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
    function and the the trace_spectrum function.
    """
 
-   mu0,sig0 = find_trace(data,dispaxis,apmin,apmax,do_plot,do_subplot)
+   mu0,sig0 = find_trace(data,dispaxis,apmin,apmax,doplot,do_subplot)
 
    pos,width = trace_spectrum(data,mu0,sig0,dispaxis,stepsize,muorder,
-                              sigorder,fitrange,do_plot,do_subplot)
+                              sigorder,fitrange,doplot,do_subplot)
 
    return pos,width
 
@@ -1844,7 +1845,7 @@ def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
 
 def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
                      weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
-                     do_plot=True, do_subplot=False, outfile=None):
+                     doplot=True, do_subplot=False, outfile=None):
    """
    Third step in reduction process.
    This function extracts a 1D spectrum from the input 2D spectrum (data)
@@ -1899,7 +1900,7 @@ def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
    print "   Done"
 
    # Plot the extracted spectrum
-   if do_plot:
+   if doplot:
       print ""
       print "Plotting the spectrum"
       if(do_subplot):
@@ -1958,7 +1959,7 @@ def combine_spectra(txt_files,outfile):
    print ""
    for f in file_list:
       print "Reading data from file %s" % f 
-      wi,fi,vi = n.loadtxt(f,unpack=True)
+      wi,fi,vi = n.loadtxt(f,unpack=True,usecols=(0,1,2))
       wt = 1.0 / vi
       wt[vi==0] = 0.
       wtflux += wt * fi
