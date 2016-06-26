@@ -120,6 +120,9 @@ class Spec1d:
          print ''
          return
 
+      """ Read in the list that may be used for marking spectral lines """
+      self.load_linelist()
+
    #-----------------------------------------------------------------------
 
    def read_from_file(self, informat, verbose=True):
@@ -213,6 +216,118 @@ class Spec1d:
       if add_atm_trans:
          plot_atm_trans(self.wav, atmfwhm, self.flux, scale=atmscale, 
                         offset=atmoffset, linestyle=atmls)
+
+   #-----------------------------------------------------------------------
+
+   def mark_spec_emission(self, z, labww=20., labfs=12, ticklen=0.,
+                          showz=True):
+      """
+      Marks the location of expected emission lines in a spectrum, given
+      a redshift (z).  
+      
+      Inputs:
+        z       - redshift to be marked
+        labww   - width in pixels of the window used to set the vertical
+                  location of the tickmark (location is set from the maximum
+                  value within the window).
+        labfs   - font size for labels, in points
+        ticklen - override of auto-determination of tick length if > 0
+
+      *** NOTE: Right now the code is a bit of a mess after Nick edited it.
+          so this functionality is still maintained in the separate function
+          rather than within the Spec1d class
+
+      """
+
+
+   #-----------------------------------------------------------------------
+
+   def load_linelist(self):
+
+      linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
+                    ('dir',int),('plot',bool)]
+      self.lineinfo = n.array(\
+         [("CN bandhd",     3883,       "CN red",1,True),\
+             ("CaII K",        3933.667,   "CaII K",1,True),\
+             ("CaII H",        3968.472,   "CaII H",1,True),\
+             ("H-delta",       4101,       r"H$\delta$",1,True),\
+             ("G-band",        4305,       "G-band",1,True),\
+             ("H-gamma",       4340,       r"H$\gamma$",1,True),\
+             ("Fe4383",        4383,       "Fe4383",1,True),\
+             ("Ca4455",        4455,       "Ca4455",1,True),\
+             ("Fe4531",        4531,       "Fe4531",1,True),\
+             ("H-beta",        4861,       r"H$\beta$",1,True),\
+             ("Mg I (b)",      5176,       "Mg b",1,True),\
+             ("Na I (D)",      5893,       "Na D",1,True)\
+             ],dtype=linefmt)
+
+   #-----------------------------------------------------------------------
+
+   def mark_spec_absorption(self, z, labww=20., labfs=12, ticklen=0.,
+                            tickfac=0.05, showz=True):
+      """
+      Marks the location of expected absorption lines in a spectrum, given
+      a redshift (z).  
+
+      Inputs:
+        z       - redshift to be marked
+        labww   - width in pixels of the window used to set the vertical
+                  location of the tickmark (location is set from the minimum
+                  value within the window).
+        labfs   - font size for labels, in points
+        ticklen - override of auto-determination of tick length if > 0
+      """
+
+      """ Set the display limits """
+      lammin,lammax = self.wav.min(),self.wav.max()
+      if plt.xlim()[0] > lammin: lammin = plt.xlim()[0]
+      if plt.xlim()[1] < lammax: lammax = plt.xlim()[1]
+      dlam = self.wav[1] - self.wav[0]
+      ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
+      fluxdiff = ff.max() - ff.min()
+      dlocwin = labww / 2.
+      if ticklen == 0.:
+         ticklen = tickfac * fluxdiff
+
+
+      """ Only mark lines within current display range """
+      zlines = (z+1.0) * self.lineinfo['wavelength']
+      print ""
+      print "Line      lambda_obs"
+      print "--------  -----------"
+      for i in range(len(self.lineinfo)):
+         print "%-9s %8.2f" % (self.lineinfo['name'][i],zlines[i])
+      mask = n.logical_and(zlines>lammin,zlines<lammax)
+      tmplines = self.lineinfo[mask]
+      if (len(tmplines) > 0):
+         tmpfmin,xarr = n.zeros(0),n.zeros(0)
+         for i in tmplines:
+            x = i['wavelength']*(z+1.0)
+            xarr = n.append(xarr,x)
+            tmpmask = n.where((self.wav>=x-dlocwin*dlam) &(self.wav<=x+dlocwin*dlam))
+            tmpfmin = n.append(tmpfmin,self.flux[tmpmask].min())
+         #tickstart = tmpfmin - 0.2*(tmpfmin-plt.ylim()[0]) 
+         #labstart  = tmpfmin - 0.4*(tmpfmin-plt.ylim()[0])
+         tmpticklens = 0.25*(tmpfmin-plt.ylim()[0])
+         if len(tmpticklens) > 0:
+            if ticklen == 0.: 
+               tmpticklen = n.max([n.min([(plt.ylim()[1]-plt.ylim()[0])/30.,n.min([tmpticklens[tmpticklens > 0]])]),(plt.ylim()[1]-plt.ylim()[0])/40.])
+            else:
+               tmpticklen = ticklen
+         for i in range(0,len(tmplines)):
+            tickstart = tmpfmin[i]-0.5*tmpticklen
+            labstart = tmpfmin[i]-2*tmpticklen
+            if tmpfmin[i]-plt.ylim()[0] > 3*tmpticklen:
+               plt.plot([xarr[i],xarr[i]],[tickstart-tmpticklen,tickstart],'k')
+               #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
+               if tmplines[i]['plot']:
+                  plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',rotation='vertical',ha='center',va='top',fontsize=labfs)
+            elif tmpfmin[i] > plt.ylim()[0]:
+               plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
+               #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
+      if showz: 
+         plt.text(plt.xlim()[0]+0.05*(plt.xlim()[1]-plt.xlim()[0]),plt.ylim()[1]-0.05*(plt.ylim()[1]-plt.ylim()[0]),'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',va='center',fontsize=labfs+4)
+
 
    #-----------------------------------------------------------------------
 
@@ -348,6 +463,11 @@ class Spec2d(imf.Image):
           (self.data.shape[1],self.data.shape[0])
       self.get_dispaxis()
 
+      """ 
+      Check for NaN's within the spectrum and replace them if they are there
+      """
+      self.fix_nans(verbose=True)
+
    #-----------------------------------------------------------------------
 
    def get_dispaxis(self):
@@ -444,6 +564,32 @@ class Spec2d(imf.Image):
 
       #print dw, wstart, wpix
       self.wavelength = wstart + (n.arange(self.npix) - wpix) * dw
+
+   #-----------------------------------------------------------------------
+
+   def fix_nans(self, verbose=False):
+      """
+      Detects NaN's within the spectrum and replaces them with real numbers
+      if they are there.
+      """
+
+      nanmask = n.isnan(self.data)
+      if nanmask.sum()>0:
+         if verbose:
+            print 'Found %d NaNs in the two-dimensional spectrum'
+
+         """ First replace the NaNs with a temporary value """
+         self.data[nanmask] = -999
+
+         """ 
+         Now find the median sky values by calling the subtract_sky_2d method
+         """
+         self.subtract_sky_2d()
+
+         """ 
+         Finally, replace the NaNs with the median sky for their row/column
+         """
+         self.data[nanmask] = self.sky2d[nanmask]
 
    #-----------------------------------------------------------------------
 
