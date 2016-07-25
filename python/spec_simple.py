@@ -99,6 +99,8 @@ class Spec1d:
       self.sky  = None
       self.varspec = None
       self.infile = None
+      self.smoflux = None
+      self.smovar  = None
 
       """ Check inputs """
       if infile is not None:
@@ -197,7 +199,8 @@ class Spec1d:
    def plot(self, xlabel='Wavelength (Angstroms)', ylabel='Relative Flux', 
             title='default', docolor=True, speccolor='b', rmscolor='r', 
             rmsoffset=0, rmsls=None, fontsize=12, add_atm_trans=False, 
-            atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', verbose=True):
+            atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', 
+            pltsmooth=False, verbose=True):
       """
       Plots the spectrum
       """
@@ -218,13 +221,19 @@ class Spec1d:
       plt.axhline(color='k')
 
       """ Plot the spectrum """
-      plt.plot(self.wav,self.flux,speccolor,linestyle='steps',label='Flux')
+      if pltsmooth and self.smoflux is not None:
+         flux = self.smoflux
+         var  = self.smovar
+      else:
+         flux = self.flux
+         var  = self.var
+      plt.plot(self.wav,flux,speccolor,linestyle='steps',label='Flux')
       plt.tick_params(labelsize=fontsize)
       plt.xlabel(xlabel,fontsize=fontsize)
 
       """ Plot the RMS spectrum if the variance spectrum exists """
-      if self.var is not None:
-         rms = n.sqrt(self.var)+rmsoffset
+      if var is not None:
+         rms = n.sqrt(var)+rmsoffset
          if rmsls is None:
             if docolor:
                rlinestyle = 'steps'
@@ -251,6 +260,46 @@ class Spec1d:
       if add_atm_trans:
          plot_atm_trans(self.wav, atmfwhm, self.flux, scale=atmscale, 
                         offset=atmoffset, linestyle=atmls)
+
+   #-----------------------------------------------------------------------
+
+   def smooth_boxcar(self, filtwidth, doplot=True, outfile=None):
+      """
+      Does a boxcar smooth of the spectrum.  
+      The default is to do inverse variance weighting, using the variance 
+       spectrum if it exists.
+      The other default is not to write out an output file.  This can be
+      changed by setting the outfile parameter.
+      """
+
+      """ Set the weighting """
+      if self.var is not None:
+         print 'Weighting by the inverse variance'
+         wht = 1.0 / self.var
+      else:
+         print 'Uniform weighting'
+         wht = 0.0 * self.flux + 1.0
+
+      """ Smooth the spectrum and store results in smoflux and smovar """
+      yin = wht * self.flux
+      smowht = ndimage.filters.uniform_filter(wht,filtwidth)
+      self.smoflux = ndimage.filters.uniform_filter(yin,filtwidth)
+      self.smoflux /= smowht
+      if self.var is not None:
+         self.smovar = 1.0 / (filtwidth * smowht)
+
+      """ Plot the smoothed spectrum if desired """
+      if doplot:
+         self.plot(pltsmooth=True)
+
+      """ Save the output file if desired """
+      #if(outfile):
+      #   print "Saving smoothed spectrum to %s" % outfile
+      #   if varwt:
+      #      save_spectrum(outfile,wavelength,outflux,outvar)
+      #   else:
+      #      save_spectrum(outfile,wavelength,outflux)
+      #   print ""
 
    #-----------------------------------------------------------------------
 
