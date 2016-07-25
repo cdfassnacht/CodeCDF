@@ -55,7 +55,8 @@ class LensInfo:
 
    #---------------------------------------------------------------------------
 
-   def plot_M_proj(self, Rproj, h=0.7, symb='bo',size=5,alpha=1.,opensymb=False):
+   def plot_M_proj(self, Rproj, h=0.7, symb='o', color='b', size=5, alpha=1.,
+                   opensymb=False, label=None):
       """
       Makes a plot of projeced mass inside a ring of a given radius vs. lens 
        redshift for systems that have the appropriate information.
@@ -74,14 +75,15 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.plot(self.data['zl'][self.memask],self.log_M_proj,symb,ms=size,
-               fillstyle=fs,alpha=alpha)
+      plt.plot(self.data['zl'][self.memask],self.log_M_proj,symb,color=color,
+               ms=size,fillstyle=fs,alpha=alpha)
       plt.xlabel('Lens redshift')
       plt.ylabel('Projected mass inside R = %4.1f kpc (h=%3.1f)' % (Rproj,h))
 
    #---------------------------------------------------------------------------
 
-   def hist_M_ein(self, h=0.7, color='b', alpha=1., opensymb=False):
+   def hist_M_ein(self, h=0.7, color='b', alpha=1., opensymb=False,
+                  label=None):
       """ First calculate the Einstein ring masses if needed """
       if self.memask is None:
          self.calc_M_ein(h)
@@ -93,11 +95,12 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.hist(data['log_M_E'][mask],color=color)
+      plt.hist(data['log_M_E'][mask],color=color,label=label)
 
    #---------------------------------------------------------------------------
 
-   def hist_M_proj(self, Rproj, h=0.7, color='b', alpha=1., opensymb=False):
+   def hist_M_proj(self, Rproj, h=0.7, color='b', alpha=1., opensymb=False,
+                   label=None, ls='solid'):
 
       """ Calculate the projected masses within the requested radius """
       self.calc_R_proj(Rproj,h)
@@ -109,9 +112,9 @@ class LensInfo:
       else:
          histtype = 'bar'
          lw = None
-      print histtype
+      #print histtype
       plt.hist(self.log_M_proj,color=color,alpha=alpha,histtype=histtype,
-               lw=lw)
+               lw=lw,ls=ls,label=label)
 
    #---------------------------------------------------------------------------
 

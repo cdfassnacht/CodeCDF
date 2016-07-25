@@ -44,12 +44,16 @@ class Spec1d:
    """
 
    def __init__(self, infile=None, informat='text', 
-                wav=None, flux=None, var=None, sky=None):
+                wav=None, flux=None, var=None, sky=None, logwav=False):
       """
       Reads in the input 1-dimensional spectrum.
       This can be done in two mutually exclusive ways:
         1. By providing the name of a file that contains the spectrum.
-            There are two possible input file formats:
+            There are three possible input file formats:
+              fits: A multi-extension fits file
+                    Extension 1 is the wavelength vector
+                    Extension 2 is the extracted spectrum (flux)
+                    Extension 3 is the variance spectrum
               mwa:  A multi-extension fits file with wavelength info in
                     the fits header
                     Extension 1 is the extracted spectrum (flux)
@@ -72,14 +76,20 @@ class Spec1d:
          infile     - Name of the input file.  If infile is None, then the
                        spectrum must be provided via the wavelength and flux
                        vectors.
-         informat   - format of input file ("mwa" or "text"). Default = 'text'
+         informat   - format of input file ('fits', 'mwa', or 'text'). 
+                       Default = 'text'
          wav        - 1-dimensional array containing "wavelength" information,
                        either as actual wavelength or in pixels
          flux       - 1-dimensional array containing the flux information for
-                      the extracted spectrum
+                       the extracted spectrum
          var        - [OPTIONAL] 1-dimensional array containing the variance
-                      spectrum.  Remember: rms = sqrt(variance)
+                       spectrum.  Remember: rms = sqrt(variance)
          sky        - [OPTIONAL] 1-dimensional array containing the sky spectrum
+         logwav     - if True then input wavelength is logarithmic, i.e., the
+                       numbers in the input wavelength vector are actually
+                       log10(wavelength)
+                       if False (the default), then the input wavelength vector
+                       is linear.
       """
 
       """ Initialize some variables """
@@ -93,6 +103,7 @@ class Spec1d:
       """ Check inputs """
       if infile is not None:
          self.infile = infile
+         self.logwav = logwav
          try:
             self.read_from_file(informat)
          except:
@@ -129,20 +140,38 @@ class Spec1d:
       if verbose:
          print ""
          print "Reading spectrum from %s" % self.infile
+         print "Input file has format: %s" % informat
 
       """ Read in the input spectrum """
-      if informat=="mwa":
+      if informat=='fits':
+         hdu = pf.open(self.infile)
+         print hdu[1].data
+         if self.logwav:
+            self.wav  = 10.**(hdu[1].data)
+         else:
+            self.wav  = hdu[1].data.copy()
+         self.flux = hdu[2].data.copy()
+         self.var  = hdu[3].data.copy()
+         self.varspec = True
+         del hdu
+      elif informat=='mwa':
          hdu = pf.open(self.infile)
          self.flux = hdu[1].data.copy()
          self.var  = hdu[3].data.copy()
          self.varspec = True
          self.wav = n.arange(self.flux.size)
          hdr1 = hdulist[1].header
-         self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
-         del hdulist
+         if self.logwav:
+            self.wav = hdr1['crval1'] + 10.**(self.wav*hdr1['cd1_1'])
+         else:
+            self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
+         del hdu
       else:
          spec = n.loadtxt(self.infile)
-         self.wav  = spec[:,0]
+         if self.logwav:
+            self.wav  = 10.**(spec[:,0])
+         else:
+            self.wav  = spec[:,0]
          self.flux = spec[:,1]
          if spec.shape[1] > 2:
             self.var = spec[:,2]
@@ -150,6 +179,11 @@ class Spec1d:
             self.sky = spec[:,3]
          del spec
 
+      """ Check for NaN's, which this code can't handle """
+      mask = (n.isnan(self.flux)) | (n.isnan(self.var))
+      varmax = self.var[~mask].max()
+      self.flux[mask] = 0
+      self.var[mask] = varmax * 5.
       if verbose:
          print " Spectrum Start: %8.2f" % self.wav[0]
          print " Spectrum End:   %8.2f" % self.wav[-1]
@@ -211,6 +245,7 @@ class Spec1d:
          plt.xlim([self.wav[-1],self.wav[0]])
       else:
          plt.xlim([self.wav[0],self.wav[-1]])
+      print self.wav[0],self.wav[-1]
 
       """ Plot the atmospheric transmission if requested """
       if add_atm_trans:
