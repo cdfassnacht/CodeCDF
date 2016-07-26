@@ -353,8 +353,9 @@ class Spec1d:
 
    #-----------------------------------------------------------------------
 
-   def mark_spec_absorption(self, z, labww=20., labfs=12, ticklen=0.,
-                            tickfac=0.05, showz=True):
+   def mark_spec_absorption(self, z, usesmooth=False, marktype='tick', 
+                            labww=20., labfs=12, ticklen=0., tickfac=0.05, 
+                            showz=True, labloc='default'):
       """
       Marks the location of expected absorption lines in a spectrum, given
       a redshift (z).  
@@ -373,35 +374,46 @@ class Spec1d:
       if plt.xlim()[0] > lammin: lammin = plt.xlim()[0]
       if plt.xlim()[1] < lammax: lammax = plt.xlim()[1]
       dlam = self.wav[1] - self.wav[0]
-      ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
+      if usesmooth:
+         ff = self.smoflux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
+      else:
+         ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
       fluxdiff = ff.max() - ff.min()
-      xdiff = plt.xlim()[1] - plt.xlim()[0]
-      ydiff = plt.ylim()[1] - plt.ylim()[0]
+      x0,x1 = plt.xlim()
+      y0,y1 = plt.ylim()
+      xdiff = x1 - x0
+      ydiff = y1 - y0
       dlocwin = labww / 2.
 
       """ Only mark lines within current display range """
       zlines = (z+1.0) * self.lineinfo['wavelength']
+      mask = n.logical_and(zlines>lammin,zlines<lammax)
+      tmplines = self.lineinfo[mask]
+      zlines = (z+1.0) * tmplines['wavelength']
       print ""
       print "Line      lambda_obs"
       print "--------  -----------"
-      for i in range(len(self.lineinfo)):
-         print "%-9s %8.2f" % (self.lineinfo['name'][i],zlines[i])
-      mask = n.logical_and(zlines>lammin,zlines<lammax)
-      tmplines = self.lineinfo[mask]
+      for i in range(len(tmplines)):
+         print "%-9s %8.2f" % (tmplines['name'][i],zlines[i])
 
       """ Set the length of the ticks, if not set already """
       if ticklen == 0.:
          #ticklen = tickfac * fluxdiff
          ticklen = tickfac * ydiff
 
-
+      print ''
+      if usesmooth:
+         flux = self.smoflux
+      else:
+         flux = self.flux
       if (len(tmplines) > 0):
          tmpfmin,xarr = n.zeros(0),n.zeros(0)
          for i in tmplines:
             x = i['wavelength']*(z+1.0)
             xarr = n.append(xarr,x)
-            tmpmask = n.where((self.wav>=x-dlocwin*dlam) &(self.wav<=x+dlocwin*dlam))
-            tmpfmin = n.append(tmpfmin,self.flux[tmpmask].min())
+            tmpmask = n.fabs(self.wav-x)<dlocwin
+            print i['name']
+            tmpfmin = n.append(tmpfmin,flux[tmpmask].min())
          #tickstart = tmpfmin - 0.2*(tmpfmin-plt.ylim()[0]) 
          #labstart  = tmpfmin - 0.4*(tmpfmin-plt.ylim()[0])
          tmpticklens = 0.25*(tmpfmin-plt.ylim()[0])
@@ -410,23 +422,38 @@ class Spec1d:
                tmpticklen = n.max([n.min([ydiff/30.,n.min([tmpticklens[tmpticklens > 0]])]),ydiff/40.])
             else:
                tmpticklen = ticklen
+         print tmpticklen
          for i in range(0,len(tmplines)):
+            print '%7.2f %f' % (zlines[i],tmpfmin[i])
             tickstart = tmpfmin[i]-0.5*tmpticklen
-            labstart = tmpfmin[i]-2*tmpticklen
-            if tmpfmin[i]-plt.ylim()[0] > 3*tmpticklen:
-               plt.plot([xarr[i],xarr[i]],[tickstart-tmpticklen,tickstart],'k')
-               #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
-               if tmplines[i]['plot']:
-                  plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',
-                           rotation='vertical',ha='center',va='top',
-                           fontsize=labfs)
-            elif tmpfmin[i] > plt.ylim()[0]:
-               plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
-               #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
-      if showz: 
-         plt.text(plt.xlim()[0]+0.05*xdiff,plt.ylim()[1]-0.05*ydiff,
-                  'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',
-                  va='center',fontsize=labfs+4)
+            labstart = tickstart - 1.5*tmpticklen
+            #if tmpfmin[i] - y0 > 3.*tmpticklen:
+            plt.plot([xarr[i],xarr[i]],[tickstart-tmpticklen,tickstart],'k')
+            #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
+            if tmplines[i]['plot']:
+               plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',
+                        rotation='vertical',ha='center',va='top',
+                        fontsize=labfs)
+            #elif tmpfmin[i] > plt.ylim()[0]:
+            #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
+            #   #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
+
+      """ Label the plot with the redshift, if requested """
+      if showz:
+         if labloc=='topright':
+            labx = x0 + 0.95*xdiff
+            laby = y0 + 0.95*ydiff
+            ha = 'right'
+         else:
+            labx = x0 + 0.05*xdiff
+            laby = y0 + 0.95*ydiff
+            ha = 'left'
+         print labx,laby
+         plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color='k',
+                  fontsize=labfs+4)
+         #plt.text(plt.xlim()[0]+0.05*xdiff,plt.ylim()[1]-0.05*ydiff,
+         #         'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',
+         #         va='center',fontsize=labfs+4)
 
 
    #-----------------------------------------------------------------------
