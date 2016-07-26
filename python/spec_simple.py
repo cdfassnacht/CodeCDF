@@ -330,20 +330,26 @@ class Spec1d:
 
       linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
                     ('dir',int),('plot',bool)]
-      self.lineinfo = n.array(\
-         [("CN bandhd",     3883,       "CN red",1,True),\
-             ("CaII K",        3933.667,   "CaII K",1,True),\
-             ("CaII H",        3968.472,   "CaII H",1,True),\
-             ("H-delta",       4101,       r"H$\delta$",1,True),\
-             ("G-band",        4305,       "G-band",1,True),\
-             ("H-gamma",       4340,       r"H$\gamma$",1,True),\
-             ("Fe4383",        4383,       "Fe4383",1,True),\
-             ("Ca4455",        4455,       "Ca4455",1,True),\
-             ("Fe4531",        4531,       "Fe4531",1,True),\
-             ("H-beta",        4861,       r"H$\beta$",1,True),\
-             ("Mg I (b)",      5176,       "Mg b",1,True),\
-             ("Na I (D)",      5893,       "Na D",1,True)\
-             ],dtype=linefmt)
+      self.lineinfo = n.array([
+            ("Ly-alpha",  1216.,   r"Ly $\alpha$",1,True),
+            ("C IV",      1549.,   "C IV",        1,True),
+            ("C III]",    1909.,   "C III]",      1,True),
+            ("Mg II",     2800.,   "Mg II",       1,True),
+            ("[O II]",    3726.03, "[O II]",      1,True),
+            ("[O II]",    3728.82, "[O II]",      1,False),
+            ("CN bandhd",     3883,       "CN red",1,True),
+            ("CaII K",        3933.667,   "CaII K",1,True),
+            ("CaII H",        3968.472,   "CaII H",1,True),
+            ("H-delta",       4101,       r"H$\delta$",1,True),
+            ("G-band",        4305,       "G-band",1,True),
+            ("H-gamma",       4340,       r"H$\gamma$",1,True),
+            ("Fe4383",        4383,       "Fe4383",1,True),
+            ("Ca4455",        4455,       "Ca4455",1,True),
+            ("Fe4531",        4531,       "Fe4531",1,True),
+            ("H-beta",        4861,       r"H$\beta$",1,True),
+            ("Mg I (b)",      5176,       "Mg b",1,True),
+            ("Na I (D)",      5893,       "Na D",1,True)
+            ],dtype=linefmt)
 
    #-----------------------------------------------------------------------
 
@@ -369,10 +375,9 @@ class Spec1d:
       dlam = self.wav[1] - self.wav[0]
       ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
       fluxdiff = ff.max() - ff.min()
+      xdiff = plt.xlim()[1] - plt.xlim()[0]
+      ydiff = plt.ylim()[1] - plt.ylim()[0]
       dlocwin = labww / 2.
-      if ticklen == 0.:
-         ticklen = tickfac * fluxdiff
-
 
       """ Only mark lines within current display range """
       zlines = (z+1.0) * self.lineinfo['wavelength']
@@ -383,6 +388,13 @@ class Spec1d:
          print "%-9s %8.2f" % (self.lineinfo['name'][i],zlines[i])
       mask = n.logical_and(zlines>lammin,zlines<lammax)
       tmplines = self.lineinfo[mask]
+
+      """ Set the length of the ticks, if not set already """
+      if ticklen == 0.:
+         #ticklen = tickfac * fluxdiff
+         ticklen = tickfac * ydiff
+
+
       if (len(tmplines) > 0):
          tmpfmin,xarr = n.zeros(0),n.zeros(0)
          for i in tmplines:
@@ -395,7 +407,7 @@ class Spec1d:
          tmpticklens = 0.25*(tmpfmin-plt.ylim()[0])
          if len(tmpticklens) > 0:
             if ticklen == 0.: 
-               tmpticklen = n.max([n.min([(plt.ylim()[1]-plt.ylim()[0])/30.,n.min([tmpticklens[tmpticklens > 0]])]),(plt.ylim()[1]-plt.ylim()[0])/40.])
+               tmpticklen = n.max([n.min([ydiff/30.,n.min([tmpticklens[tmpticklens > 0]])]),ydiff/40.])
             else:
                tmpticklen = ticklen
          for i in range(0,len(tmplines)):
@@ -405,12 +417,16 @@ class Spec1d:
                plt.plot([xarr[i],xarr[i]],[tickstart-tmpticklen,tickstart],'k')
                #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
                if tmplines[i]['plot']:
-                  plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',rotation='vertical',ha='center',va='top',fontsize=labfs)
+                  plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',
+                           rotation='vertical',ha='center',va='top',
+                           fontsize=labfs)
             elif tmpfmin[i] > plt.ylim()[0]:
                plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
                #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
       if showz: 
-         plt.text(plt.xlim()[0]+0.05*(plt.xlim()[1]-plt.xlim()[0]),plt.ylim()[1]-0.05*(plt.ylim()[1]-plt.ylim()[0]),'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',va='center',fontsize=labfs+4)
+         plt.text(plt.xlim()[0]+0.05*xdiff,plt.ylim()[1]-0.05*ydiff,
+                  'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',
+                  va='center',fontsize=labfs+4)
 
 
    #-----------------------------------------------------------------------
@@ -2656,28 +2672,28 @@ def mark_spec_emission(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,
       '[NII]','[SII]','','Pa-gamma','Pa-beta','Pa-alpha']
 
    lineinfo = n.array([\
-      ("Ly-alpha",  1216.,   r"Ly $\alpha$",1,True),\
-      ("C IV",      1549.,   "C IV",        1,True),\
-      ("C III]",    1909.,   "C III]",      1,True),\
-      ("Mg II",     2800.,   "Mg II",       1,True),\
-      ("[O II]",    3726.03, "[O II]",      1,True),\
-      ("[O II]",    3728.82, "[O II]",      1,False),\
-      ("H-delta",   4101,    r"H$\delta$",  1,True),\
-      ("H-gamma",   4340,    r"H$\gamma$",  1,True),\
-      ("H-beta",    4861.33, r"H$\beta$",    1,True),\
-      ("[O III]",   4962.,   "[O III]",     1,False),\
-      ("[O III]",   5007.,   "[O III]",     1,True),\
-      #("[N I]",     5199.,   "[N I]",       1,False),\
-      ("[O I]",     6300.,   "[O I]",       1,True),\
-      ("[N II]",    6548.,   "[N II]",      1,False),\
-      ("H-alpha",   6562.8,  r"H$\alpha$",  1,True),\
-      ("[N II]",    6583.5,  "[N II]",      1,False),\
-      ("[S II]",    6716.4,  "[S II]",      1,False),\
-      ("[S II]",    6730.8,  "[S II]",      1,True),\
-      ("Pa-gamma", 10900.,   r"Pa $\gamma$",1,True),\
-      ("Pa-beta",  12800.,   r"Pa $\beta$", 1,True),\
+      ("Ly-alpha",  1216.,   r"Ly $\alpha$",1,True),
+      ("C IV",      1549.,   "C IV",        1,True),
+      ("C III]",    1909.,   "C III]",      1,True),
+      ("Mg II",     2800.,   "Mg II",       1,True),
+      ("[O II]",    3726.03, "[O II]",      1,True),
+      ("[O II]",    3728.82, "[O II]",      1,False),
+      ("H-delta",   4101,    r"H$\delta$",  1,True),
+      ("H-gamma",   4340,    r"H$\gamma$",  1,True),
+      ("H-beta",    4861.33, r"H$\beta$",    1,True),
+      ("[O III]",   4962.,   "[O III]",     1,False),
+      ("[O III]",   5007.,   "[O III]",     1,True),
+      #("[N I]",     5199.,   "[N I]",       1,False),
+      ("[O I]",     6300.,   "[O I]",       1,True),
+      ("[N II]",    6548.,   "[N II]",      1,False),
+      ("H-alpha",   6562.8,  r"H$\alpha$",  1,True),
+      ("[N II]",    6583.5,  "[N II]",      1,False),
+      ("[S II]",    6716.4,  "[S II]",      1,False),
+      ("[S II]",    6730.8,  "[S II]",      1,True),
+      ("Pa-gamma", 10900.,   r"Pa $\gamma$",1,True),
+      ("Pa-beta",  12800.,   r"Pa $\beta$", 1,True),
       ("Pa-alpha", 18700.,   r"Pa $\alpha$",1,True)\
-      ],\
+      ],
       dtype=[('name','S10'),('wavelength',float),('label','S10'),\
              ('dir',int),('plot',bool)]\
       )
