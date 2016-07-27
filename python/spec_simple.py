@@ -200,7 +200,7 @@ class Spec1d:
             title='default', docolor=True, speccolor='b', rmscolor='r', 
             rmsoffset=0, rmsls=None, fontsize=12, add_atm_trans=False, 
             atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', 
-            pltsmooth=False, verbose=True):
+            usesmooth=False, verbose=True):
       """
       Plots the spectrum
       """
@@ -221,7 +221,7 @@ class Spec1d:
       plt.axhline(color='k')
 
       """ Plot the spectrum """
-      if pltsmooth and self.smoflux is not None:
+      if usesmooth and self.smoflux is not None:
          flux = self.smoflux
          var  = self.smovar
       else:
@@ -290,7 +290,7 @@ class Spec1d:
 
       """ Plot the smoothed spectrum if desired """
       if doplot:
-         self.plot(pltsmooth=True)
+         self.plot(usesmooth=True)
 
       """ Save the output file if desired """
       #if(outfile):
@@ -329,32 +329,36 @@ class Spec1d:
    def load_linelist(self):
 
       linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
-                    ('dir',int),('plot',bool)]
+                    ('dxlab',float),('dir',int),('plot',bool)]
       self.lineinfo = n.array([
-            ("Ly-alpha",  1216.,   r"Ly $\alpha$",1,True),
-            ("C IV",      1549.,   "C IV",        1,True),
-            ("C III]",    1909.,   "C III]",      1,True),
-            ("Mg II",     2800.,   "Mg II",       1,True),
-            ("[O II]",    3726.03, "[O II]",      1,True),
-            ("[O II]",    3728.82, "[O II]",      1,False),
-            ("CN bandhd",     3883,       "CN red",1,True),
-            ("CaII K",        3933.667,   "CaII K",1,True),
-            ("CaII H",        3968.472,   "CaII H",1,True),
-            ("H-delta",       4101,       r"H$\delta$",1,True),
-            ("G-band",        4305,       "G-band",1,True),
-            ("H-gamma",       4340,       r"H$\gamma$",1,True),
-            ("Fe4383",        4383,       "Fe4383",1,True),
-            ("Ca4455",        4455,       "Ca4455",1,True),
-            ("Fe4531",        4531,       "Fe4531",1,True),
-            ("H-beta",        4861,       r"H$\beta$",1,True),
-            ("Mg I (b)",      5176,       "Mg b",1,True),
-            ("Na I (D)",      5893,       "Na D",1,True)
+            ("Ly-alpha",  1216.,    r"Ly $\alpha$",0.0,1,True),
+            ("C IV",      1549.,    "C IV",        0.0,1,True),
+            ("C III]",    1909.,    "C III]",      0.0,1,True),
+            ("Mg II",     2800.,    "Mg II",       0.0,0,True),
+            ("[O II]",    3726.03,  "[O II]",      0.0,1,True),
+            ("[O II]",    3728.82,  "[O II]",      0.0,1,False),
+            ("CN bandhd", 3883,     "CN",          0.0,-1,True),
+            ("CaII K",    3933.667, "CaII K",      0.0,-1,True),
+            ("CaII H",    3968.472, "CaII H",      0.0,-1,True),
+            ("H-delta",   4101,     r"H$\delta$",  0.0,0,True),
+            ("G-band",    4305,     "G-band",      0.0,-1,True),
+            ("H-gamma",   4340,     r"H$\gamma$",  0.0,0,True),
+            ("Fe4383",    4383,     "Fe4383",      0.0,-1,True),
+            ("Ca4455",    4455,     "Ca4455",      0.0,-1,True),
+            ("Fe4531",    4531,     "Fe4531",      0.0,-1,True),
+            ("H-beta",    4861,     r"H$\beta$",   0.0,0,True),
+            ("Mg I (b)",  5176,     "Mg b",        0.0,-1,True),
+            ("Na I (D)",  5893,     "Na D",        0.0,-1,True),
+            ("H-alpha",   6563,     r"H$\alpha$",  0.0,0,True),
+            ("Ca triplet",8498.03,  "CaII",        0.0,-1,True),
+            ("Ca triplet",8542.09,  "CaII",        0.0,-1,True),
+            ("Ca triplet",8662.14,  "CaII",        0.0,-1,True),
             ],dtype=linefmt)
 
    #-----------------------------------------------------------------------
 
    def mark_spec_absorption(self, z, usesmooth=False, marktype='tick', 
-                            labww=20., labfs=12, ticklen=0., tickfac=0.05, 
+                            labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
                             showz=True, labloc='default'):
       """
       Marks the location of expected absorption lines in a spectrum, given
@@ -396,10 +400,8 @@ class Spec1d:
       for i in range(len(tmplines)):
          print "%-9s %8.2f" % (tmplines['name'][i],zlines[i])
 
-      """ Set the length of the ticks, if not set already """
-      if ticklen == 0.:
-         #ticklen = tickfac * fluxdiff
-         ticklen = tickfac * ydiff
+      """ Set the length of the ticks """
+      ticklen = tickfrac * ydiff
 
       print ''
       if usesmooth:
@@ -412,31 +414,22 @@ class Spec1d:
             x = i['wavelength']*(z+1.0)
             xarr = n.append(xarr,x)
             tmpmask = n.fabs(self.wav-x)<dlocwin
-            print i['name']
             tmpfmin = n.append(tmpfmin,flux[tmpmask].min())
-         #tickstart = tmpfmin - 0.2*(tmpfmin-plt.ylim()[0]) 
-         #labstart  = tmpfmin - 0.4*(tmpfmin-plt.ylim()[0])
          tmpticklens = 0.25*(tmpfmin-plt.ylim()[0])
-         if len(tmpticklens) > 0:
-            if ticklen == 0.: 
-               tmpticklen = n.max([n.min([ydiff/30.,n.min([tmpticklens[tmpticklens > 0]])]),ydiff/40.])
-            else:
-               tmpticklen = ticklen
-         print tmpticklen
+         print ticklen
          for i in range(0,len(tmplines)):
-            print '%7.2f %f' % (zlines[i],tmpfmin[i])
-            tickstart = tmpfmin[i]-0.5*tmpticklen
-            labstart = tickstart - 1.5*tmpticklen
-            #if tmpfmin[i] - y0 > 3.*tmpticklen:
-            plt.plot([xarr[i],xarr[i]],[tickstart-tmpticklen,tickstart],'k')
-            #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
-            if tmplines[i]['plot']:
-               plt.text(xarr[i],labstart,tmplines[i]['label'],color='k',
+            info = tmplines[i]
+            tickstart = tmpfmin[i] - tickfac*ticklen
+            labstart  = tickstart - 1.5*ticklen
+            if info['dir']<1:            
+               plt.plot([xarr[i],xarr[i]],[tickstart-ticklen,tickstart],'k')
+            if info['plot'] and info['dir']<1:
+               plt.text(xarr[i]+info['dxlab'],labstart,info['label'],color='k',
                         rotation='vertical',ha='center',va='top',
                         fontsize=labfs)
             #elif tmpfmin[i] > plt.ylim()[0]:
             #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
-            #   #print i['label'],tickstart,labstart,tmpticklen,tmpfmin
+            #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
 
       """ Label the plot with the redshift, if requested """
       if showz:
@@ -451,10 +444,6 @@ class Spec1d:
          print labx,laby
          plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color='k',
                   fontsize=labfs+4)
-         #plt.text(plt.xlim()[0]+0.05*xdiff,plt.ylim()[1]-0.05*ydiff,
-         #         'z = %5.3f'%z,color='k',rotation='horizontal',ha='left',
-         #         va='center',fontsize=labfs+4)
-
 
    #-----------------------------------------------------------------------
 
