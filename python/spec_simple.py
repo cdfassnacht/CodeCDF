@@ -303,29 +303,6 @@ class Spec1d:
 
    #-----------------------------------------------------------------------
 
-   def mark_spec_emission(self, z, labww=20., labfs=12, ticklen=0.,
-                          showz=True):
-      """
-      Marks the location of expected emission lines in a spectrum, given
-      a redshift (z).  
-      
-      Inputs:
-        z       - redshift to be marked
-        labww   - width in pixels of the window used to set the vertical
-                  location of the tickmark (location is set from the maximum
-                  value within the window).
-        labfs   - font size for labels, in points
-        ticklen - override of auto-determination of tick length if > 0
-
-      *** NOTE: Right now the code is a bit of a mess after Nick edited it.
-          so this functionality is still maintained in the separate function
-          rather than within the Spec1d class
-
-      """
-
-
-   #-----------------------------------------------------------------------
-
    def load_linelist(self):
 
       linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
@@ -347,19 +324,144 @@ class Spec1d:
             ("Ca4455",    4455,     "Ca4455",      0.0,-1,True),
             ("Fe4531",    4531,     "Fe4531",      0.0,-1,True),
             ("H-beta",    4861,     r"H$\beta$",   0.0,0,True),
+            ("[O III]",   4962.,    "[O III]",     0.0,1,False),
+            ("[O III]",   5007.,    "[O III]",     0.0,1,True),
             ("Mg I (b)",  5176,     "Mg b",        0.0,-1,True),
+            ("[N I]",     5199.,    "[N I]",       0.0,1,False),
             ("Na I (D)",  5893,     "Na D",        0.0,-1,True),
-            ("H-alpha",   6563,     r"H$\alpha$",  0.0,0,True),
+            ("[O I]",     6300.,    "[O I]",       0.0,1,True),
+            ("[N II]",    6548.,    "[N II]",      0.0,1,False),
+            ("H-alpha",   6562.8,   r"H$\alpha$",  0.0,0,True),
+            ("[N II]",    6583.5,   "[N II]",      0.0,1,False),
+            ("[S II]",    6716.4,   "[S II]",      0.0,1,False),
+            ("[S II]",    6730.8,   "[S II]",      0.0,1,True),
             ("Ca triplet",8498.03,  "CaII",        0.0,-1,True),
             ("Ca triplet",8542.09,  "CaII",        0.0,-1,True),
             ("Ca triplet",8662.14,  "CaII",        0.0,-1,True),
+            ("Pa-gamma", 10900.,    r"Pa $\gamma$",0.0,1,True),
+            ("Pa-beta",  12800.,    r"Pa $\beta$", 0.0,1,True),
+            ("Pa-alpha", 18700.,    r"Pa $\alpha$",0.0,1,True)\
             ],dtype=linefmt)
+
+   #-----------------------------------------------------------------------
+
+   def mark_speclines(self, linetype, z, usesmooth=False, marktype='tick', 
+                      labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
+                      showz=True, labloc='default', labcolor='k'):
+      """
+      A generic routine for marking spectral lines in the plotted spectrum.
+      The required linetype parameter can be either 'abs' or 'em' and will 
+       determine whether absorption or emission lines are marked.
+
+      Inputs:
+        linetype - Must be either 'abs' or 'em' to mark absorption or emission
+                    lines, respectively
+        z        - redshift to be marked
+        labww    - width in pixels of the window used to set the vertical
+                   location of the tickmark (location is set from the minimum
+                   value within the window).
+        labfs    - font size for labels, in points
+        ticklen  - override of auto-determination of tick length if > 0
+      """
+
+      """ Check linetype """
+      if linetype == 'abs':
+         pm = -1.
+         labva = 'top'
+      elif linetype == 'em':
+         pm = 1.
+         labva = 'bottom'
+      else:
+         print ''
+         print "ERROR: linetype must be either 'abs' or 'em'"
+         print ''
+         return
+
+      """ Set the display limits """
+      lammin,lammax = self.wav.min(),self.wav.max()
+      if plt.xlim()[0] > lammin: lammin = plt.xlim()[0]
+      if plt.xlim()[1] < lammax: lammax = plt.xlim()[1]
+      dlam = self.wav[1] - self.wav[0]
+      if usesmooth:
+         ff = self.smoflux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
+      else:
+         ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
+      fluxdiff = ff.max() - ff.min()
+      x0,x1 = plt.xlim()
+      y0,y1 = plt.ylim()
+      xdiff = x1 - x0
+      ydiff = y1 - y0
+      dlocwin = labww / 2.
+
+      """ Select lines within current display range """
+      zlines = (z+1.0) * self.lineinfo['wavelength']
+      zmask = n.logical_and(zlines>lammin,zlines<lammax)
+      if linetype == 'em':
+         tmask = self.lineinfo['dir'] > -1
+      else:
+         tmask = self.lineinfo['dir'] < 1
+      mask = zmask & tmask
+      tmplines = self.lineinfo[mask]
+      zlines = (z+1.0) * tmplines['wavelength']
+      print ""
+      print "Line      lambda_obs"
+      print "--------  -----------"
+      for i in range(len(tmplines)):
+         print "%-9s %8.2f" % (tmplines['name'][i],zlines[i])
+
+      """ Set the length of the ticks """
+      ticklen = tickfrac * ydiff
+
+      """ Choose whether to use the smoothed flux or not """
+      if usesmooth:
+         flux = self.smoflux
+      else:
+         flux = self.flux
+
+      print ''
+      if (len(tmplines) > 0):
+         xarr = n.zeros(len(tmplines))
+         specflux = n.zeros(len(tmplines))
+         for i in range(len(tmplines)):
+            xarr[i] = tmplines['wavelength'][i]*(z+1.0)
+            tmpmask = n.fabs(self.wav-xarr[i])<dlocwin
+            if linetype == 'em':
+               specflux[i] = flux[tmpmask].max()
+            else:
+               specflux[i] = flux[tmpmask].min()
+         for i in range(len(tmplines)):
+            info = tmplines[i]
+            tickstart = specflux[i] + pm*tickfac*ticklen
+            tickend = tickstart + pm*ticklen
+            labstart  = tickstart + pm*1.5*ticklen
+            plt.plot([xarr[i],xarr[i]],[tickstart,tickend],'k')
+            if info['plot']:
+               plt.text(xarr[i]+info['dxlab'],labstart,info['label'],
+                        rotation='vertical',ha='center',va=labva,
+                        color=labcolor,fontsize=labfs)
+            #elif tmpfmin[i] > plt.ylim()[0]:
+            #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
+            #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
+
+      """ Label the plot with the redshift, if requested """
+      if showz:
+         if labloc=='topright':
+            labx = x0 + 0.95*xdiff
+            laby = y0 + 0.95*ydiff
+            ha = 'right'
+         else:
+            labx = x0 + 0.05*xdiff
+            laby = y0 + 0.95*ydiff
+            ha = 'left'
+         print labx,laby
+         plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color=labcolor,
+                  fontsize=labfs+4)
 
    #-----------------------------------------------------------------------
 
    def mark_spec_absorption(self, z, usesmooth=False, marktype='tick', 
                             labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
-                            showz=True, labloc='default'):
+                            showz=True, labloc='default', labcolor='k'):
       """
       Marks the location of expected absorption lines in a spectrum, given
       a redshift (z).  
@@ -424,9 +526,9 @@ class Spec1d:
             if info['dir']<1:            
                plt.plot([xarr[i],xarr[i]],[tickstart-ticklen,tickstart],'k')
             if info['plot'] and info['dir']<1:
-               plt.text(xarr[i]+info['dxlab'],labstart,info['label'],color='k',
+               plt.text(xarr[i]+info['dxlab'],labstart,info['label'],
                         rotation='vertical',ha='center',va='top',
-                        fontsize=labfs)
+                        color=labcolor,fontsize=labfs)
             #elif tmpfmin[i] > plt.ylim()[0]:
             #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
             #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
@@ -442,8 +544,31 @@ class Spec1d:
             laby = y0 + 0.95*ydiff
             ha = 'left'
          print labx,laby
-         plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color='k',
+         plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color=labcolor,
                   fontsize=labfs+4)
+
+   #-----------------------------------------------------------------------
+
+   def mark_spec_emission(self, z, labww=20., labfs=12, ticklen=0.,
+                          showz=True):
+      """
+      Marks the location of expected emission lines in a spectrum, given
+      a redshift (z).  
+      
+      Inputs:
+        z       - redshift to be marked
+        labww   - width in pixels of the window used to set the vertical
+                  location of the tickmark (location is set from the maximum
+                  value within the window).
+        labfs   - font size for labels, in points
+        ticklen - override of auto-determination of tick length if > 0
+
+      *** NOTE: Right now the code is a bit of a mess after Nick edited it.
+          so this functionality is still maintained in the separate function
+          rather than within the Spec1d class
+
+      """
+
 
    #-----------------------------------------------------------------------
 
