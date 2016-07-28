@@ -462,6 +462,40 @@ class Spec1d:
    def mark_spec_absorption(self, z, usesmooth=False, marktype='tick', 
                             labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
                             showz=True, labloc='default', labcolor='k'):
+
+      """ 
+      Just a front-end to calling mark_speclines.  
+      It is probably better to call mark_speclines with linetype = 'abs',
+       but this is here, temporarily, for legacy reasons.
+      """
+
+      self.mark_speclines('abs',z,usesmooth=usesmooth,marktype=marktype,
+                          labww=labww,labfs=labfs,tickfrac=tickfrac,
+                          tickfac=tickfac,showz=showz,labloc=labloc,
+                          labcolor=labcolor)
+
+   #-----------------------------------------------------------------------
+
+   def mark_spec_emission(self, z, usesmooth=False, marktype='tick', 
+                          labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
+                          showz=True, labloc='default', labcolor='k'):
+
+      """ 
+      Just a front-end to calling mark_speclines.  
+      It is probably better to call mark_speclines with linetype = 'em',
+       but this is here, temporarily, for legacy reasons.
+      """
+
+      self.mark_speclines('em',z,usesmooth=usesmooth,marktype=marktype,
+                          labww=labww,labfs=labfs,tickfrac=tickfrac,
+                          tickfac=tickfac,showz=showz,labloc=labloc,
+                          labcolor=labcolor)
+
+   #-----------------------------------------------------------------------
+
+   def tmp_abs(self, z, usesmooth=False, marktype='tick', 
+               labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
+               showz=True, labloc='default', labcolor='k'):
       """
       Marks the location of expected absorption lines in a spectrum, given
       a redshift (z).  
