@@ -489,6 +489,98 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def radplot(self, x0, y0, rmax, zp=None, logr=False, hext=0):
+      """
+      Given a position in the image file (the x0 and y0 parameters), makes
+       a plot of image flux as a function of distance from that (x,y) 
+       position, out to a maximum distance of rmax.
+      The default is to make the plot in flux units (or ADU or counts or
+       counts/sec).  However, if the zero point parameter (zp) is set
+       then the values in the data array will be converted into surface
+       brightness in magnitudes, via the usual formula:
+         mu = -2.5 log10(data) + zp
+         
+      Required inputs:
+        x0   - x coordinate 
+        y0   - y coordinate
+        rmax - maximum radius, in pixels, for the plot
+      Optional inputs:
+        zp   - zero point.  If this parameter is set, then the output plot
+                will be in magnitude units (i.e., surface brightness) rather
+                than the default flux-like units (ADU, counts, counts/sec, etc.)
+        logr - If False (the default) then x-axis is linear. If true, then it 
+                is in log
+        hext - HDU extension that contains the data.  Default = 0
+      """
+
+      """ Define the data and the coordinate arrays """
+      data = self.hdu[hext].data
+      y,x = n.indices(data.shape)
+
+      """ 
+      Find the offsets of each pixel in the data array from the requested
+       central location (x0,y0).
+      For better speed, only actually do the computations for pixels that
+       might be in the correct area
+      """
+      x1,x2 = x0-rmax-1,x0+rmax+1
+      y1,y2 = y0-rmax-1,y0+rmax+1
+      pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
+      dx = x[pixmask] - x0
+      dy = y[pixmask] - y0
+      r = n.sqrt(dx**2 + dy**2)
+
+      """ Select the points within rmax and convert to mags if desired """
+      ii = n.argsort(r)
+      rr = r[ii]
+      rflux = (data[pixmask])[ii]
+      if zp:
+         mu = -2.5 * n.log10(rflux) + zp
+         ftype = 'Surface Brightness'
+         ttype = 'Magnitude'
+      else:
+         ftype = 'Counts'
+         ttype = 'Counts'
+
+      """ Plot the output """
+      ax1 = plt.subplot(211)
+      #plt.setp(ax1.get_xticklabels(), visible=False)
+      #plt.figure(1)
+      if zp:
+         if logr:
+            plt.semilogx(rr,mu,'+')
+         else:
+            plt.plot(rr,mu,'+')
+         yl1,yl2 = plt.ylim()
+         plt.ylim(yl2,yl1)
+      else:
+         if logr:
+            plt.semilogx(rr,rflux,'+')
+         else:
+            plt.plot(rr,rflux,'+')
+      plt.xlim(0,(rmax+1.))
+      plt.title('%s Profile at (%6.1f,%6.1f)'%(ftype,x0,y0))
+      ax2 = plt.subplot(212,sharex=ax1)
+      #plt.figure(2)
+      ftot = n.cumsum(rflux)
+      if zp:
+         m = -2.5 * n.log10(ftot) + zp
+         if logr:
+            plt.semilogx(rr,m,'+')
+         else:
+            plt.plot(rr,m,'+')
+         yl1,yl2 = plt.ylim()
+         plt.ylim(yl2,yl1)
+      else:
+         if logr:
+            plt.semilogx(rr,ftot,'+')
+         else:
+            plt.plot(rr,ftot,'+')
+      plt.xlim(0,(rmax+1.))
+      plt.title('Total Integrated %s at (%6.1f,%6.1f)'%(ttype,x0,y0))
+
+   #-----------------------------------------------------------------------
+
    def set_contours(self, rms=None, hext=0, verbose=True):
       """
       Sets the contouring levels for an image.  If a subimage (i.e., cutout)
