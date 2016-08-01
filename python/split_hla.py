@@ -58,15 +58,40 @@ scilist = ['wcsaxes','ctype1','ctype2','crpix1','crpix2','crval1','crval2'
 """ Populate the output file headers """
 scihdu = pf.PrimaryHDU(scidat)
 whthdu = pf.PrimaryHDU(whtdat)
+try:
+    scihdu.header['object'] = prihdr['targname']
+except:
+    print 'Warning: TARGNAME keyword not found in %s' % (infile)
+
 for i in prilist:
     try:
-        scihdu[i] = prihdu[i]
+        scihdu.header[i] = prihdr[i]
     except:
         print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
+for i in scilist:
     try:
-        
+        scihdu.header[i] = scihdr[i]
+    except:
+        print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
 
 """ Create the output files """
+print ''
+outok = True
+try:
+    scihdu.writeto(outsci)
+except:
+    outok = False
+    print 'ERROR: Could not write output file %s' % outsci
+if outok:
+    print 'Wrote output science file: %s' % outsci
+try:
+    whthdu.writeto(outwht)
+except:
+    outok = False
+    print 'ERROR: Could not write output file %s' % outwht
+if outok:
+    print 'Wrote output weight file: %s' % outwht
 
 """ Clean up and close """
 hdu.close()
+del scihdu,whthdu
