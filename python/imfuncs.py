@@ -92,6 +92,7 @@ class Image:
       self.radec = None
       self.ra  = None
       self.dec = None
+      self.pixscale = None
       try:
          self.get_wcs()
       except:
@@ -278,7 +279,8 @@ class Image:
             cosdec = mcos(self.radec.dec.radian)
             self.raclick = self.radec.ra.degree + \
                 (self.xclick + self.zeropos[0]) / (3600. * cosdec)
-            self.decclick = self.radec.dec.degree + self.yclick/3600. + self.zeropos[1]
+            self.decclick = self.radec.dec.degree + self.yclick/3600. + \
+                self.zeropos[1]
          print 'Mouse click ra, dec: %11.7f %+11.7f' % \
              (self.raclick,self.decclick)
       return
@@ -435,6 +437,17 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def set_pixscale(self):
+      """
+      Interactively set the pixel scale
+      """
+
+      print ''
+      self.pixscale = \
+          float(raw_input('Enter the pixel scale for the image in arcsec/pix'))
+
+   #-----------------------------------------------------------------------
+
    def set_wcsextent(self, hext=0, zeropos=None):
       """
       For making plots with WCS information, it is necessary to define
@@ -489,7 +502,8 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def radplot(self, x0, y0, rmax, zp=None, logr=False, hext=0):
+   def radplot(self, x0, y0, rmax, skylevel=0. , zp=None, runit='pixel', 
+               logr=False, hext=0):
       """
       Given a position in the image file (the x0 and y0 parameters), makes
        a plot of image flux as a function of distance from that (x,y) 
@@ -505,12 +519,21 @@ class Image:
         y0   - y coordinate
         rmax - maximum radius, in pixels, for the plot
       Optional inputs:
-        zp   - zero point.  If this parameter is set, then the output plot
-                will be in magnitude units (i.e., surface brightness) rather
-                than the default flux-like units (ADU, counts, counts/sec, etc.)
-        logr - If False (the default) then x-axis is linear. If true, then it 
-                is in log
-        hext - HDU extension that contains the data.  Default = 0
+        skylevel - If the sky has not been subtracted from the data, then
+                    the integrated counts, surface brightness in mag/arcsec**2,
+                    and integrated magnitude will all be wrong.  Set this
+                    parameter to the rough sky level to address these issues.
+                    The default (skylevel=0) is appropriate if the sky _has_
+                    been subtracted.
+        zp       - zero point.  If this parameter is set, then the output plot
+                    will be in magnitude units (i.e., surface brightness) rather
+                    than the default flux-like units (ADU, counts, 
+                    counts/sec, etc.)
+        runit    - units for the x-axis of the plot.  The only options are
+                    'pixel' (the default) or 'arcsec'
+        logr     - If False (the default) then x-axis is linear. If true, then 
+                    it is in log
+        hext     - HDU extension that contains the data.  Default = 0
       """
 
       """ Define the data and the coordinate arrays """
@@ -530,19 +553,39 @@ class Image:
       dy = y[pixmask] - y0
       r = n.sqrt(dx**2 + dy**2)
 
+      """ 
+      Get the pixel scale if needed, which it will be if either runit==arcsec
+       or if zp is set (and thus the first plot is mag/arcsec**2).
+      """
+      if zp or (runit=='arcsec'):
+         if self.pixscale is None:
+            self.set_pixscale()
+         print 'Using pixel scale of %6.3f arcsec/pix' % self.pixscale
+
       """ Select the points within rmax and convert to mags if desired """
       ii = n.argsort(r)
-      rr = r[ii]
-      rflux = (data[pixmask])[ii]
+      if runit=='arcsec':
+         rr = r[ii] * self.pixscale
+         xlab = 'r (arcsec)'
+         rmax *= self.pixscale
+      else:
+         rr = r[ii]
+         xlab = 'r (pixels)'
+      rflux = (data[pixmask])[ii] - skylevel
       if zp:
-         mu = -2.5 * n.log10(rflux) + zp
+         domega = self.pixscale**2
+         mu = -2.5 * n.log10(rflux/domega) + zp
          ftype = 'Surface Brightness'
          ttype = 'Magnitude'
+         flab = 'Surface rrightness (mag/arcsec**2)'
+         tlab = 'Integrated magnitude within r (mag)'
       else:
          ftype = 'Counts'
          ttype = 'Counts'
+         flab = 'Counts / pixel'
+         tlab = 'Integrated counts within r'
 
-      """ Plot the output """
+      """ Plot the surface brightness """
       ax1 = plt.subplot(211)
       #plt.setp(ax1.get_xticklabels(), visible=False)
       #plt.figure(1)
@@ -558,8 +601,12 @@ class Image:
             plt.semilogx(rr,rflux,'+')
          else:
             plt.plot(rr,rflux,'+')
-      plt.xlim(0,(rmax+1.))
-      plt.title('%s Profile at (%6.1f,%6.1f)'%(ftype,x0,y0))
+      plt.xlim(0,rmax)
+      plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,x0,y0))
+      plt.xlabel(xlab)
+      plt.ylabel(flab)
+
+      """ Plot the integrated flux/mag """
       ax2 = plt.subplot(212,sharex=ax1)
       #plt.figure(2)
       ftot = n.cumsum(rflux)
@@ -576,8 +623,10 @@ class Image:
             plt.semilogx(rr,ftot,'+')
          else:
             plt.plot(rr,ftot,'+')
-      plt.xlim(0,(rmax+1.))
-      plt.title('Total Integrated %s at (%6.1f,%6.1f)'%(ttype,x0,y0))
+      plt.xlim(0,rmax)
+      plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,x0,y0))
+      plt.xlabel(xlab)
+      plt.ylabel(tlab)
 
    #-----------------------------------------------------------------------
 
