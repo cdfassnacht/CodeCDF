@@ -52,7 +52,8 @@ whthdr = hdu[2].header
 prilist = ['telescop','instrume','targname','camera','focus','aperture',
            'exptime','date-obs','proposid'
            ]
-scilist = ['wcsaxes','ctype1','ctype2','crpix1','crpix2','crval1','crval2'
+scilist = ['wcsaxes','ctype1','ctype2','crpix1','crpix2','crval1','crval2',
+           'cd1_1','cd2_2','cd1_2','cd2_1'
            ]
 
 """ Populate the output file headers """

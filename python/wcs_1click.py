@@ -64,8 +64,10 @@ for i in range(len(files)):
     im1.keypress_info()
     im1.start_interactive()
     plt.show()
-    crpix1[i] = im1.xmark
-    crpix2[i] = im1.ymark
+    if im1.xmark is not None:
+        crpix1[i] = im1.xmark
+    if im1.ymark is not None:
+        crpix2[i] = im1.ymark
 
 """ 
 Second pass through the fits files, assigning the RA and Dec to the

@@ -203,15 +203,30 @@ class Image:
       d = data[n.isfinite(data)].flatten()
       avg = d.mean()
       std = d.std()
+      avg0 = d.mean()
+      std0 = d.mean()
    
       """ Iterate until convergence """
       delta = 1
+      clipError = False
       while delta:
          size = d.size
+         if std == 0.:
+            clipError = True
+            break
          d = d[abs(d-avg)<nsig*std]
          avg = d.mean()
          std = d.std()
+         if verbose:
+            print size,avg,std
          delta = size-d.size
+      if clipError:
+         print ''
+         print 'ERROR: sigma clipping failed, perhaps with rms=0.'
+         print 'Setting avg and sig to their original, unclipped, values'
+         print ''
+         avg = avg0
+         std = std0
 
       """ Store the results and clean up """
       del data,d
@@ -222,6 +237,8 @@ class Image:
    #-----------------------------------------------------------------------
 
    def start_interactive(self):
+      self.xmark = None
+      self.ymark = None
       self.cid_mouse = self.fig1.canvas.mpl_connect('button_press_event',
                                                     self.onclick)
       self.cid_keypress = self.fig1.canvas.mpl_connect('key_press_event',
@@ -1009,7 +1026,7 @@ class Image:
       self.def_subim_xy(hext)
 
       """ Write to the output file and clean up"""
-      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile)
+      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
       print "Wrote postage stamp cutout to %s" % outfile
 
    #-----------------------------------------------------------------------
@@ -1244,7 +1261,7 @@ class Image:
                sighigh=10.0, statsize=2048, title=None, 
                subimdef='xy', subimcent=None, subimsize=None, 
                dispunits='pixels', zeropos=None, axlabel=True, 
-               show_xyproj=False):
+               show_xyproj=False, verbose=False):
       """
       The main way to display the image data contained in the Image class.
       The default is to display the entire image, but it is possible to display
@@ -1325,7 +1342,7 @@ class Image:
          if self.found_rms == False:
             print "Calculating display limits"
             print "--------------------------"
-            self.sigma_clip()
+            self.sigma_clip(verbose=verbose)
             self.found_rms = True
          self.siglow = siglow
          self.sighigh = sighigh
