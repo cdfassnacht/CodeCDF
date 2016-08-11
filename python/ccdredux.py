@@ -35,7 +35,7 @@ from math import cos,sin,pi,sqrt,atan2
 
 #-----------------------------------------------------------------------
 
-def sigma_clip(data,nsig=3.,verbose=False):
+def sigma_clip(data, nsig=3.,verbose=False):
    # Only compute outputs for data values that are numbers
    if verbose:
       print " sigma_clip: Full size of data       = %d" % data.size
@@ -230,7 +230,7 @@ def read_calfile(filename, file_description):
 
 #-----------------------------------------------------------------------
 
-def median_combine(input_files,output_file,x1=0,x2=0,y1=0,y2=0,
+def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
                    biasfile=None,gain=-1.0,normalize=False,zeromedian=False,
                    NaNmask=False,hdu0only=False):
    """ Given a list of input file names, this function will:
@@ -338,24 +338,32 @@ def median_combine(input_files,output_file,x1=0,x2=0,y1=0,y2=0,
       
       print ""
 
-      # Actually form the median
-      # Note that numpy median converts the data type to float64
-      if(NaNmask == True):
-         print "median_combine: Computing median frame using NaN masking"
-         print "   Can take a while..."
-         median = sp.stats.stats.nanmedian(stack,axis=0)
+      # Actually form the median (or sum, if that was requested)
+      if method == 'sum':
+         if(NaNmask == True):
+            print "median_combine: Computing summed frame using NaN masking"
+            print "   Can take a while..."
+            outdat = n.nansum(stack,axis=0)
+         else:
+            print "median_combine: Computing summed frame (can take a while)..."
+            outdat = n.sum(stack,axis=0)
       else:
-         print "median_combine: Computing median frame (can take a while)..."
-         median = n.median(stack,axis=0)
+         if(NaNmask == True):
+            print "median_combine: Computing median frame using NaN masking"
+            print "   Can take a while..."
+            outdat = sp.stats.stats.nanmedian(stack,axis=0)
+         else:
+            print "median_combine: Computing median frame (can take a while)..."
+            outdat = n.median(stack,axis=0)
       del stack
 
       # Save the median HDU
-      # For multi-extension files, use pf.ImageHDU(median)
+      # For multi-extension files, use pf.ImageHDU(outdat)
       if(hdulen == 1) or (hdu0only):
-         phdu = pf.PrimaryHDU(median)
+         phdu = pf.PrimaryHDU(outdat)
          hdulist = pf.HDUList([phdu])
       else:
-         hdu = pf.ImageHDU(median)
+         hdu = pf.ImageHDU(outdat)
          hdulist.append(hdu)
 
    # Write the output median file
