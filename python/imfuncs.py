@@ -44,7 +44,7 @@ from astropy import units as u
 import numpy as n
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from math import log,sqrt,pi
+from math import log,sqrt,pi,fabs
 from math import cos as mcos,sin as msin
 import wcs as wcsmwa
 import ccdredux as ccd
@@ -107,26 +107,23 @@ class Image:
       Initialize default display parameters 
 
        - The scale for the display (i.e., the data values that correspond
-         to full black and full white on a greyscale display) are set
-         in terms of the "clipped mean" and "clipped rms".  Those values
+         to full black and full white on a greyscale display) are (by default) 
+         set in terms of the "clipped mean" and "clipped rms".  Those values
          are the mean and rms of the data after a sigma clipping algorithm
          has been applied to reject outliers.
-       - Once the clipped mean and rms have been calculated, the scale
-         for the display are calculated as follows, where the display
-         minimum would correspond to the value of full black on a greyscale
-         display and the maximum would correspond to the value of full white:
-         * display minimum: clipped_mean - (siglow * clipped_rms)
-         * display maximum: clipped_mean + (sighigh * clipped_rms)
+       - The display min and max values are stored as self.fmin and self.fmax
+       - For more information see the set_display_limits method
       """
       self.found_rms = False    # Have the clipped rms and mean been calculated?
       self.mean_clip = 0.0      # Value of the clipped mean
       self.rms_clip  = 0.0      # Value of the clipped rms
-      self.siglow    = 1.0      # Number of sigma below clipped mean for min
-      self.sighigh   = 10.0     # Number of sigma above clipped mean for max
+      self.fmin      = None     # Lower flux limit used in image display
+      self.fmax      = None     # Upper flux limit used in image display
       self.statsize  = 2048     # Region size for statistics if image is too big
       self.zoomsize  = 31       # Size of postage-stamp zoom
       self.dispunits = 'radec'  # Default display units are arcsec offsets
       self.extval    = None     # Just label the axes by pixels
+      self.cmap      = plt.cm.YlOrBr_r # This corresponds to the 'gaia' cmap
 
       """ Initialize contouring parameters """
       self.contbase   = sqrt(3.)
@@ -165,7 +162,7 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def sigma_clip(self, nsig=3., hext=0, verbose=False):
+   def sigma_clip(self, nsig=3., mask=None, hext=0, verbose=False):
       """
       Runs a sigma-clipping on image data.  The code iterates over
       the following steps until it has converged:
@@ -179,6 +176,10 @@ class Image:
       Optional inputs:
          nsig    - Number of sigma from the mean beyond which points are
                     rejected.  Default=3.
+         mask    - If some of the input data are known to be bad, they can
+                    be flagged before the inputs are computed by including
+                    a mask.  Clearly his mask must be set such that True
+                    indicates good data and False indicates bad data
          hext    - Image HDU containing the data.  The default (hext=0) should
                     work for all single-extension fits files and may 
                     work for some multi-extension files.
@@ -189,49 +190,58 @@ class Image:
 
       """ Determine what the input data set is """
       if self.subim is not None:
-         data = self.subim.copy()
+         if mask:
+            data = self.subim[mask]
+         else:
+            data = self.subim
       else:
-         data = self.hdu[hext].data.copy()
+         if mask:
+            data = self.hdu[hext].data[mask]
+         else:
+            data = self.hdu[hext].data
 
       """ Report the number of valid data points """
+      size = data[n.isfinite(data)].size 
       if verbose:
          print " sigma_clip: Full size of data       = %d" % data.size
-         print " sigma_clip: Number of finite values = %d" % \
-             data[n.isfinite(data)].size
+         print " sigma_clip: Number of finite values = %d" % size
 
       """ Reject the non-finite data points and compute the initial values """
       d = data[n.isfinite(data)].flatten()
-      avg = d.mean()
-      std = d.std()
-      avg0 = d.mean()
-      std0 = d.mean()
+      mu = d.mean()
+      sig = d.std()
+      mu0 = d.mean()
+      sig0 = d.mean()
+      if verbose:
+         print ''
+         print 'npix = %11d. mean = %f. sigma = %f' % (size,mu,sig)
    
       """ Iterate until convergence """
       delta = 1
       clipError = False
       while delta:
          size = d.size
-         if std == 0.:
+         if sig == 0.:
             clipError = True
             break
-         d = d[abs(d-avg)<nsig*std]
-         avg = d.mean()
-         std = d.std()
+         d = d[abs(d-mu)<nsig*sig]
+         mu = d.mean()
+         sig = d.std()
          if verbose:
-            print size,avg,std
+            print 'npix = %11d. mean = %f. sigma = %f' % (size,mu,sig)
          delta = size-d.size
       if clipError:
          print ''
          print 'ERROR: sigma clipping failed, perhaps with rms=0.'
-         print 'Setting avg and sig to their original, unclipped, values'
+         print 'Setting mu and sig to their original, unclipped, values'
          print ''
-         avg = avg0
-         std = std0
+         mu = mu0
+         sig = sig0
 
       """ Store the results and clean up """
       del data,d
-      self.mean_clip = avg
-      self.rms_clip  = std
+      self.mean_clip = mu
+      self.rms_clip  = sig
       return
 
    #-----------------------------------------------------------------------
@@ -309,6 +319,13 @@ class Image:
       Actions taken if a key on the keyboard is pressed
       """
 
+      if event.key == 'f':
+         """
+         Change the display range
+         """
+         print ''
+         self.set_display_limits(disprange=None,runits='abs')
+         
       if event.key == 'm':
          """
          Mark an object.  Hitting 'm' saves the (x,y) position into
@@ -1241,6 +1258,143 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def set_display_limits(self, disprange=[-1.,10.], runits='sigma',
+                          verbose=False):
+      """
+      The method used to set the flux limits for the image display.  The
+       two numbers that are generated by this method will be used for the
+       vmin and vmax values when the actual call to imshow (from
+       matplotlib.pyplot) is made.  The two values will be stored within the
+       Image class as fmin and fmax.
+
+      Inputs:
+        disprange - A list of two numbers, e.g. [-1.,10.5], that is used
+                     to set the values of fmin and fmax, according to the
+                     value for the runits parameter.  
+                    NOTE: for interactive use, set disprange=None.
+        runits    - Either 'sigma' (the default) or 'abs'. Used to determine
+                     the method of setting fmin and fmax.
+                    If runits is 'abs' then the two numbers in the disprange
+                     list just get stored as fmin and fmax.
+                    If runits is 'sigma' (the default) then the two numbers 
+                     in disprange represent the numbers of clipped standard 
+                     devitations relative to the clipped mean.  In that case, 
+                     the method will first calculate the clipped mean and 
+                     standarddeviations and then multiply them by the passed 
+                     values.
+      """
+
+      """ 
+      If runits is 'abs', then just set self.fmin and self.fmax directly from
+       the disprange values if those are set. Otherwise, query the user for the 
+       values.
+      """
+      if runits == 'abs':
+
+         """ If disprange was set, then just transfer the values """
+         if disprange is not None:
+            self.fmin = float(disprange[0])
+            self.fmax = float(disprange[1])
+
+         else: # Otherwise, query the user
+            """ 
+            Set some default values if there aren't already some in the fmin
+             and fmax containers
+            """
+            if self.fmin is None or self.fmax is None:
+               if self.found_rms == False:
+                  self.sigma_clip(verbose=verbose)
+                  self.found_rms = True
+               self.fmin = self.mean_clip - 1.*self.rms_clip
+               self.fmax = self.mean_clip + 10.*self.rms_clip
+            """ Query the user for new values """
+            tmpmin = self.fmin
+            tmpmax = self.fmax
+            tmp = raw_input('Enter minimum flux value for display [%f]: ' \
+                               % tmpmin)
+            if len(tmp)>0:
+               self.fmin = float(tmp)
+            tmp = raw_input('Enter maximum flux value for display [%f]: ' \
+                               % tmpmax)
+            if len(tmp)>0:
+               self.fmax = float(tmp)
+
+      else:
+         """
+         If runits is not 'abs', then it must be 'sigma', which is the only other
+         possibility, and the default value for runits.  In that case, set
+         the display limits in terms of the clipped mean and sigma
+         """
+         
+         """ Start by calculating the clipped statistics if needed """
+         if self.found_rms == False:
+            print "Calculating display limits"
+            print "--------------------------"
+            self.sigma_clip(verbose=verbose)
+            self.found_rms = True
+
+         """ If disprange is not set, then query the user for the range """
+         if disprange is None:
+            disprange = [-1.,10.]
+            tmp = raw_input(
+               'Enter min flux for display in terms of sigma from mean [%f]: ' \
+                  % disprange[0])
+            if len(tmp)>0:
+               disprange[0] = float(tmp)
+            tmp = raw_input(
+               'Enter max flux for display in terms of sigma from mean [%f]: ' \
+                  % disprange[1])
+            if len(tmp)>0:
+               disprange[1] = float(tmp)
+               
+         """ Set fmin and fmax in terms of clipped mean and sigma"""
+         self.fmin = self.mean_clip + disprange[0]*self.rms_clip
+         self.fmax = self.mean_clip + disprange[1]*self.rms_clip
+         print " Clipped mean: %f" % self.mean_clip
+         print " Clipped rms:  %f" % self.rms_clip
+         s1='-' if disprange[0]<0. else '+'
+         s2='-' if disprange[1]<0. else '+'
+         for i in range(2):
+            disprange[i] = fabs(disprange[i])
+         print " fmin (mean %s %3d sigma):  %f" % (s1,disprange[0],self.fmin)
+         print " fmax (mean %s %3d sigma):  %f" % (s2,disprange[1],self.fmax)
+
+   #-----------------------------------------------------------------------
+
+   def set_cmap(cmap='gaia'):
+      """
+      
+      Sets the color map for the image display.
+
+      Inputs:
+       cmap - name of the color map to use.  There are only a limited
+               number of choices:
+               ---
+               None  
+               'gaia' (default)
+               'gray' or 'grey'
+               'gray_inv' or 'grey_inv'
+               'heat' or 'hot'
+               'jet'
+      """
+
+      if cmap == 'gray' or cmap == 'grey':
+         self.cmap = plt.cm.gray
+      elif cmap == 'gray_inv' or cmap == 'grey_inv':
+         self.cmap = plt.cm.gray_r
+      elif cmap == 'heat' or cmap == 'hot':
+         self.cmap = plt.cm.hot
+      elif cmap == 'Yl_Or_Br' or cmap == 'gaia':
+         self.cmap = plt.cm.YlOrBr_r
+      elif cmap == 'jet':
+         self.cmap = plt.cm.jet
+      else:
+         print ' WARNING - Requested unknown color map.  Using gaia colors'
+         self.cmap = plt.cm.YlOrBr_r
+
+
+   #-----------------------------------------------------------------------
+
    def display_data(self, data):
       """
       The routine called by the display method to actually do the call
@@ -1253,6 +1407,8 @@ class Image:
 
       self.display_data(self.subim,cmap,absrange,siglow,sighigh)
 
+      NOT IMPLEMENTED YET
+
       """
 
    #-----------------------------------------------------------------------
@@ -1261,7 +1417,7 @@ class Image:
                sighigh=10.0, statsize=2048, title=None, 
                subimdef='xy', subimcent=None, subimsize=None, 
                dispunits='pixels', zeropos=None, axlabel=True, 
-               show_xyproj=False, verbose=False):
+               mask = None, show_xyproj=False, verbose=False):
       """
       The main way to display the image data contained in the Image class.
       The default is to display the entire image, but it is possible to display
@@ -1327,31 +1483,8 @@ class Image:
           (self.subsizex,self.subsizey)
       print ''
 
-      """ 
-      Take the absolute range to display, if requested, otherwise clip the 
-      data and set display limits from the clipped values 
-      """
-      if absrange is not None:
-         print "Taking requested absolute display limits"
-         print "----------------------------------------"
-         vmin = absrange[0]
-         vmax = absrange[1]
-         print "  vmin (absolute): %f" % vmin
-         print "  vmax (absolute): %f" % vmax
-      else:
-         if self.found_rms == False:
-            print "Calculating display limits"
-            print "--------------------------"
-            self.sigma_clip(verbose=verbose)
-            self.found_rms = True
-         self.siglow = siglow
-         self.sighigh = sighigh
-         vmin = self.mean_clip - siglow*self.rms_clip
-         vmax = self.mean_clip + sighigh*self.rms_clip
-         print " Clipped mean: %f" % self.mean_clip
-         print " Clipped rms:  %f" % self.rms_clip
-         print " vmin (mean - %2d sigma):  %f" % (siglow,vmin)
-         print " vmax (mean + %2d sigma):  %f" % (sighigh,vmax)
+      """ Set the image display limits """
+      self.set_display_limits()
 
       """ Set the color map """
       if cmap == 'gray' or cmap == 'grey':
@@ -1403,8 +1536,8 @@ class Image:
          self.ax1 = plt.gca()
 
       """ Display the image data """
-      plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=vmin,vmax=vmax,
-                 interpolation='nearest',extent=self.extval)
+      plt.imshow(self.subim,origin='bottom',cmap=cmap,vmin=self.fmin,
+                 vmax=self.fmax,interpolation='nearest',extent=self.extval)
       if axlabel is True:
          if self.dispunits == 'radec':
             plt.xlabel(r"$\Delta \alpha$ (arcsec)")
