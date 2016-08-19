@@ -10,21 +10,25 @@ from matplotlib import pyplot as plt
 
 class LensInfo:
 
-   def __init__(self, nlens):
+   def __init__(self, intable):
        """
-       Just sets up an empty container for holding lens information on
-        a set of nlens lens systems
+       Sets up the LensInfo class and populates it with the data in the
+        input table.
+       Note: the input table is expected to be an astropy.table.Table class,
+        that may very well have been created by a call to astropy.ascii.read
 
        Input:
-         nlens - number of lenses for which information will be stored
+         intable - input table, 
        """
 
-       lenstype = [('name','S20'),('zl',float),('zs',float),('theta_E',float), \
-                       ('dl',float),('ds',float),('dls',float), \
-                       ('R_E',float),('log_M_E',float)]
-       self.data = np.ones((nlens),dtype=lenstype)
-       for i in ('zl','zs','theta_E','dl','ds','dls','R_E','log_M_E'):
-           self.data[i] *= -1.
+       self.data = intable
+
+       """ Create missing columns if needed """
+       for i in ('zl','zs','thetaE','D_l','D_s','D_ls','R_E','logM_E','m_814'):
+          try:
+             tmp = self.data[i]
+          except:
+             self.data[i] = np.ones(len(self.data)) * -1.
 
        self.memask = None
        self.remask = None
@@ -48,7 +52,7 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.plot(data['zl'][mask],data['log_M_E'][mask],symb,ms=size,
+      plt.plot(data['zl'][mask],data['logM_E'][mask],symb,ms=size,
                fillstyle=fs,alpha=alpha)
       plt.xlabel('Lens redshift')
       plt.ylabel(r'Projected mass inside $R_{\rm Ein}$ (h=%3.1f)' % h)
@@ -75,7 +79,7 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.plot(self.data['zl'][self.memask],self.log_M_proj,symb,color=color,
+      plt.plot(self.data['zl'][self.memask],self.logM_proj,symb,color=color,
                ms=size,fillstyle=fs,alpha=alpha)
       plt.xlabel('Lens redshift')
       plt.ylabel('Projected mass inside R = %4.1f kpc (h=%3.1f)' % (Rproj,h))
@@ -95,7 +99,7 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.hist(data['log_M_E'][mask],color=color,label=label)
+      plt.hist(data['logM_E'][mask],color=color,label=label)
 
    #---------------------------------------------------------------------------
 
@@ -113,7 +117,7 @@ class LensInfo:
          histtype = 'bar'
          lw = None
       #print histtype
-      plt.hist(self.log_M_proj,color=color,alpha=alpha,histtype=histtype,
+      plt.hist(self.logM_proj,color=color,alpha=alpha,histtype=histtype,
                lw=lw,ls=ls,label=label)
 
    #---------------------------------------------------------------------------
@@ -166,8 +170,8 @@ class LensInfo:
        of the ratio
       """
       log_scale =  np.log10(Rproj / self.data['R_E'][self.memask])
-      log_Mproj = log_scale + self.data['log_M_E'][self.memask]
-      self.log_M_proj = log_Mproj
+      logMproj = log_scale + self.data['logM_E'][self.memask]
+      self.logM_proj = logMproj
       self.R_proj = Rproj
 
    #---------------------------------------------------------------------------
@@ -190,14 +194,14 @@ class LensInfo:
 
        """ Mask the points that do not have the required information """
        data = self.data
-       self.memask = (data['zl']>0) & (data['zs']>0) & (data['theta_E']>0)
-       D = data['dl'] * data['ds'] / data['dls']
+       self.memask = (data['zl']>0) & (data['zs']>0) & (data['thetaE']>0)
+       D = data['D_l'] * data['D_s'] / data['D_ls']
 
        """ Combine the constants into one factor """
        cfac = (c * arcsec2rad)**2 * Mpc / (4. * G * Msun * h)
        """ Calculate the Einstein ring mass """
-       data['log_M_E'][self.memask] = \
-           np.log10(cfac * (data['theta_E'][self.memask])**2 * D[self.memask])
+       data['logM_E'][self.memask] = \
+           np.log10(cfac * (data['thetaE'][self.memask])**2 * D[self.memask])
                         
 
    #---------------------------------------------------------------------------
@@ -211,13 +215,13 @@ class LensInfo:
 
        """ Set the mask for valid data """
        data = self.data
-       mask = (data['dl']>0) & (data['theta_E']>0)
+       mask = (data['D_l']>0) & (data['thetaE']>0)
 
        """ 
        Do the conversion 
        The factor of 1000. is to convert the units from Mpc to kpc
        """
        deg2rad = pi / 180.
-       data['R_E'][mask] = 1000. * data['dl'][mask] * data['theta_E'][mask] * \
+       data['R_E'][mask] = 1000. * data['D_l'][mask] * data['thetaE'][mask] * \
            deg2rad / (3600. * h)
        self.remask = mask
