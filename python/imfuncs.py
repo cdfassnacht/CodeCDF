@@ -1485,17 +1485,15 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display_data(self, data):
+   def display_implot(self):
       """
-      The routine called by the display method to actually do the call
-      to imshow.  This functionality has been split out of display in order
-      to accommodate data that are not contained in a HDU.  As an example,
-      imagine that an Image class has been created from a fits file, and
-      that something has been done to the data (e.g., sky subtraction).
-      Instead of saving the result of that process to a new fits file and
-      creating a new image, just display the data.
 
-      self.display_data(self.subim,cmap,absrange,siglow,sighigh)
+      NOTE: DO NOT USE this routine/method unless you know exactly what
+      you are doing.  It is meant to be called from the display() routine/method,
+      as well as in a few other specialized cases, and is NOT meant to 
+      have stand-alone functionality.
+
+      Please see the help for the display method for more information.
 
       NOT IMPLEMENTED YET
 
@@ -1503,42 +1501,25 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
-               sighigh=10.0, statsize=2048, title=None, 
-               subimdef='xy', subimcent=None, subimsize=None, 
-               dispunits='pixels', zeropos=None, axlabel=True, 
-               mask = None, show_xyproj=False, verbose=False):
+   def display_setup(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
+                     sighigh=10.0, statsize=2048, title=None, 
+                     subimdef='xy', subimcent=None, subimsize=None, 
+                     dispunits='pixels', zeropos=None, axlabel=True, 
+                     mask = None, show_xyproj=False, verbose=False):
       """
-      The main way to display the image data contained in the Image class.
-      The default is to display the entire image, but it is possible to display
-      cutouts (subimages), which can be defined either by (RA,Dec) or (x,y)
-
-      Optional inputs:
-         subimsize - size of the subimage to be displayed, either in pixels
-                      (the default) or arcsec (if subimdef='radec').  The
-                      default, designated by subimsize=None, is to display
-                      the entire image.  The subimsize parameter can take
-                      any of the following formats:
-                         1. A single number (which will produce a square image)
-                         2. A 2-element numpy array
-                         3. A 2-element list:  [xsize,ysize] 
-                         4. A 2-element tuple: (xsize,ysize)
-         zeropos   - NOTE: Only used if dispunits='radec'
-                      By default, which happens when zeropos=None, the (0,0)
-                      point on the output image, as designated by the image
-                      axis labels, will be at the center of the image.  However,
-                      you can shift the (0,0) point to be somewhere else by
-                      setting zeropos.  For example, zeropos=(0.5,0.3) will
-                      shift the origin to the point that would have been
-                      (0.5,0.3) if the origin were at the center of the image
-
+      Sets parameters within the Image class that will be used to actually
+       display the image or the requested part of it.
+      NOTE: This method is usually called from the display method, and is
+       not meant to be used in a stand-alone manner
+      For more information about the parameters, etc., please see the
+       help information for the display method.
       """
-      print ""
-      print "Input file:  %s" % self.infile
 
-      """ Read in relevant data """
+      """ Set the region of the image to be displayed """
       if subimdef == 'radec':
-         """ If requesting a (RA,Dec) cutout, make the display units arcsec """
+         """ 
+         If requesting a (RA,Dec) cutout, make the display units arcsec 
+         """
          self.dispunits = 'radec'
 
          """ Set the display center"""
@@ -1557,7 +1538,11 @@ class Image:
             xsize = subimsize[0]
             ysize = subimsize[1]
          self.def_subim_radec(ra,dec,xsize,ysize,hext=hext)
+
       else:
+         """
+         If not requesting a (RA,Dec) cutout, the code is simpler
+         """
          self.dispunits = dispunits
          if subimcent is None:
             self.subcentx = None
@@ -1605,6 +1590,53 @@ class Image:
       else:
          self.extval = None
 
+      """ Set other display parameters """
+      self.title = title
+
+
+   #-----------------------------------------------------------------------
+
+   def display(self, hext=0, cmap='gaia', absrange=None, siglow=1.0,
+               sighigh=10.0, statsize=2048, title=None, 
+               subimdef='xy', subimcent=None, subimsize=None, 
+               dispunits='pixels', zeropos=None, axlabel=True, 
+               mask = None, show_xyproj=False, verbose=False):
+      """
+      The main way to display the image data contained in the Image class.
+      The default is to display the entire image, but it is possible to display
+      cutouts (subimages), which can be defined either by (RA,Dec) or (x,y)
+
+      Optional inputs:
+         subimsize - size of the subimage to be displayed, either in pixels
+                      (the default) or arcsec (if subimdef='radec').  The
+                      default, designated by subimsize=None, is to display
+                      the entire image.  The subimsize parameter can take
+                      any of the following formats:
+                         1. A single number (which will produce a square image)
+                         2. A 2-element numpy array
+                         3. A 2-element list:  [xsize,ysize] 
+                         4. A 2-element tuple: (xsize,ysize)
+         zeropos   - NOTE: Only used if dispunits='radec'
+                      By default, which happens when zeropos=None, the (0,0)
+                      point on the output image, as designated by the image
+                      axis labels, will be at the center of the image.  However,
+                      you can shift the (0,0) point to be somewhere else by
+                      setting zeropos.  For example, zeropos=(0.5,0.3) will
+                      shift the origin to the point that would have been
+                      (0.5,0.3) if the origin were at the center of the image
+
+      """
+      print ""
+      print "Input file:  %s" % self.infile
+
+      """ Set up the parameters that will be needed to display the image """
+      display_setup(hext=hext,cmap=cmap,absrange=absrange,siglow=siglow,
+                    sighigh=sighigh,statsize=statsize,title=title,
+                    subimdef=subimdef,subimcent=subimcent,subimsize=subimsize, 
+                    dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,
+                    mask=mask,show_xyproj=show_xyproj,verbose=verbose)
+
+
       """ 
       Set up for displaying the image data
        - If show_xyproj is False (the default), then just show self.subim
@@ -1615,8 +1647,7 @@ class Image:
         - Setting show_xyproj=True is most useful when evaluating, e.g., a 
           star in the image data.  The projections along the two axes of the
           cutout can be useful for evaluating whether the object is a star and/or
-          doing centroiding (centroiding functionality has NOT been
-          implemented yet)
+          whether it is saturated
       """
       if show_xyproj:
          self.fig2 = plt.figure(figsize=(10,3))
@@ -1635,7 +1666,7 @@ class Image:
          else:
             plt.xlabel('x (pix)')
             plt.ylabel('y (pix)')
-      if title is not None:
+      if self.title is not None:
          plt.title(title)
 
       """ 
