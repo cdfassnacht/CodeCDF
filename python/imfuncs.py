@@ -132,6 +132,7 @@ class Image:
 
       """ Initialize other parameters """
       self.reset_subim()
+      self.reset_imex()
 
    #-----------------------------------------------------------------------
 
@@ -149,6 +150,26 @@ class Image:
       self.subsizey = None
       self.subcentx = None
       self.subcenty = None
+
+   #-----------------------------------------------------------------------
+
+   def reset_imex(self):
+      """
+      Resets the parameters that are associated with the imexam-like
+       processing
+      """
+
+      """ Initialize coordinates and data """
+      self.imex_x = None
+      self.imex_y = None
+      self.imex_data = None
+
+      """ Initialize moment calculations """
+      self.imex_mux   = None
+      self.imex_muy   = None
+      self.imex_sigxx = None
+      self.imex_sigyy = None
+      self.imex_sigxy = None
 
    #-----------------------------------------------------------------------
 
@@ -533,6 +554,75 @@ class Image:
       """ Set the extval values, and also record the zerpos values used """
       self.extval  = (extx1,extx2,exty1,exty2)
       self.zeropos = (dx,dy)
+
+   #-----------------------------------------------------------------------
+
+   def im_moments(self, x0, y0, rmax=10., detect_thresh=3., skytype='global', 
+                  hext=0, verbose=False):
+      """
+      Given an initial guess of a centroid position, calculates the
+      flux-weighted first and second moments within a square centered
+      on the initial guess point and with side length of 2*rmax + 1.
+      The moments will be estimates of the centroid and sigma of the
+      light distribution within the square.
+
+      Inputs:
+        x0      - initial guess for x centroid
+        y0      - initial guess for y centroid
+        rmax    - used to set size of image region probed, which will be a
+                   square with side = 2*rmax + 1. Default=10
+        skytype - set how the sky/background level is set.  Three options:
+                    'global' - Use the clipped mean as determined by the
+                               sigma_clip method.  This is the default.
+                    'local'  - Use a region that surrounds the source
+                               NOT YET IMPLEMENTED
+                    None     - Don't do any sky/background subtraction
+        hext    - HDU extension that contains the data.  Default = 0
+      """
+
+      """ Define the data and the coordinate arrays """
+      data = self.hdu[hext].data
+      y,x = n.indices(data.shape)
+
+      """ 
+      Select the data within the square of interest
+      """
+      x1,x2 = x0-rmax-1,x0+rmax+1
+      y1,y2 = y0-rmax-1,y0+rmax+1
+      pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
+      if skytype is None:
+         f   = data[pixmask]
+      else:
+         if self.found_rms == False:
+            self.sigma_clip(verbose=verbose)
+            self.found_rms = True
+         print self.mean_clip, self.rms_clip
+         f   = data[pixmask] - self.mean_clip
+      self.imex_x = x[pixmask]
+      self.imex_y = y[pixmask]
+
+      """ 
+      Calculate the flux-weighted moments 
+       NOTE: Do the moment calculations relative to (x1,y1) -- and then add 
+        x1 and y1 back at the end -- in order to avoid rounding errors (see
+        SExtractor user manual)
+      """
+      objmask = f > self.mean_clip + detect_thresh * self.rms_clip
+      fgood = f[objmask]
+      """ 
+      """
+      xgood = self.imex_x[objmask] - x1 
+      ygood = self.imex_y[objmask] - y1
+      fsum = fgood.sum()
+      mux = (fgood * xgood).sum() / fsum
+      muy = (fgood * ygood).sum() / fsum
+      self.imex_mux = mux + x1
+      self.imex_muy = mux + y1
+      self.imex_sigxx = (fgood * xgood**2).sum() / fsum - mux**2
+      self.imex_sigyy = (fgood * ygood**2).sum() / fsum - muy**2
+      self.imex_sigxy = (fgood * xgood*ygood).sum() / fsum - mux*muy
+      print self.imex_mux,self.imex_muy
+      print sqrt(self.imex_sigxx),sqrt(self.imex_sigyy),self.imex_sigxy
 
    #-----------------------------------------------------------------------
 
@@ -1354,10 +1444,10 @@ class Image:
          print " Clipped rms:  %f" % self.rms_clip
          s1='-' if disprange[0]<0. else '+'
          s2='-' if disprange[1]<0. else '+'
-         for i in range(2):
-            disprange[i] = fabs(disprange[i])
-         print " fmin (mean %s %3d sigma):  %f" % (s1,disprange[0],self.fmin)
-         print " fmax (mean %s %3d sigma):  %f" % (s2,disprange[1],self.fmax)
+         print " fmin (mean %s %3d sigma):  %f" % (s1,fabs(disprange[0]),
+                                                   self.fmin)
+         print " fmax (mean %s %3d sigma):  %f" % (s2,fabs(disprange[1]),
+                                                   self.fmax)
 
    #-----------------------------------------------------------------------
 
