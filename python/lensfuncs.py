@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 
 class LensInfo:
 
-   def __init__(self, intable):
+   def __init__(self, intable, h=0.7):
        """
        Sets up the LensInfo class and populates it with the data in the
         input table.
@@ -24,14 +24,82 @@ class LensInfo:
        self.data = intable
 
        """ Create missing columns if needed """
-       for i in ('zl','zs','thetaE','D_l','D_s','D_ls','R_E','logM_E','m_814'):
+       for i in ('zl','zs','thetaE','D_l','D_s','D_ls','R_E','logM_E','m_814',
+                 'logM_proj'):
           try:
              tmp = self.data[i]
           except:
              self.data[i] = np.ones(len(self.data)) * -1.
 
-       self.memask = None
+       """ 
+       Set up masks.  The logM_E and R_E masks are set to None here, but
+        can be set later either by the relevant calc_* function, or by
+        a call outside the class
+       """
+       self.zlmask = self.data['zl']>0
+       self.zsmask = self.data['zs']>0
        self.remask = None
+       self.memask = None
+
+       """ Set plotting parameters to default values """
+       self.label = None
+       self.color = 'b'
+       self.alpha = 1.0
+       self.symb  = 'bo'
+       self.ls    = 'solid'
+       self.opensymb = False
+
+   #---------------------------------------------------------------------------
+
+   def plot_hist(self, param, mask=None, bins=None, xlab=None, pdf=False):
+      """
+
+      Generic routine for plotting a histogram that replaces all of the 
+       parameter-specific routines that were used before.
+
+      NOTE: This routine uses the color, alpha, opensymb, and ls parameters
+       that are stored within the class rather than setting them on the command
+       line.  The default values for these parameters are set in the __init__
+       method.  If other values are desired, then they need to be changed
+       explicitly BEFORE calling plot_hist.
+       For example, to create an instance of the class and then reset, e.g.,
+        the color from its default value before calling plot_hist,
+        you can do something like the following:
+
+           mysamp = LensInfo(intable)
+           mysamp.color = 'r'
+           mysamp.plot_hist('zl')
+
+      """
+
+
+      """ Set the data """
+      if mask is None:
+         data = self.data[param]
+      else:
+         data = self.data[param][mask]
+
+      """ Set the histogram type """
+      if self.opensymb:
+         histtype = 'step'
+         lw = 3
+      else:
+         histtype = 'bar'
+         lw = None
+
+      """ Plot the histogram """
+      if bins is None:
+         tmp = plt.hist(data,color=self.color,alpha=self.alpha,histtype=histtype,
+                        lw=lw,ls=self.ls,label=self.label)
+         self.bins = tmp[1]
+      else:
+         self.bins = bins
+         tmp = plt.hist(data,bins=bins,color=self.color,alpha=self.alpha,
+                        histtype=histtype,lw=lw,ls=self.ls,label=self.label)
+      self.hist = tmp[0]
+      if xlab:
+         plt.xlabel(xlab)
+      plt.ylabel('Relative numbers')
 
    #---------------------------------------------------------------------------
 
@@ -59,7 +127,7 @@ class LensInfo:
 
    #---------------------------------------------------------------------------
 
-   def plot_M_proj(self, Rproj, h=0.7, symb='o', color='b', size=5, alpha=1.,
+   def plot_M_proj(self, Rproj, h=0.7, symb='bo', size=5, alpha=1.,
                    opensymb=False, label=None):
       """
       Makes a plot of projeced mass inside a ring of a given radius vs. lens 
@@ -79,15 +147,15 @@ class LensInfo:
          fs = 'none'
       else:
          fs = 'full'
-      plt.plot(self.data['zl'][self.memask],self.logM_proj,symb,color=color,
-               ms=size,fillstyle=fs,alpha=alpha)
+      plt.plot(self.data['zl'][self.memask],self.logM_proj,symb,ms=size,
+               fillstyle=fs,alpha=alpha)
       plt.xlabel('Lens redshift')
       plt.ylabel('Projected mass inside R = %4.1f kpc (h=%3.1f)' % (Rproj,h))
 
    #---------------------------------------------------------------------------
 
    def hist_M_ein(self, h=0.7, color='b', alpha=1., opensymb=False,
-                  label=None):
+                  label=None, ls='solid'):
       """ First calculate the Einstein ring masses if needed """
       if self.memask is None:
          self.calc_M_ein(h)
@@ -100,6 +168,50 @@ class LensInfo:
       else:
          fs = 'full'
       plt.hist(data['logM_E'][mask],color=color,label=label)
+
+   #---------------------------------------------------------------------------
+
+   def hist_zlens(self, color='b', alpha=1., opensymb=False,
+                  label=None, ls='solid', bins=None):
+
+      """ Now make the plot """
+      if opensymb:
+         histtype = 'step'
+         lw = 3
+      else:
+         histtype = 'bar'
+         lw = None
+      #print histtype
+      if bins is None:
+         tmp = plt.hist(self.data['zl'][self.zlmask],color=color,alpha=alpha,
+                        histtype=histtype,lw=lw,ls=ls,label=label)
+         self.bins = tmp[1]
+      else:
+         self.bins = bins
+         plt.hist(self.data['zl'][self.zlmask],bins=bins,color=color,alpha=alpha,
+                  histtype=histtype,lw=lw,ls=ls,label=label)
+
+   #---------------------------------------------------------------------------
+
+   def hist_R_E(self, color='b', alpha=1., opensymb=False,
+                label=None, ls='solid', bins=None):
+
+      """ Now make the plot """
+      if opensymb:
+         histtype = 'step'
+         lw = 3
+      else:
+         histtype = 'bar'
+         lw = None
+      #print histtype
+      if bins is None:
+         tmp = plt.hist(self.data['R_E'][self.remask],color=color,alpha=alpha,
+                        histtype=histtype,lw=lw,ls=ls,label=label)
+         self.bins = tmp[1]
+      else:
+         self.bins = bins
+         plt.hist(self.data['M_E'][self.remask],bins=bins,color=color,
+                  alpha=alpha,histtype=histtype,lw=lw,ls=ls,label=label)
 
    #---------------------------------------------------------------------------
 
@@ -146,7 +258,7 @@ class LensInfo:
 
    #---------------------------------------------------------------------------
 
-   def calc_R_proj(self, Rproj, h=0.7):
+   def calc_M_proj(self, Rproj, h=0.7):
       """
       Makes a plot of projeced mass inside a ring of a given radius vs. lens 
        redshift for systems that have the appropriate information.
@@ -171,7 +283,7 @@ class LensInfo:
       """
       log_scale =  np.log10(Rproj / self.data['R_E'][self.memask])
       logMproj = log_scale + self.data['logM_E'][self.memask]
-      self.logM_proj = logMproj
+      self.data['logM_proj'][self.memask] = logMproj
       self.R_proj = Rproj
 
    #---------------------------------------------------------------------------
