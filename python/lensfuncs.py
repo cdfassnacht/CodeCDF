@@ -99,7 +99,7 @@ class LensInfo:
       self.hist = tmp[0]
       if xlab:
          plt.xlabel(xlab)
-      plt.ylabel('Relative numbers')
+      plt.ylabel('N')
 
    #---------------------------------------------------------------------------
 
