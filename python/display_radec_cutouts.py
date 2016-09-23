@@ -8,7 +8,7 @@ Inputs:
    catfile   -  Input ascii file containing RA and Dec as decimal degrees
                 in separate columns
    imsize    -  cutout image size in arcsec
-   sighi     -  [OPTIONAL] upper end of display range, in sigma 
+   fmax      -  [OPTIONAL] upper end of display range, in sigma 
                 above the mean.  Default=25
    racol     -  [OPTIONAL] Column in catfile containing the RA in decimal
                 degrees.  Default value (1) means that RA is in the second
@@ -21,7 +21,7 @@ Inputs:
                 is in the first column (since python is zero-indexed)'
 
 Usage: 
- python display_radec_cutouts.py [fitsfile] [catfile] [imsize] ([sighi] 
+ python display_radec_cutouts.py [fitsfile] [catfile] [imsize] ([fmax] 
     [racol] [deccol] [idcol])
 
 """
@@ -45,7 +45,7 @@ if len(sys.argv) < 4:
     print '   catfile  -  Input ascii file containing RA and Dec as decimal'
     print '               degrees in separate columns'
     print '   imsize   -  cutout image size in arcsec'
-    print '   sighi    -  [OPTIONAL] upper end of display range, in sigma '
+    print '   fmax     -  [OPTIONAL] upper end of display range, in sigma '
     print '               above the mean.  Default=25'
     print '   racol    -  [OPTIONAL] Column in catfile containing the RA in '
     print '               decimal degrees.  Default value (1) means that RA '
@@ -59,7 +59,7 @@ if len(sys.argv) < 4:
     print ''
     print 'Examples of usage'
     print '------------------------'
-    print 'python display_radec_cutouts.py [fitsfile] [catfile] [imsize] [sighi]'
+    print 'python display_radec_cutouts.py [fitsfile] [catfile] [imsize] [fmax]'
     print ''
     exit()
 
@@ -83,9 +83,9 @@ fitsfile = sys.argv[1]
 catfile = sys.argv[2]
 imsize = float(sys.argv[3])
 if len(sys.argv)>4:
-    sighi = float(sys.argv[4])
+    fmax = float(sys.argv[4])
 else:
-    sighi = 25.
+    fmax = 25.
 if len(sys.argv)>5:
     racol = int(sys.argv[5])
 else:
@@ -106,7 +106,7 @@ print 'imsize:  %4.1f arcsec' % imsize
 print 'racol:   %d' % racol
 print 'deccol:  %d' % deccol
 print 'namecol: %d' % namecol
-print 'sighi:   %5.1f' % sighi
+print 'fmax:    %5.1f' % fmax
 
 
 """ Open the fits file """
@@ -141,7 +141,7 @@ for i in range(incat.ra.size):
     #fig = plt.figure(1)
     #ax = fig.add_subplot(111)
     infits.display(subimdef='radec',subimcent=(incat.ra[i],incat.dec[i]),
-                   subimsize=(imsize,imsize),dispunits='radec',sighigh=sighi,
+                   subimsize=(imsize,imsize),dispunits='radec',fmax=fmax,
                    title=title,show_xyproj=True)
     fig = plt.gcf()
     coords = []
