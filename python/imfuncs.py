@@ -44,7 +44,7 @@ from astropy import units as u
 import numpy as n
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from math import log,sqrt,pi,fabs
+from math import log,log10,sqrt,pi,fabs
 from math import cos as mcos,sin as msin
 import wcs as wcsmwa
 import ccdredux as ccd
@@ -119,6 +119,7 @@ class Image:
       self.rms_clip  = 0.0      # Value of the clipped rms
       self.fmin      = None     # Lower flux limit used in image display
       self.fmax      = None     # Upper flux limit used in image display
+      self.fscale    = 'linear' # Flux scaling for display
       self.statsize  = 2048     # Region size for statistics if image is too big
       self.zoomsize  = 31       # Size of postage-stamp zoom
       self.dispunits = 'radec'  # Default display units are arcsec offsets
@@ -1488,22 +1489,6 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display_implot(self):
-      """
-
-      NOTE: DO NOT USE this routine/method unless you know exactly what
-      you are doing.  It is meant to be called from the display() routine/method,
-      as well as in a few other specialized cases, and is NOT meant to 
-      have stand-alone functionality.
-
-      Please see the help for the display method for more information.
-
-      NOT IMPLEMENTED YET
-
-      """
-
-   #-----------------------------------------------------------------------
-
    def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
                      funits='sigma', statsize=2048, title=None, 
                      subimdef='xy', subimcent=None, subimsize=None, 
@@ -1584,6 +1569,80 @@ class Image:
       """ Set other display parameters """
       self.title = title
 
+   #-----------------------------------------------------------------------
+
+   def display_implot(self, show_xyproj=False, axlabel=True):
+      """
+
+      NOTE: DO NOT USE this routine/method unless you know exactly what
+      you are doing.  It is meant to be called from the display() routine/method,
+      as well as in a few other specialized cases, and is NOT meant to 
+      have stand-alone functionality.
+
+      Please see the help for the display method for more information.
+      """
+
+      """ 
+      Set up for displaying the image data
+       - If show_xyproj is False (the default), then just show self.subim
+       - If show_xyproj is True, then make a three panel plot, with
+          Panel 1: self.subim (i.e., what you would see in the default behavior)
+          Panel 2: Projection of data in self.subim onto the x-axis
+          Panel 3: Projection of data in self.subim onto the x-axis
+        - Setting show_xyproj=True is most useful when evaluating, e.g., a 
+          star in the image data.  The projections along the two axes of the
+          cutout can be useful for evaluating whether the object is a star and/or
+          whether it is saturated
+      """
+      if show_xyproj:
+         self.fig2 = plt.figure(figsize=(10,3))
+         self.fig2.add_subplot(131)
+      else:
+         self.fig1 = plt.gcf()
+         self.ax1 = plt.gca()
+
+      """ Choose the scaling for the display """
+      fdiff = fabs(self.fmax - self.fmin)
+      if self.fscale == 'log':
+         data = self.subim - self.subim.min() + 1.
+         data = n.log10(data)
+         vmin = log10(self.fmin - self.subim.min() + 1.)
+         vmax = log10(self.fmax - self.subim.min() + 1.)
+      else:
+         """ Linear scaling is the default """
+         data = self.subim
+         vmin = self.fmin
+         vmax = self.fmax
+         
+
+      """ Display the image data """
+      plt.imshow(data,origin='bottom',cmap=self.cmap,vmin=vmin,
+                 vmax=vmax,interpolation='nearest',extent=self.extval)
+      if axlabel is True:
+         if self.dispunits == 'radec':
+            plt.xlabel(r"$\Delta \alpha$ (arcsec)")
+            plt.ylabel(r"$\Delta \delta$ (arcsec)")
+         else:
+            plt.xlabel('x (pix)')
+            plt.ylabel('y (pix)')
+      if self.title is not None:
+         plt.title(title)
+
+      """ 
+      Now add the x and y projections if requested (i.e., if show_xyproj is True
+      """
+      if show_xyproj:
+         self.fig2.add_subplot(132)
+         xsum = self.subim.sum(axis=0)
+         plt.plot(xsum)
+         plt.xlabel('Relative x Coord')
+         self.fig2.add_subplot(133)
+         ysum = self.subim.sum(axis=1)
+         plt.plot(ysum)
+         plt.xlabel('Relative y Coord')
+         self.cid_keypress2 = self.fig2.canvas.mpl_connect('key_press_event',
+                                                           self.keypress)
+         self.fig2.show()
 
    #-----------------------------------------------------------------------
 
@@ -1622,59 +1681,14 @@ class Image:
 
       """ Set up the parameters that will be needed to display the image """
       self.display_setup(hext=hext,cmap=cmap,fmin=fmin,fmax=fmax,funits=funits,
-                    statsize=statsize,title=title,
-                    subimdef=subimdef,subimcent=subimcent,subimsize=subimsize, 
-                    dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,
-                    mask=mask,show_xyproj=show_xyproj,verbose=verbose)
+                         statsize=statsize,title=title,subimdef=subimdef,
+                         subimcent=subimcent,subimsize=subimsize, 
+                         dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,
+                         mask=mask,show_xyproj=show_xyproj,verbose=verbose)
 
 
-      """ 
-      Set up for displaying the image data
-       - If show_xyproj is False (the default), then just show self.subim
-       - If show_xyproj is True, then make a three panel plot, with
-          Panel 1: self.subim (i.e., what you would see in the default behavior)
-          Panel 2: Projection of data in self.subim onto the x-axis
-          Panel 3: Projection of data in self.subim onto the x-axis
-        - Setting show_xyproj=True is most useful when evaluating, e.g., a 
-          star in the image data.  The projections along the two axes of the
-          cutout can be useful for evaluating whether the object is a star and/or
-          whether it is saturated
-      """
-      if show_xyproj:
-         self.fig2 = plt.figure(figsize=(10,3))
-         self.fig2.add_subplot(131)
-      else:
-         self.fig1 = plt.gcf()
-         self.ax1 = plt.gca()
-
-      """ Display the image data """
-      plt.imshow(self.subim,origin='bottom',cmap=self.cmap,vmin=self.fmin,
-                 vmax=self.fmax,interpolation='nearest',extent=self.extval)
-      if axlabel is True:
-         if self.dispunits == 'radec':
-            plt.xlabel(r"$\Delta \alpha$ (arcsec)")
-            plt.ylabel(r"$\Delta \delta$ (arcsec)")
-         else:
-            plt.xlabel('x (pix)')
-            plt.ylabel('y (pix)')
-      if self.title is not None:
-         plt.title(title)
-
-      """ 
-      Now add the x and y projections if requested (i.e., if show_xyproj is True
-      """
-      if show_xyproj:
-         self.fig2.add_subplot(132)
-         xsum = self.subim.sum(axis=0)
-         plt.plot(xsum)
-         plt.xlabel('Relative x Coord')
-         self.fig2.add_subplot(133)
-         ysum = self.subim.sum(axis=1)
-         plt.plot(ysum)
-         plt.xlabel('Relative y Coord')
-         self.cid_keypress2 = self.fig2.canvas.mpl_connect('key_press_event',
-                                                           self.keypress)
-         self.fig2.show()
+      """ Now display the data """
+      self.display_implot(show_xyproj, axlabel)
 
       #del data
 
