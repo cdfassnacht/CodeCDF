@@ -41,7 +41,7 @@ if astropy.__version__[:3] == '0.3':
 else:
    from astropy.coordinates import SkyCoord
 from astropy import units as u
-import numpy as n
+import numpy as np
 from scipy import ndimage
 import matplotlib.pyplot as plt
 from math import log,log10,sqrt,pi,fabs
@@ -223,13 +223,13 @@ class Image:
             data = self.hdu[hext].data
 
       """ Report the number of valid data points """
-      size = data[n.isfinite(data)].size 
+      size = data[np.isfinite(data)].size 
       if verbose:
          print " sigma_clip: Full size of data       = %d" % data.size
          print " sigma_clip: Number of finite values = %d" % size
 
       """ Reject the non-finite data points and compute the initial values """
-      d = data[n.isfinite(data)].flatten()
+      d = data[np.isfinite(data)].flatten()
       mu = d.mean()
       sig = d.std()
       mu0 = d.mean()
@@ -317,7 +317,7 @@ class Image:
       """
       if self.found_wcs:
          if self.dispunits == 'pixels':
-            pix = n.zeros((1,self.wcsinfo.naxis))
+            pix = np.zeros((1,self.wcsinfo.naxis))
             pix[0,0] = self.xclick
             pix[0,1] = self.yclick
             radec = self.wcsinfo.wcs_pix2world(pix,0)
@@ -420,7 +420,7 @@ class Image:
       """
 
       """ Get RA format """
-      if type(ra)==float or type(ra)==n.float32 or type(ra)==n.float64:
+      if type(ra)==float or type(ra)==np.float32 or type(ra)==np.float64:
          rafmt = u.deg
       else:
          rafmt = u.hourangle
@@ -467,7 +467,7 @@ class Image:
       """ Get the RA and Dec of the center of the image """
       xcent = hdr['naxis1'] / 2.
       ycent = hdr['naxis2'] / 2.
-      imcent = n.ones((1,hdr['naxis']))
+      imcent = np.ones((1,hdr['naxis']))
       imcent[0,0] = xcent
       imcent[0,1] = ycent
       imcentradec = self.wcsinfo.wcs_pix2world(imcent,1)
@@ -529,12 +529,12 @@ class Image:
       """
 
       self.get_wcs(hext)
-      coords = n.indices(self.subim.shape).astype(n.float32)
-      pltc = n.zeros(coords.shape)
+      coords = np.indices(self.subim.shape).astype(np.float32)
+      pltc = np.zeros(coords.shape)
       pltc[0] = (coords[0] - self.subim.shape[0]/2.)*self.pixscale
       pltc[1] = (coords[1] - self.subim.shape[1]/2.)*self.pixscale
       pltc[1] *= -1.
-      maxi = n.atleast_1d(self.subim.shape) - 1
+      maxi = np.atleast_1d(self.subim.shape) - 1
       extx1 = pltc[1][0,0]
       exty1 = pltc[0][0,0]
       extx2 = pltc[1][maxi[1],maxi[1]]-self.pixscale
@@ -583,7 +583,7 @@ class Image:
 
       """ Define the data and the coordinate arrays """
       data = self.hdu[hext].data
-      y,x = n.indices(data.shape)
+      y,x = np.indices(data.shape)
 
       """ 
       Select the data within the square of interest
@@ -663,7 +663,7 @@ class Image:
 
       """ Define the data and the coordinate arrays """
       data = self.hdu[hext].data
-      y,x = n.indices(data.shape)
+      y,x = np.indices(data.shape)
 
       """ 
       Find the offsets of each pixel in the data array from the requested
@@ -676,7 +676,7 @@ class Image:
       pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
       dx = x[pixmask] - x0
       dy = y[pixmask] - y0
-      r = n.sqrt(dx**2 + dy**2)
+      r = np.sqrt(dx**2 + dy**2)
 
       """ 
       Get the pixel scale if needed, which it will be if either runit==arcsec
@@ -688,7 +688,7 @@ class Image:
          print 'Using pixel scale of %6.3f arcsec/pix' % self.pixscale
 
       """ Select the points within rmax and convert to mags if desired """
-      ii = n.argsort(r)
+      ii = np.argsort(r)
       if runit=='arcsec':
          rr = r[ii] * self.pixscale
          xlab = 'r (arcsec)'
@@ -699,7 +699,7 @@ class Image:
       rflux = (data[pixmask])[ii] - skylevel
       if zp:
          domega = self.pixscale**2
-         mu = -2.5 * n.log10(rflux/domega) + zp
+         mu = -2.5 * np.log10(rflux/domega) + zp
          ftype = 'Surface Brightness'
          ttype = 'Magnitude'
          flab = 'Surface rrightness (mag/arcsec**2)'
@@ -734,9 +734,9 @@ class Image:
       """ Plot the integrated flux/mag """
       ax2 = plt.subplot(212,sharex=ax1)
       #plt.figure(2)
-      ftot = n.cumsum(rflux)
+      ftot = np.cumsum(rflux)
       if zp:
-         m = -2.5 * n.log10(ftot) + zp
+         m = -2.5 * np.log10(ftot) + zp
          if logr:
             plt.semilogx(rr,m,'+')
          else:
@@ -800,10 +800,10 @@ class Image:
       """ Set the contours based on the rms and the contour base """
       maxcont = int(log((self.subim.max()/rms),self.contbase))
       if maxcont < 3:
-         self.clevs = n.array([-3.,3.,self.contbase**3])
+         self.clevs = np.array([-3.,3.,self.contbase**3])
       else:
-         poslevs = n.logspace(2.,maxcont,maxcont-1,base=self.contbase)
-         self.clevs = n.concatenate(([-self.contbase**2],poslevs))
+         poslevs = np.logspace(2.,maxcont,maxcont-1,base=self.contbase)
+         self.clevs = np.concatenate(([-self.contbase**2],poslevs))
                                      
       if verbose:
          print "Contour levels: %f *" % rms
@@ -890,7 +890,7 @@ class Image:
       For now does not deal with regions partially outside the input file
       """
       if subimsize is not None:
-         subxy = n.atleast_1d(subimsize) # Converts subimsize to a numpy array
+         subxy = np.atleast_1d(subimsize) # Converts subimsize to a numpy array
          subx = subxy[0]
          if subxy.size>1:
             suby = subxy[1]
@@ -939,7 +939,7 @@ class Image:
       else:
          self.subim = self.hdu[hext].data[self.suby1:self.suby2,
                                           self.subx1:self.subx2].copy()
-      self.subim[~n.isfinite(self.subim)] = 0.
+      self.subim[~np.isfinite(self.subim)] = 0.
       self.subimhdr = self.hdu[hext].header.copy()
 
       """ Print out useful information """
@@ -1062,7 +1062,7 @@ class Image:
          data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
       else:
          data = self.hdu[dext].data[y0:y1,x0:x1].copy()
-      data[~n.isfinite(data)] = 0.
+      data[~np.isfinite(data)] = 0.
 
       """ Update the headers to reflect the cutout center"""
       try:
@@ -1082,7 +1082,7 @@ class Image:
       outheader = wcsmwa.make_header(self.radec.ra.degree,self.radec.dec.degree,
                                      self.subsizex,self.subsizey,outscale,
                                      docdmatx=docdmatx)
-      coords = n.indices((self.subsizey,self.subsizex)).astype(n.float32)
+      coords = np.indices((self.subsizey,self.subsizex)).astype(np.float32)
       skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
       ccdcoords = wcsmwa.sky2pix(self.subimhdr,skycoords[0],skycoords[1])
       coords[1] = ccdcoords[0]
@@ -1090,7 +1090,7 @@ class Image:
       self.coords = coords.copy()
 
       """ Transform the coordinates """
-      self.subim = ndimage.map_coordinates(data,coords,output=n.float64,order=5)
+      self.subim = ndimage.map_coordinates(data,coords,output=np.float64,order=5)
       self.subimhdr = outheader.copy()
 
       """ Clean up """
@@ -1233,16 +1233,16 @@ class Image:
          crpix1 = inhdr['crpix1']
       except:
          print "   No CRPIX1 header found"
-         crpix1 = n.nan
+         crpix1 = np.nan
       try:
          crpix2 = inhdr['crpix2']
       except:
          print "   No CRPIX2 header found"
-         crpix2 = n.nan
-      if n.isnan(crpix1)==False:
+         crpix2 = np.nan
+      if np.isnan(crpix1)==False:
          inhdr['crpix1'] -= x1
          print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
-      if n.isnan(crpix2)==False:
+      if np.isnan(crpix2)==False:
          inhdr['crpix2'] -= y1
          print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
       
@@ -1295,7 +1295,7 @@ class Image:
          exit()
 
       """ Set the rectangle size """
-      imsize = n.atleast_1d(size) # Converts size to a numpy array
+      imsize = np.atleast_1d(size) # Converts size to a numpy array
       xsize  = imsize[0]
       if imsize.size>1:
          ysize = imsize[1]
@@ -1305,8 +1305,8 @@ class Image:
       """ Set the original vertices of the FOV marker, in terms of dx and dy """
       dw = 1. * xsize / 2.
       dh = 1. * ysize / 2.
-      dx0 = n.array([dw,dw,-dw,-dw,dw])
-      dy0 = n.array([-dh,dh,dh,-dh,-dh])
+      dx0 = np.array([dw,dw,-dw,-dw,dw])
+      dy0 = np.array([-dh,dh,dh,-dh,-dh])
 
       """ 
       Rotate the vertices.
@@ -1605,7 +1605,7 @@ class Image:
       fdiff = fabs(self.fmax - self.fmin)
       if self.fscale == 'log':
          data = self.subim - self.subim.min() + 1.
-         data = n.log10(data)
+         data = np.log10(data)
          vmin = log10(self.fmin - self.subim.min() + 1.)
          vmax = log10(self.fmax - self.subim.min() + 1.)
       else:
@@ -1685,7 +1685,6 @@ class Image:
                          subimcent=subimcent,subimsize=subimsize, 
                          dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,
                          mask=mask,show_xyproj=show_xyproj,verbose=verbose)
-
 
       """ Now display the data """
       self.display_implot(show_xyproj, axlabel)
@@ -1828,16 +1827,16 @@ def imcopy(infile,x1,x2,y1,y2,outfile):
       crpix1 = inhdr['crpix1']
    except:
       print "   No CRPIX1 header found"
-      crpix1 = n.nan
+      crpix1 = np.nan
    try:
       crpix2 = inhdr['crpix2']
    except:
       print "   No CRPIX2 header found"
-      crpix2 = n.nan
-   if n.isnan(crpix1)==False:
+      crpix2 = np.nan
+   if np.isnan(crpix1)==False:
       inhdr['crpix1'] -= x1
       print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
-   if n.isnan(crpix2)==False:
+   if np.isnan(crpix2)==False:
       inhdr['crpix2'] -= y1
       print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
       
@@ -1936,7 +1935,7 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
       data = hdu[dext].data[0,0,y0:y1,x0:x1].copy()
    else:
       data = hdu[dext].data[y0:y1,x0:x1].copy()
-   data[~n.isfinite(data)] = 0.
+   data[~np.isfinite(data)] = 0.
 
    """ Update the headers to reflect the cutout center"""
    inhdr.update('CRPIX1',inhdr['CRPIX1']-x0)
@@ -1944,7 +1943,7 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
 
    """ Set up the output header and do the coordinate transform preparation """
    outheader = wcsmwa.make_header(ra,dec,xsize,ysize,scale)
-   coords = n.indices((ysize,xsize)).astype(n.float32)
+   coords = np.indices((ysize,xsize)).astype(np.float32)
    skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
    ccdcoords = wcsmwa.sky2pix(inhdr,skycoords[0],skycoords[1])
    coords[1] = ccdcoords[0]
@@ -1953,7 +1952,7 @@ def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
 
    """ Create the output HDU, while at the same time transforming the coords """
    out = pf.PrimaryHDU(ndimage.map_coordinates(data,coords,
-                                               output=n.float64,order=5))
+                                               output=np.float64,order=5))
    out.header = outheader.copy()
 
    return out
@@ -2052,16 +2051,16 @@ def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
    contbase = sqrt(3.)
    maxcont = int(log((dat2.max()/rms2),contbase))
    if maxcont < 3:
-      clevs = n.array([-3.,3.,contbase**3])
+      clevs = np.array([-3.,3.,contbase**3])
    else:
-      clevs = n.concatenate(([-contbase**2],
-                             n.logspace(2.,maxcont,maxcont-1,base=contbase)))
+      clevs = np.concatenate(([-contbase**2],
+                             np.logspace(2.,maxcont,maxcont-1,base=contbase)))
    print "Contour levels: %f *" % rms2
    print clevs
    clevs *= rms2
 
    """ Actually plot the data and overlay """
-   coords = n.indices((outsize,outsize)).astype(n.float32)
+   coords = np.indices((outsize,outsize)).astype(np.float32)
    maxi = outsize - 1
    #skyc   = wcsmwa.pix2sky(hdu1.header,coords[1],coords[0])
    pltc   = (coords - outsize/2.)*pixscale
@@ -2282,8 +2281,8 @@ def calc_sky_from_seg(infile,segfile):
    print "Statistics of sky outside masked regions"
    print "----------------------------------------"
    print "  N_pix  = %d" % sky.size
-   print "  Median = %f" % n.median(sky)
-   print "  Mean   = %f" % n.mean(sky)
+   print "  Median = %f" % np.median(sky)
+   print "  Mean   = %f" % np.mean(sky)
 
    return
 
@@ -2355,7 +2354,7 @@ def plot_cat(fitsfile, catfile, xcol=0, ycol=1, marksize=20., markcolor='g',
    ny = pf.getval(fitsfile,'naxis2')
 
    """ Read in the catalog and extract the x and y coordinates """
-   data = n.loadtxt(catfile)
+   data = np.loadtxt(catfile)
    x = data[:,xcol]
    y = data[:,ycol]
 
@@ -2383,8 +2382,8 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
 
    """ Get the CTYPE, CRPIX, CRVAL pairs first """
    ctype = []
-   crpix = n.zeros(hdr['naxis'])
-   crval = n.zeros(hdr['naxis'])
+   crpix = np.zeros(hdr['naxis'])
+   crval = np.zeros(hdr['naxis'])
    for i in range(hdr['naxis']):
       typecard = 'ctype%d' % (i+1)
       pixcard = 'crpix%d' % (i+1)
@@ -2394,7 +2393,7 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
       crval[i] = hdr[valcard]
 
    """ Search for CD matrix """
-   cdmatx = n.zeros((hdr['naxis'],hdr['naxis']))
+   cdmatx = np.zeros((hdr['naxis'],hdr['naxis']))
    validwcs = True
    for i in range(hdr['naxis']):
       for j in range(hdr['naxis']):
@@ -2407,8 +2406,8 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
    """ Search for CDELT and CROT headers """
    if not validwcs:
       validwcs = True
-      cdelt = n.zeros(hdr['naxis'])
-      crota = n.zeros(hdr['naxis'])
+      cdelt = np.zeros(hdr['naxis'])
+      crota = np.zeros(hdr['naxis'])
       for i in range(hdr['naxis']):
          deltcard = 'cdelt%d' % (i+1)
          rotcard = 'crota%d' % (i+1)
