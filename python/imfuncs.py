@@ -35,11 +35,11 @@ try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
-from astropy import wcs
 if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
+from astropy import wcs
 from astropy import units as u
 import numpy as np
 from scipy import ndimage
@@ -56,7 +56,7 @@ class Image:
    def __init__(self, infile, mode='copyonwrite', verbose=True):
       """
       This method gets called when the user types something like
-         im = Image(infile)
+         myim = Image(infile)
 
       Inputs:
          infile - input file containing the fits image
@@ -1013,8 +1013,8 @@ class Image:
 
       """ Calculate the (x,y) that is associated with the requested center"""
       self.subimhdr = self.hdu[hext].header.copy()
-      x,y = wcsmwa.sky2pix(self.subimhdr,self.radec.ra.degree,
-                           self.radec.dec.degree)
+      w = wcs.WCS(self.subimhdr)
+      x,y = w.wcs_world2pix([[self.radec.ra.degree,self.radec.dec.degree]],0)[0]
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -2200,59 +2200,6 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    if infile3 is not None:
       im3.close()
       del im3
-
-#---------------------------------------------------------------------------
-
-def overlay_contours_old(infile1, infile2, ra, dec, imsize, pixscale, rms1=None,
-                         rms2=None, fmax=10., title=None, showradec=True,
-                         verbose=True):
-   """
-   Creates a postage-stamp cutout (of size imgsize arcsec) of the data in the
-    Image class and then overlays contours from the second image (infile2).
-
-   Inputs:
-      infile1   - fits file containing the data for the first image
-      infile2   - fits file containing the data for the second image
-      ra        - single number containing RA for image center
-                  (best if in decimal degrees)
-      dec       - single number containing Dec for image center
-                  (best if in decimal degrees)
-      imsize    - length of one side of output image, in arcsec
-      pixscale  - pixel scale of output image, in arcsec/pix
-      rms1      - user-requested rms for data in the first image. If set to 
-                   None (the default) then calculate rms from the cutout data
-                   themselves
-      rms2      - user-requested rms for data in the second image. If set to 
-                   None (the default) then calculate rms from the cutout data
-                   themselves
-   """
-
-   """ Read the input images """
-   print ""
-   print "Opening %s" % infile1
-   try:
-      hdu1 = open_fits(infile1)
-   except:
-      return
-   print "   .... Done"
-   print "Opening %s" % infile2
-   try:
-      hdu2 = open_fits(infile2)
-   except:
-      return
-   print "   .... Done"
-
-   """ 
-   Produce the plot
-   The overlay_contours_hdu code is separated from overlay_contours so that
-   it can be called from other functions.
-   """
-   overlay_contours_hdu(hdu1,hdu2,ra,dec,imsize,pixscale,rms1,rms2,fmax,
-                        title,showradec,verbose)
-
-   """ Clean up """
-   del hdu1,hdu2
-
 
 #-----------------------------------------------------------------------
 
