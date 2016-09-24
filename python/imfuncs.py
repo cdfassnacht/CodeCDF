@@ -1019,17 +1019,13 @@ class Image:
       Get rough image size in pixels for the segment of input image, since the 
       pixel scale for the output image does not necessarily match that of the 
       input image.
-      Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
-      x-axis scale, assuming that the y-axis scale is the same.
       """
-      wcsinfo = wcsmwa.parse_header(self.subimhdr)
-      inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
       if ysize is None:
          ysize = xsize
-      inpixxsize = int(xsize / inscale)
-      inpixysize = int(ysize / inscale)
+      inpixxsize = int(xsize / self.pixscale)
+      inpixysize = int(ysize / self.pixscale)
       if outscale is None:
-         outscale = inscale
+         outscale = self.pixscale
       self.subsizex = int(xsize / outscale)
       self.subsizey = int(ysize / outscale)
 
