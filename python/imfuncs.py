@@ -812,57 +812,24 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def read_overlay_image(self, file2name):
-      """
-      Reads in a second fits image in order to do an contour overlay
-      on the main image.  This process is separated from the overlay_contour
-      method so that a possibly large second image only needs to be read
-      in once.
-
-      Inputs:
-         file2name - name of second fits file
+   def plot_contours(self, color='r', rms=None, hext=0, overlay=True,
+                     verbose=True):
       """
 
-      """ Read in the image """
-      try:
-         self.overlay_hdu = open_fits(file2name)
-      except:
-         print ''
-         print 'ERROR: Could not read in fits file %s' % file2name
-         print ''
-         return
+      Plots contours based on the flux (counts) in the image.
 
-      """ Set the overlay_im parameter """
-      self.overlay_im = file2name
-
-   #-----------------------------------------------------------------------
-
-   def add_rough_wcs(self, ra, dec, pixscale, hext=0):
-      """
-      Uses the given RA, Dec, and pixel scale to create an initial guess
-      of the WCS for the data.  This is a simplistic guess, with the RA
-      and Dec assigned to the central pixel and the orientation assumed
-      to be exactly north up, east left.
-
-      Inputs:
-         ra       - RA of the image center
-         dec      - Dec of the image center
-         pixscale - pixel scale in arcsec/pix
-         hext     - HDU extension to assign the WCS to.  The default, 0, is
-                    good for most imaging
       """
 
-      """ First make sure that the fits file can be updated """
-      if self.fitsmode != 'update':
-         print ''
-         print 'ERROR: Cannot update WCS unless image is loaded with'
-         print '   mode="update".  The mode for this image is %s' % self.fitsmode
-         print ''
+      """ Set the contour levels if this has not already been done """
+      if self.clevs is None:
+         self.set_contours(rms,hext,verbose)
 
+      """ Plot the contours """
+      if overlay:
+         plt.contour(self.subim,self.clevs,colors=color,extent=self.extval)
       else:
-         """ Create the header """
-         #newwcs = wcs.ma
-         print 'Not functioning yet'
+         plt.contour(self.subim,self.clevs,colors=color,extent=self.extval,
+                     origin='lower')
 
    #-----------------------------------------------------------------------
 
@@ -1174,7 +1141,7 @@ class Image:
          for i in ('cd1_1','cd1_2','cd2_1','cd2_2'):
             wcskeys.append(i)
       else:
-         for i in ('cdelt1', 'cdelt2', 'pc1_1','pc1_2','pc2_1','pd2_2'):
+         for i in ('cdelt1', 'cdelt2', 'pc1_1','pc1_2','pc2_1','pc2_2'):
             wcskeys.append(i)
 
       for i in wcskeys:
@@ -1489,21 +1456,18 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
-                     funits='sigma', statsize=2048, title=None, 
-                     subimdef='xy', subimcent=None, subimsize=None, 
-                     dispunits='pixels', zeropos=None, axlabel=True, 
-                     mask = None, show_xyproj=False, verbose=False):
+   def set_subim(self, hext=0, subimdef='xy', subimcent=None, subimsize=None, 
+                 dispunits='pixels'):
       """
-      Sets parameters within the Image class that will be used to actually
-       display the image or the requested part of it.
-      NOTE: This method is usually called from the display method, and is
-       not meant to be used in a stand-alone manner
-      For more information about the parameters, etc., please see the
-       help information for the display method.
+      Sets the region of the image to be displayed
       """
 
-      """ Set the region of the image to be displayed """
+      """
+      The definition of the subimage depends on whether the requested
+      cutout is based on WCS coordinates (RA and Dec) or pixels (x and y),
+      where this choice is made through the subimdef parameter.
+      Treat each case appropriately.
+      """
       if subimdef == 'radec':
          """ 
          If requesting a (RA,Dec) cutout, make the display units arcsec 
@@ -1531,7 +1495,6 @@ class Image:
          """
          If not requesting a (RA,Dec) cutout, the code is simpler
          """
-         self.dispunits = dispunits
          if subimcent is None:
             self.subcentx = None
             self.subcenty = None
@@ -1546,13 +1509,27 @@ class Image:
           (self.subsizex,self.subsizey)
       print ''
 
-      """ Set the image display limits """
-      self.set_display_limits(fmin,fmax,funits)
+   #-----------------------------------------------------------------------
 
-      """ Set the color map """
-      self.set_cmap(cmap)
+   def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
+                     funits='sigma', statsize=2048, title=None, 
+                     subimdef='xy', subimcent=None, subimsize=None, 
+                     dispunits='pixels', zeropos=None, axlabel=True, 
+                     mask = None, show_xyproj=False, verbose=False):
+      """
+      Sets parameters within the Image class that will be used to actually
+       display the image or the requested part of it.
+      NOTE: This method is usually called from the display method, and is
+       not meant to be used in a stand-alone manner
+      For more information about the parameters, etc., please see the
+       help information for the display method.
+      """
+
+      """ Set the region of the image to be displayed """
+      self.set_subim(hext,subimdef,subimcent,subimsize)
 
       """ Set the displayed axes to be in WCS offsets, if requested """
+      self.dispunits = dispunits
       if self.dispunits == 'radec':
          if not self.found_wcs:
             print ''
@@ -1565,6 +1542,12 @@ class Image:
             self.set_wcsextent(hext,zeropos)
       else:
          self.extval = None
+
+      """ Set the image flux display limits """
+      self.set_display_limits(fmin,fmax,funits)
+
+      """ Set the color map """
+      self.set_cmap(cmap)
 
       """ Set other display parameters """
       self.title = title
@@ -1616,7 +1599,7 @@ class Image:
          
 
       """ Display the image data """
-      plt.imshow(data,origin='bottom',cmap=self.cmap,vmin=vmin,
+      plt.imshow(data,origin='lower',cmap=self.cmap,vmin=vmin,
                  vmax=vmax,interpolation='nearest',extent=self.extval)
       if axlabel is True:
          if self.dispunits == 'radec':
