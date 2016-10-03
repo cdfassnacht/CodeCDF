@@ -1586,11 +1586,43 @@ class Image:
 
       """ Choose the scaling for the display """
       fdiff = fabs(self.fmax - self.fmin)
+      bitscale = 255. # For 8-bit display
       if self.fscale == 'log':
-         data = self.subim - self.subim.min() + 1.
+         """
+         For the log scaling, some thought needs to go into this.
+         The classic approach is to choose the display range in the following
+          way:
+            vmin = log10(self.fmin - self.submin.min() + 1.)
+            vmax = log10(self.fmax - self.submin.min() + 1.)
+          where the "+ 1." is put in so that you are not trying to take the
+          log of zero.  This seems to work well when the imaged to be displayed
+          is in counts, where, e.g., the sky can be in the tens or hundreds of
+          counts and the bright objects have thousands of counts.
+         However, this does not work so well for situations such as when the
+          units of the image are in, e.g., counts/s or e-/s, in which case
+          taking the classic approach will typically make the display range
+          between log(1+a) and log(1+b) where both a and b are small values.
+          In this case, the log curve is essentially linear and the display
+          does not look much different than choosing the "linear" option
+          for display.
+         Therefore, follow the lead of the ds9 display tool, which takes the
+          requested display range and maps it onto the range 1-255.  This
+          should provide decent dynamic range, even for the case where the
+          units are counts/s or e-/s, and should more closely match the display
+          behavior that the user wants.
+         """
+         #data = self.subim.copy() - self.subim.min() + 1.
+         #vmin = log10(self.fmin - self.subim.min() + 1.)
+         #vmax = log10(self.fmax - self.subim.min() + 1.)
+         data = self.subim.copy()  - self.subim.min()
+         """ Now rescale from 1-255 in requested range """
+         data[data>=0] = (254. * data[data>=0] / fdiff) + 1.
+         vmin = 0
+         vmax = log10(255.)
+         data[data<=0.] = 1.
          data = np.log10(data)
-         vmin = log10(self.fmin - self.subim.min() + 1.)
-         vmax = log10(self.fmax - self.subim.min() + 1.)
+         print 'Using log scaling: vmin = %f, vmax = %f' % (vmin,vmax)
+         print data.min(),data.max()
       else:
          """ Linear scaling is the default """
          data = self.subim
