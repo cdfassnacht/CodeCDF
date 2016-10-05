@@ -131,6 +131,9 @@ class Image:
       self.clevs      = None
       self.overlay_im = None  # Not currently used
 
+      """ Initialize radplot parameters """
+      self.radplot_file = None
+
       """ Initialize other parameters """
       self.reset_subim()
       self.reset_imex()
@@ -752,6 +755,13 @@ class Image:
       plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,x0,y0))
       plt.xlabel(xlab)
       plt.ylabel(tlab)
+
+      """ Save the output if desired """
+      if self.radplot_file is not None:
+         out = np.zeros(rr.size,2)
+         out[:,0] = rr
+         out[:,1] = rflux
+         np.savetxt(self.radplot_file,out,fmt='%7.3f %f')
 
    #-----------------------------------------------------------------------
 
@@ -1512,7 +1522,7 @@ class Image:
    #-----------------------------------------------------------------------
 
    def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
-                     funits='sigma', statsize=2048, title=None, 
+                     funits='sigma', fscale='linear', statsize=2048, title=None, 
                      subimdef='xy', subimcent=None, subimsize=None, 
                      dispunits='pixels', zeropos=None, axlabel=True, 
                      mask = None, show_xyproj=False, verbose=False):
@@ -1545,6 +1555,7 @@ class Image:
 
       """ Set the image flux display limits """
       self.set_display_limits(fmin,fmax,funits)
+      self.fscale = fscale
 
       """ Set the color map """
       self.set_cmap(cmap)
@@ -1661,7 +1672,8 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def display(self, hext=0, cmap='gaia', fmin=-1., fmax=10., funits='sigma',
+   def display(self, hext=0, cmap='gaia', 
+               fmin=-1., fmax=10., funits='sigma', fscale='linear',
                statsize=2048, title=None, 
                subimdef='xy', subimcent=None, subimsize=None, 
                dispunits='pixels', zeropos=None, axlabel=True, 
