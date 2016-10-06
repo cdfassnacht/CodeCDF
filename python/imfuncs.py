@@ -132,7 +132,9 @@ class Image:
       self.overlay_im = None  # Not currently used
 
       """ Initialize radplot parameters """
-      self.radplot_file = None
+      self.radplot_center   = True
+      self.radplot_maxshift = 5.
+      self.radplot_file     = None
 
       """ Initialize other parameters """
       self.reset_subim()
@@ -621,7 +623,7 @@ class Image:
       mux = (fgood * xgood).sum() / fsum
       muy = (fgood * ygood).sum() / fsum
       self.imex_mux = mux + x1
-      self.imex_muy = mux + y1
+      self.imex_muy = muy + y1
       self.imex_sigxx = (fgood * xgood**2).sum() / fsum - mux**2
       self.imex_sigyy = (fgood * ygood**2).sum() / fsum - muy**2
       self.imex_sigxy = (fgood * xgood*ygood).sum() / fsum - mux*muy
@@ -630,8 +632,8 @@ class Image:
 
    #-----------------------------------------------------------------------
 
-   def radplot(self, x0, y0, rmax, skylevel=0. , zp=None, runit='pixel', 
-               logr=False, hext=0):
+   def radplot(self, x0, y0, rmax, center=True, imex_rmax=10., maxshift=5., 
+               skylevel=0., zp=None, runit='pixel', logr=False, hext=0):
       """
       Given a position in the image file (the x0 and y0 parameters), makes
        a plot of image flux as a function of distance from that (x,y) 
@@ -647,6 +649,15 @@ class Image:
         y0   - y coordinate
         rmax - maximum radius, in pixels, for the plot
       Optional inputs:
+        center   - If True (the default) then there will be a call to im_moments
+                    to re-calculate the center position based on the initial
+                    guess provided by x0 and y0.
+        maxshift - Only used if center is True.  Maximum shift from the original
+                    (x0,y0) guess (in pixels) that is allowed.  
+                    If im_moments returns a new central position that is more 
+                    than maxshift from the original guess, then that new 
+                    solution is rejected and the original guess is used instead. 
+                    Default = 5 pixels
         skylevel - If the sky has not been subtracted from the data, then
                     the integrated counts, surface brightness in mag/arcsec**2,
                     and integrated magnitude will all be wrong.  Set this
@@ -668,17 +679,27 @@ class Image:
       data = self.hdu[hext].data
       y,x = np.indices(data.shape)
 
+      """ Recenter from the initial guess using the flux distribution """
+      if center:
+         self.im_moments(x0,y0,rmax=imex_rmax)
+         xc = self.imex_mux
+         yc = self.imex_muy
+         # STILL IMPLEMENT CHECK FOR MAXSHIFT
+      else:
+         xc = x0
+         yc = y0
+
       """ 
-      Find the offsets of each pixel in the data array from the requested
-       central location (x0,y0).
+      Find the offsets of each pixel in the data array from the central
+       location
       For better speed, only actually do the computations for pixels that
        might be in the correct area
       """
-      x1,x2 = x0-rmax-1,x0+rmax+1
-      y1,y2 = y0-rmax-1,y0+rmax+1
+      x1,x2 = xc-rmax-1,xc+rmax+1
+      y1,y2 = yc-rmax-1,yc+rmax+1
       pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
-      dx = x[pixmask] - x0
-      dy = y[pixmask] - y0
+      dx = x[pixmask] - xc
+      dy = y[pixmask] - yc
       r = np.sqrt(dx**2 + dy**2)
 
       """ 
@@ -730,7 +751,7 @@ class Image:
          else:
             plt.plot(rr,rflux,'+')
       plt.xlim(0,rmax)
-      plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,x0,y0))
+      plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,xc,yc))
       plt.xlabel(xlab)
       plt.ylabel(flab)
 
@@ -752,7 +773,7 @@ class Image:
          else:
             plt.plot(rr,ftot,'+')
       plt.xlim(0,rmax)
-      plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,x0,y0))
+      plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,xc,yc))
       plt.xlabel(xlab)
       plt.ylabel(tlab)
 
