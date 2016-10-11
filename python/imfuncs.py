@@ -632,6 +632,139 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def eval_gauss_1d_r_plus_bkgd(self,p,r,y):
+      """
+      Compares the data to the model in the case of a one-sided gaussian
+       fit to a radial profile, where there is also a constant background level.
+      In this case, the mean is fixed to be mu=0.
+      The parameter values are:
+       p[0] = sigma
+       p[1] = amplitude
+       p[2] = background
+      """
+
+      """ Unpack p """
+      mu    = 0.0
+      sigma = p[0]
+      amp   = p[1]
+      bkgd  = p[2]
+
+      """
+      Compute the difference between model and real values
+      """
+
+      ymod = bkgd + amp * np.exp(-0.5 * (r/sigma)**2)
+      diff = y - ymod
+
+      return diff
+
+   #-----------------------------------------------------------------------
+
+   def eval_gauss_1d_r(self,p,r,y):
+      """
+      Compares the data to the model in the case of a one-sided gaussian
+       fit to a radial profile, where there is no background
+      In this case, the mean is fixed to be mu=0.
+      The parameter values are:
+       p[0] = sigma
+       p[1] = amplitude
+      """
+
+      """ Unpack p """
+      mu    = 0.0
+      sigma = p[0]
+      amp   = p[1]
+
+      """
+      Compute the difference between model and real values
+      """
+
+      ymod = amp * np.exp(-0.5 * (r/sigma)**2)
+      diff = y - ymod
+
+      return diff
+
+   #-----------------------------------------------------------------------
+
+   def fit_gauss_1d_r(self, r, flux, bkgd=None):
+      """
+      Fits a 1-d gaussian to a flux profile that is a function OF RADIUS.
+      In other words, this is a one-sided fit, where the expected mu=0, so
+      all that is being fit for is the amplitude and sigma.
+      """
+
+      from scipy import optimize
+
+      """ Set up the defaults """
+      amp0 = max(flux)
+      sig0 = max(r[flux>(amp0/2.)])
+      mf=100000 # Maximum number of evaluations
+
+      """ Set up for the cases with and without a background """
+      if bkgd is not None:
+         p = [sig0,amp0,bkgd]
+         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r_plus_bkgd,p,(r,flux),
+                                      maxfev=mf)
+         self.rprof_sig  = p_out[0]
+         self.rprof_amp  = p_out[1]
+         self.rprof_bkgd = p_out[2]
+      else:
+         p = [sig0,amp0]
+         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r,p,(r,flux),maxfev=mf)
+         self.rprof_sig  = p_out[0]
+         self.rprof_amp  = p_out[1]
+         self.rprof_bkgd = 0.
+
+      self.rprof_mu = 0.
+
+   #-----------------------------------------------------------------------
+
+   def circ_profile(self, r, flux, rmax_fit=5., verbose=True):
+      """
+      Computes a circularly averaged profile from the provided radius and
+      flux vectors.
+
+      Required inputs:
+        r    - pre-computed radius vector, i.e., distances of the pixels
+                from some reference pixel
+        flux - fluxes at the points in the r vector
+       
+      """
+      max_r = np.floor(max(r)+1)
+      rcirc = np.arange(1,max_r)
+      r_ann0 = np.zeros(rcirc.size)
+      f_ann0 = np.zeros(rcirc.size)
+      for i in range(rcirc.size):
+         if i == 0:
+            mask = r <= rcirc[i]
+         else:
+            mask = (r > rcirc[i-1]) & (r <= rcirc[i])
+         npts = mask.sum()
+         if npts == 0:
+            f_ann0[i] = -99
+         else:
+            f_ann0[i] = flux[mask].sum() / npts
+            r_ann0[i] = ((r[mask] * flux[mask]).sum()) / flux[mask].sum()
+      mask2 = f_ann0 > 0.
+      self.rcirc = r_ann0[mask2]
+      self.fcirc = f_ann0[mask2]
+
+      """ 
+      Fit a 1 dimensional Gaussian to the circularly averaged profile, only
+       fitting out to rmax_fit
+      """
+      r2 = self.rcirc[self.rcirc<rmax_fit]
+      f2 = self.fcirc[self.rcirc<rmax_fit]
+      self.fit_gauss_1d_r(r2,f2)
+
+      if verbose:
+         print self.rcirc
+         print self.fcirc
+         print self.rprof_amp, self.rprof_sig
+
+
+   #-----------------------------------------------------------------------
+
    def radplot(self, x0, y0, rmax, center=True, imex_rmax=10., maxshift=5., 
                skylevel=0., zp=None, runit='pixel', logr=False, hext=0):
       """
@@ -735,29 +868,10 @@ class Image:
          tlab = 'Integrated counts within r'
 
       """ Compute the circularly averaged flux profile """
-      max_r = np.floor(max(rr)+1)
-      rcirc = np.arange(1,max_r)
-      r_ann0 = np.zeros(rcirc.size)
-      f_ann0 = np.zeros(rcirc.size)
-      npts0  = np.zeros(rcirc.size)
-      for i in range(rcirc.size):
-         if i == 0:
-            mask = rr <= rcirc[i]
-         else:
-            mask = (rr > rcirc[i-1]) & (rr <= rcirc[i])
-         npts = mask.sum()
-         if npts == 0:
-            f_ann0[i] = -99
-         else:
-            f_ann0[i] = rflux[mask].sum() / npts
-            r_ann0[i] = ((rr[mask] * rflux[mask]).sum()) / rflux[mask].sum()
-         npts0[i] = npts
-      mask2 = f_ann0 > 0.
-      r_ann = r_ann0[mask2]
-      f_ann = f_ann0[mask2]
-      npts  = npts0[mask2]
-      print r_ann
-      print f_ann
+      self.circ_profile(rr,rflux)
+      rfit = np.linspace(0,rmax,500)
+      ffit = self.rprof_bkgd + self.rprof_amp * \
+          np.exp(-0.5 * (rfit/self.rprof_sig)**2)
 
       """ Plot the surface brightness """
       ax1 = plt.subplot(211)
@@ -773,10 +887,12 @@ class Image:
       else:
          if logr:
             plt.semilogx(rr,rflux,'+')
-            plt.semilogx(r_ann,f_ann,'r',lw=2)
+            plt.semilogx(self.rcirc,self.fcirc,'r',lw=2)
+            plt.semilogx(rfit,ffit,'k',ls='dashed')
          else:
             plt.plot(rr,rflux,'+')
-            plt.plot(r_ann,f_ann,'r',lw=2)
+            plt.plot(self.rcirc,self.fcirc,'r',lw=2)
+            plt.plot(rfit,ffit,'k',ls='dashed')
       plt.xlim(0,rmax)
       plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,xc,yc))
       plt.xlabel(xlab)
