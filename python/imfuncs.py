@@ -734,6 +734,31 @@ class Image:
          flab = 'Counts / pixel'
          tlab = 'Integrated counts within r'
 
+      """ Compute the circularly averaged flux profile """
+      max_r = np.floor(max(rr)+1)
+      rcirc = np.arange(1,max_r)
+      r_ann0 = np.zeros(rcirc.size)
+      f_ann0 = np.zeros(rcirc.size)
+      npts0  = np.zeros(rcirc.size)
+      for i in range(rcirc.size):
+         if i == 0:
+            mask = rr <= rcirc[i]
+         else:
+            mask = (rr > rcirc[i-1]) & (rr <= rcirc[i])
+         npts = mask.sum()
+         if npts == 0:
+            f_ann0[i] = -99
+         else:
+            f_ann0[i] = rflux[mask].sum() / npts
+            r_ann0[i] = ((rr[mask] * rflux[mask]).sum()) / rflux[mask].sum()
+         npts0[i] = npts
+      mask2 = f_ann0 > 0.
+      r_ann = r_ann0[mask2]
+      f_ann = f_ann0[mask2]
+      npts  = npts0[mask2]
+      print r_ann
+      print f_ann
+
       """ Plot the surface brightness """
       ax1 = plt.subplot(211)
       #plt.setp(ax1.get_xticklabels(), visible=False)
@@ -748,8 +773,10 @@ class Image:
       else:
          if logr:
             plt.semilogx(rr,rflux,'+')
+            plt.semilogx(r_ann,f_ann,'r',lw=2)
          else:
             plt.plot(rr,rflux,'+')
+            plt.plot(r_ann,f_ann,'r',lw=2)
       plt.xlim(0,rmax)
       plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,xc,yc))
       plt.xlabel(xlab)
