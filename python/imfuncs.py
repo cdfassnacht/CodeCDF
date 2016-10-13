@@ -766,7 +766,8 @@ class Image:
    #-----------------------------------------------------------------------
 
    def radplot(self, x0, y0, rmax, center=True, imex_rmax=10., maxshift=5., 
-               skylevel=0., zp=None, runit='pixel', logr=False, hext=0):
+               skylevel=0., zp=None, runit='pixel', logr=False, hext=0,
+               doplot=True, normalize=False, outfile=None, outtype='radplot'):
       """
       Given a position in the image file (the x0 and y0 parameters), makes
        a plot of image flux as a function of distance from that (x,y) 
@@ -782,30 +783,45 @@ class Image:
         y0   - y coordinate
         rmax - maximum radius, in pixels, for the plot
       Optional inputs:
-        center   - If True (the default) then there will be a call to im_moments
-                    to re-calculate the center position based on the initial
-                    guess provided by x0 and y0.
-        maxshift - Only used if center is True.  Maximum shift from the original
-                    (x0,y0) guess (in pixels) that is allowed.  
-                    If im_moments returns a new central position that is more 
-                    than maxshift from the original guess, then that new 
-                    solution is rejected and the original guess is used instead. 
-                    Default = 5 pixels
-        skylevel - If the sky has not been subtracted from the data, then
-                    the integrated counts, surface brightness in mag/arcsec**2,
-                    and integrated magnitude will all be wrong.  Set this
-                    parameter to the rough sky level to address these issues.
-                    The default (skylevel=0) is appropriate if the sky _has_
-                    been subtracted.
-        zp       - zero point.  If this parameter is set, then the output plot
-                    will be in magnitude units (i.e., surface brightness) rather
-                    than the default flux-like units (ADU, counts, 
-                    counts/sec, etc.)
-        runit    - units for the x-axis of the plot.  The only options are
-                    'pixel' (the default) or 'arcsec'
-        logr     - If False (the default) then x-axis is linear. If true, then 
-                    it is in log
-        hext     - HDU extension that contains the data.  Default = 0
+        center    - If True (the default) then there will be a call to im_moments
+                     to re-calculate the center position based on the initial
+                     guess provided by x0 and y0.
+        imex_rmax - Maximum radius used for computing object moments in the
+                     call to im_moments
+        maxshift  - Only used if center is True.  Maximum shift from the original
+                     (x0,y0) guess (in pixels) that is allowed.  
+                     If im_moments returns a new central position that is more 
+                     than maxshift from the original guess, then that new 
+                     solution is rejected and the original guess is used 
+                     instead. 
+                     Default = 5 pixels
+        skylevel  - If the sky has not been subtracted from the data, then
+                     the integrated counts, surface brightness in mag/arcsec**2,
+                     and integrated magnitude will all be wrong.  Set this
+                     parameter to the rough sky level to address these issues.
+                     The default (skylevel=0) is appropriate if the sky _has_
+                     been subtracted.
+        zp        - zero point.  If this parameter is set, then the output plot
+                     will be in magnitude units (i.e., surface brightness) rather
+                     than the default flux-like units (ADU, counts, 
+                     counts/sec, etc.)
+        runit     - units for the x-axis of the plot.  The only options are
+                     'pixel' (the default) or 'arcsec'
+        logr      - If False (the default) then x-axis is linear. If true, then 
+                     it is in log
+        hext      - HDU extension that contains the data.  Default = 0
+        doplot    - Sets whether a plot is made or not.  Default is doplot=True
+        normalize - Normalize so that central value of the profile is 1.0?
+                     Default is normalize=False
+        outfile   - Write radplot data to an output file if set. The default
+                     value (outfile=None) means that no output file will be
+                     written
+        outtype   - Output file data time.  The options are 'radplot' or
+                     'fcirc'.  
+                     Choosing 'radplot' (the default) writes out
+                      the radial position and flux for all pixels with in
+                      the requested region.  
+                     Choosing 'fcirc' writes out a circularly averaged profile.
       """
 
       """ Define the data and the coordinate arrays """
@@ -872,60 +888,67 @@ class Image:
       rfit = np.linspace(0,rmax,500)
       ffit = self.rprof_bkgd + self.rprof_amp * \
           np.exp(-0.5 * (rfit/self.rprof_sig)**2)
+      if normalize:
+         rflux /= ffit[0]
+         self.fcirc /= ffit[0]
+         ffit /= ffit[0]
 
-      """ Plot the surface brightness """
-      ax1 = plt.subplot(211)
-      #plt.setp(ax1.get_xticklabels(), visible=False)
-      #plt.figure(1)
-      if zp:
-         if logr:
-            plt.semilogx(rr,mu,'+')
+      """ Plot the surface brightness if requested """
+      if doplot:
+         ax1 = plt.subplot(211)
+         if zp:
+            if logr:
+               plt.semilogx(rr,mu,'+')
+            else:
+               plt.plot(rr,mu,'+')
+            yl1,yl2 = plt.ylim()
+            plt.ylim(yl2,yl1)
          else:
-            plt.plot(rr,mu,'+')
-         yl1,yl2 = plt.ylim()
-         plt.ylim(yl2,yl1)
-      else:
-         if logr:
-            plt.semilogx(rr,rflux,'+')
-            plt.semilogx(self.rcirc,self.fcirc,'r',lw=2)
-            plt.semilogx(rfit,ffit,'k',ls='dashed')
-         else:
-            plt.plot(rr,rflux,'+')
-            plt.plot(self.rcirc,self.fcirc,'r',lw=2)
-            plt.plot(rfit,ffit,'k',ls='dashed')
-      plt.xlim(0,rmax)
-      plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,xc,yc))
-      plt.xlabel(xlab)
-      plt.ylabel(flab)
+            if logr:
+               plt.semilogx(rr,rflux,'+')
+               plt.semilogx(self.rcirc,self.fcirc,'r',lw=2)
+               plt.semilogx(rfit,ffit,'k',ls='dashed')
+            else:
+               plt.plot(rr,rflux,'+')
+               plt.plot(self.rcirc,self.fcirc,'r',lw=2)
+               plt.plot(rfit,ffit,'k',ls='dashed')
+         plt.xlim(0,rmax)
+         plt.title('%s Profile centered at (%6.1f,%6.1f)'%(ftype,xc,yc))
+         plt.xlabel(xlab)
+         plt.ylabel(flab)
 
-      """ Plot the integrated flux/mag """
-      ax2 = plt.subplot(212,sharex=ax1)
-      #plt.figure(2)
-      ftot = np.cumsum(rflux)
-      if zp:
-         m = -2.5 * np.log10(ftot) + zp
-         if logr:
-            plt.semilogx(rr,m,'+')
+         """ Plot the integrated flux/mag """
+         ax2 = plt.subplot(212,sharex=ax1)
+         ftot = np.cumsum(rflux)
+         if zp:
+            m = -2.5 * np.log10(ftot) + zp
+            if logr:
+               plt.semilogx(rr,m,'+')
+            else:
+               plt.plot(rr,m,'+')
+            yl1,yl2 = plt.ylim()
+            plt.ylim(yl2,yl1)
          else:
-            plt.plot(rr,m,'+')
-         yl1,yl2 = plt.ylim()
-         plt.ylim(yl2,yl1)
-      else:
-         if logr:
-            plt.semilogx(rr,ftot,'+')
-         else:
-            plt.plot(rr,ftot,'+')
-      plt.xlim(0,rmax)
-      plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,xc,yc))
-      plt.xlabel(xlab)
-      plt.ylabel(tlab)
+            if logr:
+               plt.semilogx(rr,ftot,'+')
+            else:
+               plt.plot(rr,ftot,'+')
+         plt.xlim(0,rmax)
+         plt.title('Integrated %s centered at (%6.1f,%6.1f)'%(ttype,xc,yc))
+         plt.xlabel(xlab)
+         plt.ylabel(tlab)
 
       """ Save the output if desired """
-      if self.radplot_file is not None:
-         out = np.zeros(rr.size,2)
-         out[:,0] = rr
-         out[:,1] = rflux
-         np.savetxt(self.radplot_file,out,fmt='%7.3f %f')
+      if outfile is not None:
+         if outtype == 'fcirc':
+            out = np.zeros((self.rcirc.size,2))
+            out[:,0] = self.rcirc
+            out[:,1] = self.fcirc
+         else:
+            out = np.zeros(rr.size,2)
+            out[:,0] = rr
+            out[:,1] = rflux
+         np.savetxt(outfile,out,fmt='%7.3f %f')
 
    #-----------------------------------------------------------------------
 
