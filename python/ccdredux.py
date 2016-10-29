@@ -583,20 +583,18 @@ def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
 
 #-----------------------------------------------------------------------
 
-def make_flat_files(file_with_filelist, indir=None, 
-                    outfile="Flat.fits", biasfile=None, gain=1.0, normalize=True,
-                    x1=0, x2=0, y1=0, y2=0):
+def make_flat_files(infiles, outfile="Flat.fits", biasfile=None, gain=1.0, 
+                    normalize=True, x1=0, x2=0, y1=0, y2=0):
    """ 
 
        This function takes as input the frame numbers of the flat-field
        frames and median-combines them to create a master flat
 
        Required inputs:
-        file_with_filelist - file containing list of input files 
-          (e.g., "filelist.txt")
+        infiles - list of the input files that contain the individual
+                  flat-field exposures.
 
        Optional inputs:
-        indir       - directory containing input files (default=None)
         outfile     - output filename (default="Flat.fits")
         biasfile    - input bias file to subtract before combining. 
                       (default=None)
@@ -610,20 +608,9 @@ def make_flat_files(file_with_filelist, indir=None,
 
    """
 
-   # Extract base file names from input file
-   basenames = open(file_with_filelist).read().split()
-
-   # Make file list
-   if indir is None:
-      filenames = basenames
-   else:
-      filenames = []
-      for i in basenames:
-         filenames.append('%s/%s'%(indir,i))
-
-   # Call median_combine
-   median_combine(filenames,outfile,biasfile=biasfile,gain=gain,
-    normalize=normalize,x1=x1,x2=x2,y1=y1,y2=y2)
+   """  Call median_combine """
+   median_combine(infiles,outfile,biasfile=biasfile,gain=gain,
+                  normalize=normalize,x1=x1,x2=x2,y1=y1,y2=y2)
 
 #-----------------------------------------------------------------------
 
@@ -770,7 +757,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
 
    # Trim the data if requested
    xt1,xt2,yt1,yt2 = define_trimsec(tmp,x1,x2,y1,y2)
-   tmp.data = tmp.data[yt1:yt2,xt1:xt2].astype(n.float64)
+   tmp.data = tmp.data[yt1:yt2,xt1:xt2]
    if xt2-xt1 != tmp.header['naxis1'] or yt2-yt1 != tmp.header['naxis2']:
       tmp.header.update('trim',
          'Trim data section is [%d:%d,%d:%d] ([xrange,yrange])' %
