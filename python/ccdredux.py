@@ -329,7 +329,8 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
          if(normalize == True):
             frame_med = n.median(tmpf,axis=None)
             print "    Normalizing %s by %f" % (files[i].filename(),frame_med)
-            tmpf /= frame_med
+            tmpf *= 1.
+            tmpf /= (1. * frame_med)
          if(zeromedian == True):
             print "    Subtracting the median from %s" % files[i].filename()
             tmpf -= n.median(tmpf,axis=None)
@@ -757,11 +758,11 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
 
    # Trim the data if requested
    xt1,xt2,yt1,yt2 = define_trimsec(tmp,x1,x2,y1,y2)
-   tmp.data = tmp.data[yt1:yt2,xt1:xt2]
+   tmp.data = tmp.data[yt1:yt2,xt1:xt2].astype(float)
    if xt2-xt1 != tmp.header['naxis1'] or yt2-yt1 != tmp.header['naxis2']:
-      tmp.header.update('trim',
-         'Trim data section is [%d:%d,%d:%d] ([xrange,yrange])' %
-         (xt1,xt2,yt1,yt2))
+      tmp.header['trim'] = \
+          'Trim data section is [%d:%d,%d:%d] ([xrange,yrange])' % \
+          (xt1,xt2,yt1,yt2)
       print "   Trimmed data to section [xrange,yrange] [%d:%d,%d:%d]" \
           % (xt1,xt2,yt1,yt2)
    
@@ -780,31 +781,29 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          keystr = 'biassub'
       else:
          keystr = 'biassub'+str(hdunum)
-      tmp.header.update(keystr,
-         'Bias frame for %s is %s with mean %f' % 
-                        (hdustr,bias.filename(),biasmean))
+      tmp.header[keystr] = 'Bias frame for %s is %s with mean %f' % \
+          (hdustr,bias.filename(),biasmean)
       print "   Subtracted bias frame %s" % bias.filename()
    
    # Convert to electrons if requested
    if gain>0:
       tmp.data *= gain
-      tmp.header.update('gain', 1.0, 'Units are now electrons')
+      tmp.header['gain'] =  (1.0, 'Units are now electrons')
       if (hdunum == 0):
          keystr = 'gainorig'
       else:
          keystr = 'gainori'+str(hdunum)
-      tmp.header.update(keystr, gain, 'Original gain for %s in e-/ADU' % hdustr,
-         after='gain')
-      tmp.header.update('bunit', 'Electrons', 
-         'Converted from ADU in raw image')
+      tmp.header.set(keystr, gain, 'Original gain for %s in e-/ADU' % hdustr,
+                            after='gain')
+      tmp.header['bunit'] =  ('Electrons','Converted from ADU in raw image')
       if (hdunum == 0):
          keystrb1 = 'binfo_1'
       else:
          keystrb1 = 'binfo'+str(hdunum)+'_1'
       keystrb1 = keystrb1.upper()
-      tmp.header.update(keystrb1,
-         'Units for %s changed from ADU to e- using gain=%6.3f e-/ADU' %
-                        (hdustr,gain))
+      tmp.header[keystrb1] = \
+          'Units for %s changed from ADU to e- using gain=%6.3f e-/ADU' % \
+          (hdustr,gain)
       print "   Converted units to e- using gain = %f" % gain
    
    # Divide by the exposure time if requested
@@ -829,19 +828,18 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          else:
             keystr = 'binfo'+str(hdunum)+'_2'
          keystr = keystr.upper()
-         tmp.header.update('gain', texp, 
-                           'If units are e-/s then gain=t_exp')
-         tmp.header.update('bunit','Electrons/sec','See %s header' % keystr,
-                           keystr)
-         tmp.header.update(keystr,
-                           'Units for %s changed from e- to e-/s using texp=%7.2f'
-                           % (hdustr,texp), after=keystrb1)
+         tmp.header['gain'] = (texp, 'If units are e-/s then gain=t_exp')
+         tmp.header['bunit'] = ('Electrons/sec','See %s header' % keystr,
+                                keystr)
+         tmp.header.set(keystr,
+                        'Units for %s changed from e- to e-/s using texp=%7.2f'
+                        % (hdustr,texp), after=keystrb1)
          print "   Converted units from e- to e-/sec using exposure time %7.2f" \
              % texp
       else:
-         tmp.header.update('bunit','Electrons',
-                           'There was an ERROR in converting to e-/s')
-         tmp.header.update(keystr,'ERROR: Exposure time query failed.')
+         tmp.header['bunit'] = \
+             ('Electrons', 'There was an ERROR in converting to e-/s')
+         tmp.header[keystr] = 'ERROR: Exposure time query failed.'
    
    # Apply the flat-field correction if requested
    if flat is not None:
@@ -857,9 +855,9 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          keystr = 'flatcor'
       else:
          keystr = 'flatcor'+str(hdunum)
-      tmp.header.update(keystr,
-         'Flat field image for %s is %s with mean=%f' %
-                        (hdustr,flat.filename(),flatmean))
+      tmp.header[keystr] = \
+          'Flat field image for %s is %s with mean=%f' % \
+          (hdustr,flat.filename(),flatmean)
       print "   Divided by flat-field image: %s" % flat.filename()
    
    # Apply the fringe correction if requested
@@ -869,9 +867,9 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          keystr = 'fringcor'
       else:
          keystr = 'frngcor'+str(hdunum)
-      tmp.header.update(keystr,
-         'Fringe image for %s is %s with mean=%f' % 
-                        (hdustr,fringe.filename(),fringemean))
+      tmp.header[keystr] = \
+          'Fringe image for %s is %s with mean=%f' % \
+          (hdustr,fringe.filename(),fringemean)
       print "   Subtracted fringe image: %s" % fringe.filename()
    
    # Apply the dark sky flat-field correction if requested
@@ -883,9 +881,9 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          keystr = 'darksky'
       else:
          keystr = 'darksky'+str(hdunum)
-      tmp.header.update(keystr,
-         'Dark-sky flat image for %s is %s with mean=%f' % 
-         (hdustr,darksky.filename(),darkskymean))
+      tmp.header[keystr] = \
+          'Dark-sky flat image for %s is %s with mean=%f' % \
+          (hdustr,darksky.filename(),darkskymean)
       print "   Divided by dark-sky flat: %s" % darksky.filename()
 
    # Subtract the sky level if requested
@@ -896,8 +894,8 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
          keystr = 'skysub'
       else:
          keystr = 'skysub'+str(hdunum)
-      tmp.header.update(keystr,'For %s, subtracted mean sky level of %f' %
-                        (hdustr,m))
+      tmp.header[keystr] = ('For %s, subtracted mean sky level of %f' % \
+                               (hdustr,m))
       print '   Subtracted mean sky level of %f' % m
    
    # Flip if requested
@@ -963,7 +961,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
         y2          - to set a trim section that is smaller than the full frame
    """
 
-   # Read in calibration frames if they have been selected
+   """ Read in calibration frames if they have been selected """
 
    print ''
    if biasfile is not None:
@@ -972,8 +970,6 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
          return
    else:
       bias = None
-
-   # Put file error checking for flats, fringe, and darksky files
 
    if flatfile is not None:
       print 'Reading in flat-field file: %s' % flatfile
@@ -994,8 +990,10 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
       print 'Reading in dark-sky flat file: %s' % darkskyfile
       darksky = pf.getdata(darkskyfile)
       darkskymean = darksky.mean()
-      # Set up a bad pixel mask based on places where the flat frame = 0,
-      #  since dividing by zero gives lots of problems
+      """
+      Set up a bad pixel mask based on places where the flat frame = 0,
+       since dividing by zero gives lots of problems
+      """
       dszeromask = darksky==0
    else:
       darksky = None
@@ -1009,27 +1007,29 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
       filename = '%s/%s%s%s'%(rawdir,in_prefix,i,rawext)
       print "%s:" % filename
 
-      # Open the input file.  Read in this way in order to be able to handle
-      #  multi-extension fits files
-
+      """
+      Open the input file.  
+      """
       try:
-         hdulist = pf.open(filename)
+         hdu = pf.open(filename)
       except:
-         hdulist = pf.open(filename,ignore_missing_end=True)
+         hdu = pf.open(filename,ignore_missing_end=True)
 
-      # Set things up depending on whether there are extensions or not
-      hdulen = len(hdulist)
+      """ Set things up depending on whether there are extensions or not """
+      hdulen = len(hdu)
       if hdulen == 1:
          imhdu = n.arange(1)
       else:
          imhdu = n.arange(1,hdulen)
-         phdu = hdulist[0]
+         phdu = hdu[0]
          phdu.header.add_comment(
             'This file contains %d image extensions' % (hdulen-1),after='extend')
-         outhdulist = pf.HDUList([phdu])
+         outhdu = pf.HDUList([phdu])
 
-      # Set up the trim and flip variables as numpy arrays, if they are not
-      #  already in that format
+      """
+      Set up the trim and flip variables as numpy arrays, if they are not
+       already in that format
+      """
 
       x1 = set_param_array(hdulen,x1)
       x2 = set_param_array(hdulen,x2)
@@ -1038,11 +1038,12 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
       gain = set_param_array(hdulen,gain)
       flip = set_param_array(hdulen,flip)
 
-      # Loop over fits extensions.  This loop assumes that if the input file
-      #  is a multi-extension fits file, then HDU 0 does not contain any
-      #  data, and only HDU's 1-N do.  Of course, if this is a straightforward
-      #  fits file with no extensions, then HDU 0 will contain the data
-
+      """
+       Loop over fits extensions.  This loop assumes that if the input file
+        is a multi-extension fits file, then HDU 0 does not contain any
+        data, and only HDU's 1-N do.  Of course, if this is a straightforward
+        fits file with no extensions, then HDU 0 will contain the data
+      """
 
       for j in imhdu:
 
@@ -1054,7 +1055,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
          # Process the data
          k = j-1
-         process_data(hdulist,j,bias,flat,fringe,darksky,gain[k],texp_key,
+         process_data(hdu,j,bias,flat,fringe,darksky,gain[k],texp_key,
                       skysub,flip[k],pixscale,rakey,deckey,
                       x1[k],x2[k],y1[k],y2[k])
 
@@ -1064,9 +1065,9 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
                write_one_output_file = False
                print " Splitting image extension %d to output file."
             else:
-               outhdulist.append(hdulist[j])
+               outhdu.append(hdu[j])
          else:
-            outhdulist = hdulist[j]
+            outhdu = pf.PrimaryHDU(hdu[j].data,hdu[j].header)
 
       # Write out final file
       # if hdulen>1:
@@ -1082,10 +1083,10 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
       if(write_one_output_file):
          outname = '%s%s.fits'%(out_prefix,i)
          outname = outname.strip()
-         outhdulist.writeto(outname,output_verify='ignore',clobber=True)
+         outhdu.writeto(outname,output_verify='ignore',clobber=True)
          print " Writing output file: %s" % outname
 
-      hdulist.close()
+      hdu.close()
 
 # For LRIS B
 #  x1 = [400, 51, 51, 400]
