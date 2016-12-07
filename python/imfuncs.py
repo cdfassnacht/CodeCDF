@@ -1894,7 +1894,8 @@ class Image:
       print "Input file:  %s" % self.infile
 
       """ Set up the parameters that will be needed to display the image """
-      self.display_setup(hext=hext,cmap=cmap,fmin=fmin,fmax=fmax,funits=funits,
+      self.display_setup(hext=hext,cmap=cmap,
+                         fmin=fmin,fmax=fmax,funits=funits,fscale=fscale,
                          statsize=statsize,title=title,subimdef=subimdef,
                          subimcent=subimcent,subimsize=subimsize, 
                          dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,

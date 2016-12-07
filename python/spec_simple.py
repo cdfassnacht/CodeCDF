@@ -5,7 +5,7 @@ spec_simple.py - A library of functions to do various basic CCD spectroscopy
 Functions:
    xxxx  - descriptions here
 
-Classes (UNDER CONSTRUCTION)
+Classes (UNDER CONSTRUCTION, BUT GETTING THERE...)
   Spec1d
   Spec2d
 """
@@ -48,7 +48,12 @@ class Spec1d:
       """
       Reads in the input 1-dimensional spectrum.
       This can be done in two mutually exclusive ways:
-        1. By providing the name of a file that contains the spectrum.
+        1. By providing some 1-d arrays containing the wavelength vector,
+           the flux vector, and, optionally, the variance vector.
+
+                 ---- or ----
+
+        2. By providing the name of a file that contains the spectrum.
             There are three possible input file formats:
               fits: A multi-extension fits file
                     Extension 1 is the wavelength vector
@@ -69,8 +74,6 @@ class Spec1d:
                     B.  wavelength flux variance
                     C.  wavelength flux variance sky
 
-        2. By providing some 1-d arrays containing the wavelength vector,
-           the flux vector, and, optionally, the variance vector.
 
       Inputs:
          infile     - Name of the input file.  If infile is None, then the
@@ -103,9 +106,9 @@ class Spec1d:
       self.smovar  = None
 
       """ Check inputs """
+      self.logwav = logwav
       if infile is not None:
          self.infile = infile
-         self.logwav = logwav
          try:
             self.read_from_file(informat)
          except:
@@ -197,7 +200,7 @@ class Spec1d:
    #-----------------------------------------------------------------------
 
    def plot(self, xlabel='Wavelength (Angstroms)', ylabel='Relative Flux', 
-            title='default', docolor=True, speccolor='b', rmscolor='r', 
+            title='default', docolor=True, color='b', rmscolor='r', 
             rmsoffset=0, rmsls=None, fontsize=12, add_atm_trans=False, 
             atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', 
             usesmooth=False, verbose=True):
@@ -214,7 +217,7 @@ class Spec1d:
 
       """ Override color assignments if docolor is False"""
       if not docolor:
-         speccolor = 'k'
+         color = 'k'
          rmscolor  = 'k'
 
       """ Draw the flux=0 line"""
@@ -227,7 +230,7 @@ class Spec1d:
       else:
          flux = self.flux
          var  = self.var
-      plt.plot(self.wav,flux,speccolor,linestyle='steps',label='Flux')
+      plt.plot(self.wav,flux,color,linestyle='steps',label='Flux')
       plt.tick_params(labelsize=fontsize)
       plt.xlabel(xlabel,fontsize=fontsize)
 
@@ -263,7 +266,8 @@ class Spec1d:
 
    #-----------------------------------------------------------------------
 
-   def smooth_boxcar(self, filtwidth, doplot=True, outfile=None):
+   def smooth_boxcar(self, filtwidth, doplot=True, outfile=None, 
+                     color='b', title='default'):
       """
       Does a boxcar smooth of the spectrum.  
       The default is to do inverse variance weighting, using the variance 
@@ -290,7 +294,7 @@ class Spec1d:
 
       """ Plot the smoothed spectrum if desired """
       if doplot:
-         self.plot(usesmooth=True)
+         self.plot(usesmooth=True,title=title,color=color)
 
       """ Save the output file if desired """
       #if(outfile):
@@ -327,7 +331,8 @@ class Spec1d:
             ("[O III]",   4962.,    "[O III]",     0.0,1,False),
             ("[O III]",   5007.,    "[O III]",     0.0,1,True),
             ("Mg I (b)",  5176,     "Mg b",        0.0,-1,True),
-            ("[N I]",     5199.,    "[N I]",       0.0,1,False),
+            ("[N I]",     5199.,    "[N I]",       0.0,1,True),
+            ("HeI",       5876.,    "He I",        0.0,1,True),
             ("Na I (D)",  5893,     "Na D",        0.0,-1,True),
             ("[O I]",     6300.,    "[O I]",       0.0,1,True),
             ("[N II]",    6548.,    "[N II]",      0.0,1,False),
@@ -338,6 +343,8 @@ class Spec1d:
             ("Ca triplet",8498.03,  "CaII",        0.0,-1,True),
             ("Ca triplet",8542.09,  "CaII",        0.0,-1,True),
             ("Ca triplet",8662.14,  "CaII",        0.0,-1,True),
+            ("[S III]",   9069,     "[S III]",     0.0,1,True),
+            ("[S III]",   9532,     "[S III]",     0.0,1,True),
             ("Pa-gamma", 10900.,    r"Pa $\gamma$",0.0,1,True),
             ("Pa-beta",  12800.,    r"Pa $\beta$", 0.0,1,True),
             ("Pa-alpha", 18700.,    r"Pa $\alpha$",0.0,1,True)\
@@ -459,7 +466,7 @@ class Spec1d:
 
    #-----------------------------------------------------------------------
 
-   def save(self,outfile):
+   def save(self, outfile, outformat='text'):
       """
       Saves a spectrum as a text file
       """
@@ -486,30 +493,42 @@ class Spec1d:
    #-----------------------------------------------------------------------
    #-----------------------------------------------------------------------
 
-#-----------------------------------------------------------------------
+#--------------------------------------------------------------------------
+#**************************************************************************
+#--------------------------------------------------------------------------
 
 class Spec2d(imf.Image):
    """
    A class to process 2-dimensional spectra, i.e., the CCD data that
-   comes out of a typical spectrograph.  
+    comes out of a typical spectrograph.  
    The main purpose of this Spec2d class and its associated functions is to
     extract a 1-dimensional spectrum from a 2-dimensional spectrum.
-   The extracted 1-dimensional spectrum will, in the end, be output into a file
+    The extracted 1-dimensional spectrum will, in the end, be output into a file
     that can be analyzed using the Spec1d class.
    NOTE: Spec2d inherits the properties of the Image class that is defined
     in imfuncs.py
    """
 
-   def __init__(self, infile, hext=0, xtrim=None, ytrim=None, transpose=False,
-                verbose=True):
+   def __init__(self, infile, hdulist=None, hext=0, xtrim=None, ytrim=None, 
+                transpose=False, fixnans=True, logwav=False, verbose=True):
       """
-      Reads in the 2-dimensional spectrum from a input fits file and
+      Reads in the 2-dimensional spectrum from a input fits file (or the
+      HDUList from a previously loaded fits file) and
       stores it in a Spec2d class container.
 
       Required inputs:
-         infile    - name of input fits file
+         infile    - name of input fits file.
+                     NOTE: it is sometimes the case, e.g., with multi-extension
+                     fits files such as those produced by ESI, that the
+                     fits file has already been loaded.  In this case set
+                     infile to None and use the optional hdulist input parameter
+                     instead.
 
       Optional inputs:
+         hdulist   - ONLY used if infile is None.  If a fits file has already
+                     been loaded, then it is stored as a HDUList.  This
+                     can be passed to the Spec2d.__init__ method instead of
+                     the input file name in that case.
          hext      - The header-data unit (HDU) that contains the 2-dimensional
                      spectroscopic data.  The default value (hdu=0) should work
                      for most fits files.
@@ -541,18 +560,24 @@ class Spec2d(imf.Image):
       self.aper      = [-4.,4.]
       self.muorder   = 3
       self.sigorder  = 3
+      self.logwav    = logwav
 
       """ Call the superclass initialization for useful Image attributes """
-      imf.Image.__init__(self,infile)
+      if infile is None:
+         if hdulist is None:
+            print ''
+            print 'ERROR: Both infile and hdulist are set to None.  One of them'
+            print ' must be set to load a 2d spectrum'
+            print ''
+            return None
+         self.hdu = hdulist
+      else:
+         imf.Image.__init__(self,infile,verbose=verbose)
 
-      #""" Open the input file using the imfuncs.py Image class"""
-      #self.infile = infile
-      #self.image = imf.Image(infile)
-      
       """ Set the portion of the input spectrum that should be used """
-      hdr = self.hdu[hext].header
-      nx = hdr['naxis1']
-      ny = hdr['naxis2']
+      self.hdr = self.hdu[hext].header
+      nx = self.hdr['naxis1']
+      ny = self.hdr['naxis2']
       trimmed = False
       if xtrim is not None:
          xmin = xtrim[0]
@@ -578,27 +603,33 @@ class Spec2d(imf.Image):
       self.xmax = xmax
       self.ymin = ymin
       self.ymax = ymax
-      print ''
-      print '------------------------------------------------------------------'
-      print ''
-      print 'Read in 2-dimensional spectrum from %s' % self.infile
-      if trimmed:
-         print 'The input dataset was trimmed'
-         print ' xrange: %d:%d.  yrange: %d:%d' % (xmin,xmax,ymin,ymax)
-      if transpose:
-         print 'The input dataset was transposed'
-      print 'Final data dimensions (x y): %d x %d' % \
-          (self.data.shape[1],self.data.shape[0])
-      self.get_dispaxis()
+      if verbose:
+         print ''
+         print '----------------------------------------------------------------'
+         print ''
+         if infile is None:
+            print 'Read in 2-dimensional spectrum from HDU=%d' % hext
+         else:
+            print 'Read in 2-dimensional spectrum from %s (HDU=%d)' % \
+                (self.infile,hext)
+         if trimmed:
+            print 'The input dataset was trimmed'
+            print ' xrange: %d:%d.  yrange: %d:%d' % (xmin,xmax,ymin,ymax)
+         if transpose:
+            print 'The input dataset was transposed'
+         print 'Final data dimensions (x y): %d x %d' % \
+             (self.data.shape[1],self.data.shape[0])
+      self.get_dispaxis(verbose)
 
       """ 
       Check for NaN's within the spectrum and replace them if they are there
       """
-      self.fix_nans(verbose=True)
+      if fixnans:
+         self.fix_nans(verbose=True)
 
    #-----------------------------------------------------------------------
 
-   def get_dispaxis(self):
+   def get_dispaxis(self, verbose=True):
       """
       The dispersion axis is the axis corresponding to the spectral direction
       in a 2-dimensional spectrum.  get_dispaxis does the simple task of
@@ -606,10 +637,11 @@ class Spec2d(imf.Image):
       """
 
       self.npix = self.data.shape[self.specaxis]
-      print ''
-      print 'Current value of dispaxis:              %s' % self.dispaxis
-      print 'Number of pixels along dispersion axis: %d' % self.npix
-      print ''
+      if verbose:
+         print ''
+         print 'Current value of dispaxis:              %s' % self.dispaxis
+         print 'Number of pixels along dispersion axis: %d' % self.npix
+         print ''
 
    #-----------------------------------------------------------------------
 
@@ -655,13 +687,17 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def get_wavelength(self, hext=0):
+   def get_wavelength(self, hext=None):
       """
       Gets a wavelength vector from the fits header, if it exists
 
       Inputs:
-         hext - Header extension that contains the wavelength info, if any
-                Default = 0
+         hext - By default the wavelength information will be searched
+                for in the the header that is already associated with
+                the data, which was set when reading in.  This
+                process is followed for the default: hext=None 
+                If hext is not None, search for the wavelength info 
+                in the indicated HDU instead
       """
 
       if self.dispaxis == 'y':
@@ -671,7 +707,10 @@ class Spec2d(imf.Image):
       cdkey = 'cd%d_%d' % (dim,dim)
       crpix = 'crpix%d' % dim
       crval = 'crval%d' % dim
-      hdr = self.hdu[hext].header
+      if hext is not None:
+         hdr = self.hdu[hext].header
+      else:
+         hdr = self.hdr
       #print cdkey,crpix,crval
       self.has_cdmatx = True
       try:
@@ -690,8 +729,11 @@ class Spec2d(imf.Image):
          self.has_cdmatx = False
          wpix = 0
 
-      #print dw, wstart, wpix
+      """ Create the wavelength vector from the information above """
       self.wavelength = wstart + (n.arange(self.npix) - wpix) * dw
+      if self.logwav:
+         self.wavelength = 10.**self.wavelength
+      print self.wavelength
 
    #-----------------------------------------------------------------------
 
@@ -702,9 +744,10 @@ class Spec2d(imf.Image):
       """
 
       nanmask = n.isnan(self.data)
-      if nanmask.sum()>0:
+      nnan = nanmask.sum()
+      if nnan>0:
          if verbose:
-            print 'Found %d NaNs in the two-dimensional spectrum'
+            print 'Found %d NaNs in the two-dimensional spectrum' % nnan
 
          """ First replace the NaNs with a temporary value """
          self.data[nanmask] = -999
@@ -781,15 +824,10 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def locate_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,
-                    fixsig=False,showplot=True,do_subplot=False,verbose=True):
+   def spatial_profile(self, pixrange=None, showplot=True, do_subplot=False):
       """
-      Compresses a 2d spectrum along the dispersion axis so that
-       the trace of the spectrum can be automatically located by fitting
-       a gaussian + background to the spatial direction.  The function
-       returns the parameters of the best-fit gaussian.
-      The default dispersion axis is along the x direction.  To change this
-       set the dispaxis to "y" with the set_dispaxis method in this Spec2d class.
+      Compresses a 2d spectrum along the dispersion axis to create a spatial
+       profile, and then plots it if requested
       """
 
       """ Set the data range in which to find the trace """
@@ -807,13 +845,40 @@ class Spec2d(imf.Image):
 
       """ Compress the data along the dispersion axis and find the max value """
       if self.data.ndim < 2:
-         cdat = tmpdat
+         self.cdat = tmpdat
       else:
-         cdat = n.median(tmpdat,axis=self.specaxis)
-      x = n.arange(1,cdat.shape[0]+1)
+         self.cdat = n.median(tmpdat,axis=self.specaxis)
+      self.x = n.arange(1,self.cdat.shape[0]+1)
+
+      """ Plot the compressed spectrum """
+      if(showplot):
+         plt.plot(self.x,self.cdat,linestyle='steps')
+         plt.xlabel('Pixel number in the spatial direction')
+         plt.title('Spatial Profile')
+
+   #-----------------------------------------------------------------------
+
+   def locate_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,
+                    fixsig=False,showplot=True,do_subplot=False,verbose=True):
+      """
+      Compresses a 2d spectrum along the dispersion axis so that
+       the trace of the spectrum can be automatically located by fitting
+       a gaussian + background to the spatial direction.  The function
+       returns the parameters of the best-fit gaussian.
+      The default dispersion axis is along the x direction.  To change this
+       set the dispaxis to "y" with the set_dispaxis method in this Spec2d class.
+      """
+
+      """ Create the spatial profile """
+      if showplot:
+         if(do_subplot):
+            plt.subplot(221)
+         else:
+            plt.figure(1)
+            plt.clf()
+      self.spatial_profile(pixrange,showplot,do_subplot)
 
       """ Set initial guesses """
-
       if fixmu:
          if mu0 is None:
             print ""
@@ -822,7 +887,7 @@ class Spec2d(imf.Image):
          fixmunote = "**"
       else:
          if mu0 is None:
-            i = cdat.argsort()
+            i = self.cdat.argsort()
             mu0    = 1.0 * i[i.shape[0]-1]
          fixmunote = " "
       if fixsig:
@@ -836,7 +901,7 @@ class Spec2d(imf.Image):
          if sig0 is None:
             sig0 = 3.0
          fixsignote = " "
-      amp0  = cdat.max()
+      amp0  = self.cdat.max()
       bkgd0 = n.median(self.data,axis=None)
       if(verbose):
          print ""
@@ -853,12 +918,13 @@ class Spec2d(imf.Image):
       mf=100000
       if fixmu and fixsig:
          p = [bkgd0,amp0]
-         pt,ier = optimize.leastsq(fit_gpb_fixmusig,p,(x,cdat,mu0,sig0),
-                                   maxfev=mf)
+         pt,ier = optimize.leastsq(fit_gpb_fixmusig,p,
+                                   (self.x,self.cdat,mu0,sig0),maxfev=mf)
          p_out = [pt[0],mu0,sig0,pt[1]]
       else:
          p = [bkgd0,mu0,sig0,amp0]
-         p_out,ier = optimize.leastsq(fit_gauss_plus_bkgd,p,(x,cdat),maxfev=mf)
+         p_out,ier = optimize.leastsq(fit_gauss_plus_bkgd,p,(self.x,self.cdat),
+                                      maxfev=mf)
 
 
       """ Give results """
@@ -872,21 +938,17 @@ class Spec2d(imf.Image):
          print "Parameters marked with a ** are held fixed during the fit"
          print ""
 
-      """ Plot the compressed spectrum """
+      """ Add the best fit model to the plot """
       if(showplot):
-         if(do_subplot):
-            plt.subplot(221)
-         else:
-            plt.figure(1)
-            plt.clf()
-         plt.plot(x,cdat,linestyle='steps')
-         xmod = n.arange(1,cdat.shape[0]+1,0.1)
+         """ 
+         Note, the figure will have been set in the call to spatial_profile,
+         so we don't need to create a figure here.
+         """
+         xmod = n.arange(1,self.cdat.shape[0]+1,0.1)
          ymod = make_gauss_plus_bkgd(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
          plt.plot(xmod,ymod)
          plt.axvline(p_out[1]+self.aper[0],color='k')
          plt.axvline(p_out[1]+self.aper[1],color='k')
-         plt.xlabel('Pixel number in the spatial direction')
-         plt.title('Compressed Spatial Plot')
 
       """ 
       Return the relevant parameters of the fit 
@@ -1147,11 +1209,20 @@ class Spec2d(imf.Image):
    #-----------------------------------------------------------------------
 
 
-#-----------------------------------------------------------------------
+#===========================================================================
 #
-# End of Spec2d class definition
+# *** End of Spec2d class definition ***
 #
-#-----------------------------------------------------------------------
+# Below here are:
+#   1. mostly old functions that will be kept for legacy purposes but will
+#      slowly be modified to function in exactly the way but via calls to
+#      the Spec2d and Spec1d classes.  This will be done in such a way to
+#      be transparent to the user.
+#   2. code that really should be incorporated into the Spec1d or Spec2d
+#      classes.  This code will slowly disappear as it gets integrated
+#      into the new classes.
+#
+#===========================================================================
 
 def load_2d_spectrum(filename, hdu=0):
    """

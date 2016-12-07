@@ -163,6 +163,7 @@ for f in files:
       inst = "%s-%s" % (inst,cam)
 
    # Print out final info
+   fonly = fname.split('/')[-1]
    print "%-15s  %4dx%-4d  %-17s %-9s %-10s %s" % \
-          (fname,n1,n2,obj,texp,inst,filt)
+          (fonly,n1,n2,obj,texp,inst,filt)
 
