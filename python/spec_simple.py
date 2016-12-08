@@ -17,7 +17,7 @@ try:
 except:
    import pyfits as pf
 import imfuncs as imf
-import numpy as n
+import numpy as np
 import scipy as sp
 from scipy import optimize,interpolate,ndimage
 import matplotlib.pyplot as plt
@@ -493,9 +493,11 @@ class Spec1d:
    #-----------------------------------------------------------------------
    #-----------------------------------------------------------------------
 
-#--------------------------------------------------------------------------
-#**************************************************************************
-#--------------------------------------------------------------------------
+#===========================================================================
+#
+# Start of Spec2d class
+#
+#===========================================================================
 
 class Spec2d(imf.Image):
    """
@@ -849,12 +851,12 @@ class Spec2d(imf.Image):
          self.cdat = tmpdat
       else:
          self.cdat = np.median(tmpdat,axis=self.specaxis)
-      self.x = np.arange(1,self.cdat.shape[0]+1)
+      self.x = np.arange(self.cdat.shape[0])
 
       """ Plot the compressed spectrum """
       if(showplot):
          plt.plot(self.x,self.cdat,linestyle='steps')
-         plt.xlabel('Pixel number in the spatial direction')
+         plt.xlabel('Spatial direction (0-indexed)')
          plt.title('Spatial Profile')
 
    #-----------------------------------------------------------------------
@@ -962,7 +964,7 @@ class Spec2d(imf.Image):
 
    def fit_poly_to_trace(self, x, data, fitorder, data0, fitrange=None,
                          doplot=True, markformat='bo', 
-                         ylabel='Centroid of Trace', 
+                         ylabel='Centroid of Trace (0-indexed)', 
                          title='Location of the Peak'):
 
       """ Do a sigma clipping to reject clear outliers """
