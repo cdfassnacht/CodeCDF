@@ -559,7 +559,8 @@ class Spec2d(imf.Image):
       self.sky2d     = None
       self.skysub    = None
       self.fitrange  = None
-      self.aper      = [-4.,4.]
+      self.apmin     = -4.
+      self.apmax     = 4.
       self.muorder   = 3
       self.sigorder  = 3
       self.logwav    = logwav
@@ -950,8 +951,8 @@ class Spec2d(imf.Image):
          xmod = np.arange(1,self.cdat.shape[0]+1,0.1)
          ymod = make_gauss_plus_bkgd(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
          plt.plot(xmod,ymod)
-         plt.axvline(p_out[1]+self.aper[0],color='k')
-         plt.axvline(p_out[1]+self.aper[1],color='k')
+         plt.axvline(p_out[1]+self.apmin,color='k')
+         plt.axvline(p_out[1]+self.apmax,color='k')
 
       """ 
       Return the relevant parameters of the fit 
@@ -1166,8 +1167,8 @@ class Spec2d(imf.Image):
       """ Extract the spectrum """
       print ""
       print "Extracting the spectrum..."
-      apmin = self.aper[0]
-      apmax = self.aper[1]
+      apmin = self.apmin
+      apmax = self.apmax
       for i in pix:
          if self.specaxis == 0:
             tmpdata = self.data[i,:]
@@ -1204,16 +1205,18 @@ class Spec2d(imf.Image):
       sum across the spectrum in the spatial direction at each wavelength.
 
       There are three components to the weighting:
-        1. The aperture weighting (for now only uniform or a single gaussian
+        1. The statistical errors associated with the detector, etc.,
+           in the form of inverse variance weighting.
+           The variance can either be provided as an external variance image,
+            if the previous reduction / processing has provided this.  
+           If no external variance spectrum is provided, then the variance image
+            will be constructed from the data counts (including counts from
+            a 2d sky spectrum if the sky has already been subtracted from
+            the data) plus the gain and readnoise of the detector.
+        2. The aperture weighting (for now only uniform or a single gaussian
            are implemented).  In future, this may be provided in terms
-           of an already constructed weight image.
-        2. The statistical errors associated with the detector, etc.
-           This can be provided in terms of a variance image if the
-           previous reduction / processing has provided this.  If no
-           variance spectrum is provided, then the variance image
-           will be constructed from the data counts (including counts from
-           a 2d sky spectrum if the sky has already been subtracted from
-           the data) plus the gain and readnoise of the detector.
+           of an already constructed weight image rather than calculated
+           within this method.
         3. The aperture definition itself (stored in the apmin and apmax
            variables that are part of the Spec2d class definition).
            This weighting is just such that a pixel will get a weight of 1.0
@@ -1221,7 +1224,9 @@ class Spec2d(imf.Image):
       """
 
       """
-      Start by constructing the 2d aperture weighting. 
+      First weighting
+      ---------------
+      Aperture weighting
       NOTE: in future, this may be moved into the find_and_trace code
       As a reminder, self.npix is the number of pixels in the spectral direction
        and self.nspat is the number of pixels in the spatial direction
@@ -1236,11 +1241,26 @@ class Spec2d(imf.Image):
       The transpose (.T) at the end is necessary because doing a np.repeat
       directly on the desired shape does not give the proper behavior
       (constant along columns in the right way).
-      """
-      mu = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
-      sig = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
 
-      self.ydiff2 = (y - mu)**2
+      Code below is just for gaussian weighting.
+      """
+      self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      ydiff = y - self.mu2d
+      self.apwt = np.exp(-0.5*(ydiff**2/self.sig2d**2))
+
+      """
+      Put in the aperture limits, delimited by apmin and apmax
+      """
+      apmask = (ydiff>self.apmin) & (ydiff<self.apmax)
+      #apmask = (np.ceil(ydiff)>=self.apmin) & (np.floor(ydiff+2)<=self.apmax)
+      self.extwt = np.zeros(ydiff.shape) 
+      self.extwt[apmask] = self.apwt[apmask]
+
+      """ Finally, complete the weighted sum """
+      self.spec1d = (self.data * self.extwt).sum(axis=self.spaceaxis) / \
+          self.extwt.sum(axis=self.spaceaxis)
+      
 
    #-----------------------------------------------------------------------
 
@@ -2026,10 +2046,13 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
    """ Define aperture and background regions """
    #apstart = int(mu-apsize/2.0)
    #apend   = apstart+apsize+1
-   apstart = int(mu+apmin)
-   apend   = int(mu+apmax+1.)
-   apmask = np.zeros(spatialdat.shape,dtype=bool)
-   apmask[apstart:apend] = True
+   y = np.arange(spatialdat.shape[0])
+   ydiff = y - mu
+   #apstart = int(mu+apmin)
+   #apend   = int(mu+apmax+1.)
+   #apmask = np.zeros(spatialdat.shape,dtype=bool)
+   #apmask[apstart:apend] = True
+   apmask = (ydiff>apmin) & (ydiff<apmax)
    bkgdmask = np.logical_not(apmask)
 
    """ Estimate the background """
@@ -2037,7 +2060,6 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
    #print "Background level is %7.2f" % bkgd
 
    """ Make the weight array """
-   y = np.arange(spatialdat.shape[0])
    if(weight == 'uniform'):
       gweight = np.zeros(y.size)
       gweight[apmask] = 1.0
