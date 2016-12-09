@@ -555,6 +555,7 @@ class Spec2d(imf.Image):
       self.dispaxis  = 'x'
       self.specaxis  = 1
       self.spaceaxis = 0
+      self.extvar    = None
       self.sky1d     = None
       self.sky2d     = None
       self.skysub    = None
@@ -1163,6 +1164,8 @@ class Spec2d(imf.Image):
       amp = 0.0 * pix
       var = 0.0 * pix
       skyspec = 0.0 * pix
+      tmpy = 0.0 * pix
+      tmpyy = 0.0 * pix
 
       """ Extract the spectrum """
       print ""
@@ -1193,10 +1196,9 @@ class Spec2d(imf.Image):
          skyspec = sky
       self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
 
-
    #-----------------------------------------------------------------------
 
-   def extract_new(self):
+   def extract_new(self, gain=1.0, rdnoise=0.0):
       """
 
       VERY MUCH UNDER CONSTRUCTION - DON'T USE!
@@ -1247,19 +1249,38 @@ class Spec2d(imf.Image):
       self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       ydiff = y - self.mu2d
-      self.apwt = np.exp(-0.5*(ydiff**2/self.sig2d**2))
+      self.apwt = np.exp(-0.5 * (ydiff/self.sig2d)**2)
 
       """
       Put in the aperture limits, delimited by apmin and apmax
       """
-      apmask = (ydiff>self.apmin) & (ydiff<self.apmax)
-      #apmask = (np.ceil(ydiff)>=self.apmin) & (np.floor(ydiff+2)<=self.apmax)
+      apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
       self.extwt = np.zeros(ydiff.shape) 
       self.extwt[apmask] = self.apwt[apmask]
 
+      """ Set up the variance if an external variance was not provided """
+      if self.extvar is not None:
+         varspec = self.extvar.data
+      else:
+         varspec = (gain * self.data + rdnoise**2) / gain**2
+
+      """ Check for NaNs """
+      nanmask = np.isnan(self.data) | np.isnan(varspec)
+
+      """ 
+      Set up a 2d background grid (think about doing this as part of a call
+      to the sky subtraction routine in the future)
+      """
+      tmp = self.data[~apmask]
+      nrows = tmp.size / self.npix
+      bkgd = np.median((tmp.reshape((nrows,self.npix))),axis=self.spaceaxis)
+      bkgd2d = bkgd.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+
       """ Finally, complete the weighted sum """
-      self.spec1d = (self.data * self.extwt).sum(axis=self.spaceaxis) / \
+      self.spec1d = \
+          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / \
           self.extwt.sum(axis=self.spaceaxis)
+      self.bkgd2d = bkgd2d
       
 
    #-----------------------------------------------------------------------
@@ -1314,6 +1335,8 @@ class Spec2d(imf.Image):
 #      into the new classes.
 #
 #===========================================================================
+
+#-----------------------------------------------------------------------
 
 def load_2d_spectrum(filename, hdu=0):
    """
@@ -2044,15 +2067,13 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
    """
 
    """ Define aperture and background regions """
-   #apstart = int(mu-apsize/2.0)
-   #apend   = apstart+apsize+1
    y = np.arange(spatialdat.shape[0])
    ydiff = y - mu
    #apstart = int(mu+apmin)
    #apend   = int(mu+apmax+1.)
    #apmask = np.zeros(spatialdat.shape,dtype=bool)
    #apmask[apstart:apend] = True
-   apmask = (ydiff>apmin) & (ydiff<apmax)
+   apmask = (ydiff>apmin-1) & (ydiff<apmax)
    bkgdmask = np.logical_not(apmask)
 
    """ Estimate the background """
