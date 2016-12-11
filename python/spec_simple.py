@@ -1155,7 +1155,7 @@ class Spec2d(imf.Image):
       """
 
       """ Set the wavelength axis """
-      pix = np.arange(self.data.shape[self.specaxis])
+      pix = np.arange(self.npix)
       
       """
       Set up the containers for the amplitude and variance of the spectrum
@@ -1236,6 +1236,10 @@ class Spec2d(imf.Image):
       x1d = np.arange(self.npix)
       y1d = np.arange(self.nspat)
       x,y = np.meshgrid(x1d,y1d)
+      print type(y)
+      print type(y[0,0])
+      y = y.astype(float)
+      print type(y[0,0])
 
       """ 
       Make the 1d mu and sig polynomials into 2d polynomials that vary
@@ -1248,13 +1252,14 @@ class Spec2d(imf.Image):
       """
       self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
-      ydiff = y - self.mu2d
+      ydiff = 1.0*y - self.mu2d
       self.apwt = np.exp(-0.5 * (ydiff/self.sig2d)**2)
 
       """
       Put in the aperture limits, delimited by apmin and apmax
       """
       apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
+      bkgdmask = np.logical_not(apmask)
       self.extwt = np.zeros(ydiff.shape) 
       self.extwt[apmask] = self.apwt[apmask]
 
@@ -1271,17 +1276,31 @@ class Spec2d(imf.Image):
       Set up a 2d background grid (think about doing this as part of a call
       to the sky subtraction routine in the future)
       """
-      tmp = self.data[~apmask]
-      nrows = tmp.size / self.npix
-      bkgd = np.median((tmp.reshape((nrows,self.npix))),axis=self.spaceaxis)
+      tmp = self.data.copy()
+      tmp[apmask] = np.nan
+      bkgd = np.nanmedian(tmp,axis=self.spaceaxis)
       bkgd2d = bkgd.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      del tmp
 
-      """ Finally, complete the weighted sum """
-      self.spec1d = \
+      """ Finally, complete the weighted sum of the flux """
+      flux = \
           ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / \
           self.extwt.sum(axis=self.spaceaxis)
-      self.bkgd2d = bkgd2d
-      
+
+      """ 
+      Compute the proper variance.
+      NOT IMPLEMENTED YET!
+      """
+      var = bkgd  # NOT CORRECT!  JUST A PLACEHOLDER
+
+      """ Get the wavelength/pixel vector """
+      self.get_wavelength()
+
+      """
+      Save the result as a Spec1d instance
+      """
+      self.spec1d = Spec1d(wav=self.wavelength,flux=flux,var=var,sky=bkgd)
+      self.apmask = apmask
 
    #-----------------------------------------------------------------------
 
@@ -2069,12 +2088,9 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
    """ Define aperture and background regions """
    y = np.arange(spatialdat.shape[0])
    ydiff = y - mu
-   #apstart = int(mu+apmin)
-   #apend   = int(mu+apmax+1.)
-   #apmask = np.zeros(spatialdat.shape,dtype=bool)
-   #apmask[apstart:apend] = True
    apmask = (ydiff>apmin-1) & (ydiff<apmax)
    bkgdmask = np.logical_not(apmask)
+   #print bkgdmask.sum(), apmask.sum()
 
    """ Estimate the background """
    bkgd = np.median(spatialdat[bkgdmask],axis=None)
