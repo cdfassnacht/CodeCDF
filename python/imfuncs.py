@@ -1178,7 +1178,13 @@ class Image:
       """ Calculate the (x,y) that is associated with the requested center"""
       self.subimhdr = self.hdu[hext].header.copy()
       w = wcs.WCS(self.subimhdr)
-      x,y = w.wcs_world2pix([[self.radec.ra.degree,self.radec.dec.degree]],0)[0]
+      radec = np.zeros(self.subimhdr['naxis'])
+      radec[0] = self.radec.ra.degree
+      radec[1] = self.radec.dec.degree
+      xy = w.wcs_world2pix([radec],0)[0]
+      x = xy[0]
+      y = xy[1]
+      #x,y = w.wcs_world2pix([[self.radec.ra.degree,self.radec.dec.degree]],0)[0]
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 

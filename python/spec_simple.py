@@ -1202,12 +1202,25 @@ class Spec2d(imf.Image):
       """
 
       VERY MUCH UNDER CONSTRUCTION - DON'T USE!
+      STILL TO DO:
+        - implement uniform weighting - OR - pass the method a previously
+          generated profile instead of generating it here
+        - proper calculation of the variance, including all of the
+          weights listed below
 
       Extracts a 1d spectrum from the 2d spectrum by doing a weighted
       sum across the spectrum in the spatial direction at each wavelength.
 
       There are three components to the weighting:
-        1. The statistical errors associated with the detector, etc.,
+        1. The aperture weighting (for now only uniform or a single gaussian
+           are implemented).  In future, this may be provided in terms
+           of an already constructed weight image rather than calculated
+           within this method.
+        2. The aperture definition itself (stored in the apmin and apmax
+           variables that are part of the Spec2d class definition).
+           This weighting is just such that a pixel will get a weight of 1.0
+           if it is inside the aperture and 0.0 if it is outside.
+        3. The statistical errors associated with the detector, etc.,
            in the form of inverse variance weighting.
            The variance can either be provided as an external variance image,
             if the previous reduction / processing has provided this.  
@@ -1215,33 +1228,23 @@ class Spec2d(imf.Image):
             will be constructed from the data counts (including counts from
             a 2d sky spectrum if the sky has already been subtracted from
             the data) plus the gain and readnoise of the detector.
-        2. The aperture weighting (for now only uniform or a single gaussian
-           are implemented).  In future, this may be provided in terms
-           of an already constructed weight image rather than calculated
-           within this method.
-        3. The aperture definition itself (stored in the apmin and apmax
-           variables that are part of the Spec2d class definition).
-           This weighting is just such that a pixel will get a weight of 1.0
-           if it is inside the aperture and 0.0 if it is outside.
       """
 
-      """
-      First weighting
-      ---------------
-      Aperture weighting
-      NOTE: in future, this may be moved into the find_and_trace code
-      As a reminder, self.npix is the number of pixels in the spectral direction
+      """ 
+      Set up arrays for coordinate system 
+      Remember, self.npix is the number of pixels in the spectral direction
        and self.nspat is the number of pixels in the spatial direction
       """
       x1d = np.arange(self.npix)
       y1d = np.arange(self.nspat)
       x,y = np.meshgrid(x1d,y1d)
-      print type(y)
-      print type(y[0,0])
       y = y.astype(float)
-      print type(y[0,0])
 
-      """ 
+      """
+      First weighting: Aperture profile
+      ---------------------------------
+      NOTE: in future, this may be moved into the find_and_trace code
+
       Make the 1d mu and sig polynomials into 2d polynomials that vary
       along the spectral direction but are identical along a given column.
       The transpose (.T) at the end is necessary because doing a np.repeat
@@ -1256,20 +1259,27 @@ class Spec2d(imf.Image):
       self.apwt = np.exp(-0.5 * (ydiff/self.sig2d)**2)
 
       """
+      Second weighting: Aperture limits
+      ---------------------------------
       Put in the aperture limits, delimited by apmin and apmax
       """
       apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
       bkgdmask = np.logical_not(apmask)
-      self.extwt = np.zeros(ydiff.shape) 
-      self.extwt[apmask] = self.apwt[apmask]
 
-      """ Set up the variance if an external variance was not provided """
+      """ 
+      Third weighting: Inverse variance
+      ---------------------------------
+      Start by setting up the variance based on the detector characteristics
+       (gain and readnoise) if an external variance was not provided 
+      """
       if self.extvar is not None:
          varspec = self.extvar.data
       else:
          varspec = (gain * self.data + rdnoise**2) / gain**2
 
       """ Check for NaNs """
+      nansci  = np.isnan(self.data)
+      nanvar  = np.isnan(varspec)
       nanmask = np.isnan(self.data) | np.isnan(varspec)
 
       """ 
@@ -1282,16 +1292,38 @@ class Spec2d(imf.Image):
       bkgd2d = bkgd.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       del tmp
 
-      """ Finally, complete the weighted sum of the flux """
+      """ 
+      Create the total weight array, combining (1) the aperture profile,
+      (2) the aperture limits, and (3) the inverse variance weighting.
+      """
+      self.extwt = np.zeros(self.data.shape) 
+      vmask = varspec <= 0.
+      varspec[vmask] = 1.e8
+      self.extwt[apmask]  = self.apwt[apmask] / (varspec[apmask])
+      self.extwt[nanmask] = 0.
+      self.extwt[vmask]   = 0.
+      #self.extwt[apmask]  = self.apwt[apmask]
+      wtsum = self.extwt.sum(axis=self.spaceaxis)
+
+      """ Compute the weighted sum of the flux """
       flux = \
-          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / \
-          self.extwt.sum(axis=self.spaceaxis)
+          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtsum
 
       """ 
       Compute the proper variance.
       NOT IMPLEMENTED YET!
       """
-      var = bkgd  # NOT CORRECT!  JUST A PLACEHOLDER
+      vnorm = wtsum**2
+      var = (self.extwt**2 * varspec / vnorm).sum(axis=self.spaceaxis)
+
+      # BELOW: variance calculation from old code, to be modified to work
+      # with the new code
+      #if (sky == None):
+      #   varspec = (gain * spatialdat + rdnoise**2)/gain**2
+      #   var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
+      #else:
+      #   varspec = (gain * (spatialdat + sky) + rdnoise**2)/gain**2
+      #   var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
 
       """ Get the wavelength/pixel vector """
       self.get_wavelength()
