@@ -1194,32 +1194,35 @@ class Spec2d(imf.Image):
       """ Create a Spec1d container for the extracted spectrum """
       if sky is not None:
          skyspec = sky
-      self.extracted = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
+      self.spec1d = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
 
    #-----------------------------------------------------------------------
 
    def extract_new(self, gain=1.0, rdnoise=0.0):
       """
 
-      VERY MUCH UNDER CONSTRUCTION - DON'T USE!
+      UNDER CONSTRUCTION - USE WITH CAUTION!
       STILL TO DO:
         - implement uniform weighting - OR - pass the method a previously
           generated profile instead of generating it here
-        - proper calculation of the variance, including all of the
-          weights listed below
 
       Extracts a 1d spectrum from the 2d spectrum by doing a weighted
       sum across the spectrum in the spatial direction at each wavelength.
+      The extraction has now been set up to follow, at least partially,
+      the "optimal extraction" scheme developed by Horne (1986, PASP, 98, 609).
+      See more discussion of this scheme below the description of the
+      weighting.
 
       There are three components to the weighting:
-        1. The aperture weighting (for now only uniform or a single gaussian
-           are implemented).  In future, this may be provided in terms
-           of an already constructed weight image rather than calculated
-           within this method.
+        1. The profile of the trace, P, i.e., aperture weighting (for now only 
+           uniform or a single gaussian are implemented).  In future, this may 
+           be provided in terms of an already constructed profile image rather 
+           than calculated within this method.
         2. The aperture definition itself (stored in the apmin and apmax
            variables that are part of the Spec2d class definition).
-           This weighting is just such that a pixel will get a weight of 1.0
-           if it is inside the aperture and 0.0 if it is outside.
+           This weighting is, in fact, not really a weighting but just a mask 
+           set up so that a pixel will get a weight of 1.0 if it is inside the 
+           aperture and 0.0 if it is outside.
         3. The statistical errors associated with the detector, etc.,
            in the form of inverse variance weighting.
            The variance can either be provided as an external variance image,
@@ -1228,6 +1231,24 @@ class Spec2d(imf.Image):
             will be constructed from the data counts (including counts from
             a 2d sky spectrum if the sky has already been subtracted from
             the data) plus the gain and readnoise of the detector.
+
+      According to the Horne paper, the optimal extraction of a spectrum
+      that has a profile P and proper knowledge of the noise/variance associated
+      with each pixel is as follows.  Below D represents the calibrated data,
+      S is the sky, V is the pixel variance (based on counts and the detector
+      gain and readnoise):
+
+               Sum{ P * (D - S) / V}
+           f = ---------------------
+                  Sum{ P^2 / V}
+
+      and the variance on the extracted flux, sigma_f^2, is
+
+                      Sum{ P }
+        sigma_f^2 = -------------
+                    Sum{ P^2 / V}
+
+      NOTE: P must be normalized for each wavelength
       """
 
       """ 
@@ -1256,11 +1277,16 @@ class Spec2d(imf.Image):
       self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
       ydiff = 1.0*y - self.mu2d
-      self.apwt = np.exp(-0.5 * (ydiff/self.sig2d)**2)
+      P = (1./(self.sig2d * sqrt(2.*pi))) * np.exp(-0.5 * (ydiff/self.sig2d)**2)
+
+      """ Make sure the profile is normalized in the spatial direction """
+      Pnorm = (P.sum(axis=self.spaceaxis))
+      Pnorm = Pnorm.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      self.profile = P / Pnorm
 
       """
-      Second weighting: Aperture limits
-      ---------------------------------
+      Second "weighting"/mask: Aperture limits
+      ----------------------------------------
       Put in the aperture limits, delimited by apmin and apmax
       """
       apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
@@ -1269,7 +1295,7 @@ class Spec2d(imf.Image):
       """ 
       Third weighting: Inverse variance
       ---------------------------------
-      Start by setting up the variance based on the detector characteristics
+      Set up the variance based on the detector characteristics
        (gain and readnoise) if an external variance was not provided 
       """
       if self.extvar is not None:
@@ -1294,36 +1320,28 @@ class Spec2d(imf.Image):
 
       """ 
       Create the total weight array, combining (1) the aperture profile,
-      (2) the aperture limits, and (3) the inverse variance weighting.
+      (2) the aperture limits, and (3) the inverse variance weighting
+      following the optimal extraction approach of Horne (1986) as described
+      above.
       """
       self.extwt = np.zeros(self.data.shape) 
       vmask = varspec <= 0.
       varspec[vmask] = 1.e8
-      self.extwt[apmask]  = self.apwt[apmask] / (varspec[apmask])
+      self.extwt[apmask]  = self.profile[apmask] / (varspec[apmask])
       self.extwt[nanmask] = 0.
       self.extwt[vmask]   = 0.
-      #self.extwt[apmask]  = self.apwt[apmask]
-      wtsum = self.extwt.sum(axis=self.spaceaxis)
+      wtdenom = (self.profile * self.extwt).sum(axis=self.spaceaxis)
+      #wtdenom *= apmask.sum(axis=self.spaceaxis)
 
       """ Compute the weighted sum of the flux """
       flux = \
-          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtsum
+          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtdenom
+      self.foo = (self.data - bkgd2d).sum(axis=self.spaceaxis)
 
       """ 
       Compute the proper variance.
-      NOT IMPLEMENTED YET!
       """
-      vnorm = wtsum**2
-      var = (self.extwt**2 * varspec / vnorm).sum(axis=self.spaceaxis)
-
-      # BELOW: variance calculation from old code, to be modified to work
-      # with the new code
-      #if (sky == None):
-      #   varspec = (gain * spatialdat + rdnoise**2)/gain**2
-      #   var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
-      #else:
-      #   varspec = (gain * (spatialdat + sky) + rdnoise**2)/gain**2
-      #   var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
+      var = self.profile.sum(axis=self.spaceaxis) / wtdenom
 
       """ Get the wavelength/pixel vector """
       self.get_wavelength()
@@ -1348,7 +1366,8 @@ class Spec2d(imf.Image):
       """
 
       """ Extract the spectrum """
-      self.extract_old(weight,sky,gain,rdnoise)
+      #self.extract_old(weight,sky,gain,rdnoise)
+      self.extract_new(gain,rdnoise)
 
       """ Plot the extracted spectrum if desired """
       if doplot:
@@ -1363,11 +1382,11 @@ class Spec2d(imf.Image):
             xlab = 'Wavelength'
          else:
             xlab = 'Pixel number along the %s axis' % self.dispaxis
-         self.extracted.plot(xlabel=xlab,title='Extracted spectrum')
+         self.spec1d.plot(xlabel=xlab,title='Extracted spectrum')
 
       """ Save the extracted spectrum to a file if requested """
       if outfile is not None:
-         self.extracted.save(outfile)
+         self.spec1d.save(outfile)
 
    #-----------------------------------------------------------------------
 
