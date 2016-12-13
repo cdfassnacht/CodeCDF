@@ -511,8 +511,9 @@ class Spec2d(imf.Image):
     in imfuncs.py
    """
 
-   def __init__(self, infile, hdulist=None, hext=0, xtrim=None, ytrim=None, 
-                transpose=False, fixnans=True, logwav=False, verbose=True):
+   def __init__(self, infile, hdulist=None, hext=0, extvar=None,
+                xtrim=None, ytrim=None, transpose=False, fixnans=True, 
+                logwav=False, verbose=True):
       """
       Reads in the 2-dimensional spectrum from a input fits file (or the
       HDUList from a previously loaded fits file) and
@@ -534,6 +535,12 @@ class Spec2d(imf.Image):
          hext      - The header-data unit (HDU) that contains the 2-dimensional
                      spectroscopic data.  The default value (hdu=0) should work
                      for most fits files.
+         extvar    - If the 2d variance spectrum has already been computed by
+                     previous reduction steps and stored as a separate external
+                     file, then it needs to be read in.  
+                     Default value is None, implying no external variance file.
+                     If set, this can either be a filename or a hdulist if the
+                     file has already been opened.
          xtrim     - Change from the default value (None) if the input spectrum
                      needs to be trimmed along the x-axis.
                      Example format for trimming:  xtrim=[300,701]
@@ -578,6 +585,14 @@ class Spec2d(imf.Image):
       else:
          imf.Image.__init__(self,infile,verbose=verbose)
 
+      """ Read in the external variance file if there is one """
+      if extvar is not None:
+         test = str(type(extvar))
+         if test.rfind('hdu') > 0:
+            self.extvar = extvar
+         else:
+            self.extvar = pf.open(extvar)
+
       """ Set the portion of the input spectrum that should be used """
       self.hdr = self.hdu[hext].header
       nx = self.hdr['naxis1']
@@ -603,6 +618,20 @@ class Spec2d(imf.Image):
          self.data = (self.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
       else:
          self.data = self.hdu[hext].data[ymin:ymax,xmin:xmax]
+
+      """ 
+      Do the same thing for the external variance file, if there is one 
+      ASSUMPTION: the external variance file (if it exists) is the same size as 
+       the data file and thus should be trimmed, transposed, etc. in the same way
+      """
+      if self.extvar is not None:
+         if transpose:
+            self.vardata = \
+                (self.extvar[hext].data[ymin:ymax,xmin:xmax]).transpose()
+         else:
+            self.vardata = self.extvar[hext].data[ymin:ymax,xmin:xmax]
+
+      """ Set other variables and report results """
       self.xmin = xmin
       self.xmax = xmax
       self.ymin = ymin
@@ -1299,7 +1328,7 @@ class Spec2d(imf.Image):
        (gain and readnoise) if an external variance was not provided 
       """
       if self.extvar is not None:
-         varspec = self.extvar.data
+         varspec = self.vardata
       else:
          varspec = (gain * self.data + rdnoise**2) / gain**2
 
