@@ -566,6 +566,7 @@ class Spec2d(imf.Image):
       self.sky1d     = None
       self.sky2d     = None
       self.skysub    = None
+      self.spec1d    = None
       self.fitrange  = None
       self.apmin     = -4.
       self.apmax     = 4.
@@ -1121,11 +1122,12 @@ class Spec2d(imf.Image):
                                  doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
-      if(do_subplot):
-         plt.subplot(223)
-      else:
-         plt.figure(3)
-         plt.clf()
+      if doplot:
+         if(do_subplot):
+            plt.subplot(223)
+         else:
+            plt.figure(3)
+            plt.clf()
       print "Fitting a polynomial of order %d to the width of the trace" \
           % sigorder
       self.sigpoly,self.sig = \
