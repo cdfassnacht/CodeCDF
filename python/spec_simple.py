@@ -859,7 +859,8 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def spatial_profile(self, pixrange=None, showplot=True, do_subplot=False):
+   def spatial_profile(self, pixrange=None, showplot=True, do_subplot=False,
+                       title='Spatial Profile', normalize=False):
       """
       Compresses a 2d spectrum along the dispersion axis to create a spatial
        profile, and then plots it if requested
@@ -883,18 +884,23 @@ class Spec2d(imf.Image):
          self.cdat = tmpdat
       else:
          self.cdat = np.median(tmpdat,axis=self.specaxis)
+      if normalize:
+         self.cdat /= self.cdat.max()
       self.x = np.arange(self.cdat.shape[0])
 
       """ Plot the compressed spectrum """
       if(showplot):
          plt.plot(self.x,self.cdat,linestyle='steps')
          plt.xlabel('Spatial direction (0-indexed)')
-         plt.title('Spatial Profile')
+         if title is None:
+            pass
+         else:
+            plt.title(title)
 
    #-----------------------------------------------------------------------
 
-   def locate_trace(self,pixrange=None,mu0=None,sig0=None,fixmu=False,
-                    fixsig=False,showplot=True,do_subplot=False,verbose=True):
+   def locate_trace(self, pixrange=None, mu0=None, sig0=None, fixmu=False,
+                    fixsig=False, showplot=True, do_subplot=False, verbose=True):
       """
       Compresses a 2d spectrum along the dispersion axis so that
        the trace of the spectrum can be automatically located by fitting
@@ -1076,12 +1082,42 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def trace_spectrum(self,stepsize=25,muorder=3,sigorder=4,
-                      fitrange=None,doplot=True,do_subplot=False):
+   def trace_spectrum(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
+                      doplot=True, do_subplot=False, verbose=True):
       """
-      Fits a gaussian plus background to portions of the spectrum separated
-      by stepsize pixels (default is 25).
+      Fits a gaussian plus background to the spatial profile of the spectrum
+       This is done in binned segments, because for nearly all cases the SNR
+       in a single column (assuming that y is the spatial axis) is much too low
+       to get a good fit to the profile.  The bin size, in pixels in the 
+       dispersion direction, is set by the stepsize parameter (default is 25).
+      The steps in this method are as follow:
+       1. Obtain the parameters of the spatial fit in each bin and save them
+          in the mustep and sigstep arrays
+       2. Under the assumption that the parameters that describe the spatial 
+          profile vary slowly with wavelength, fit a polynomial to the values
+          in the mustep and sigstep arrays.  
+          This polynomial will then provide the profile-description parameters
+          for each individual column (or row, depending on the dispersion
+          direction) in the spectrum.
+          The order of the polynomials are set by the muorder and sigorder
+          parameters. NOTE: values of -1 for these parameters mean to just
+          take the values from the overall spatial profile and to not do
+          this fitting exercise.
       """
+
+      """
+      As a first step, see if either muorder or sigorder are set to -1.
+      If that is the case, then we can skip the fitting entirely for
+      that parameter
+      """
+      fitmu  = True
+      fitsig = True
+      if muorder == -1:
+         self.mu = np.ones(self.npix) * self.mu0
+         fitmu = False
+      if sigorder == -1:
+         self.sig = np.ones(self.npix) * self.sig0
+         fitsig = False
 
       """
       Define the slices through the 2D spectrum that will be used to find
@@ -1095,51 +1131,55 @@ class Spec2d(imf.Image):
       sigstep = 0.0 * xstep
       nsteps  = np.arange(xstep.shape[0])
 
-      """ Step through the data """
-      print ''
-      print "Running fit_trace"
-      print "--------------------------------------------------------------- "
-      print "Finding the location and width of the trace at %d segments of " % \
-          nsteps.shape[0]
-      print"   the 2D spectrum..."
-      for i in nsteps:
-         pixrange = [xstep[i],xstep[i]+stepsize]
-         mustep[i],sigstep[i] = \
-             self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
-      print "   Done"
 
-      """ Fit a polynomial to the trace """
-      if doplot:
-         if(do_subplot):
-            plt.subplot(222)
-         else:
-            plt.figure(2)
-            plt.clf()
-      print "Fitting a polynomial of order %d to the location of the trace" \
-          % muorder
-      self.mupoly,self.mu = \
-          self.fit_poly_to_trace(xstep,mustep,muorder,self.mu0,fitrange,
-                                 doplot=doplot)
+      if fitmu or fitsig:
+         """ Step through the data """
+         print ''
+         print "Running fit_trace"
+         print "--------------------------------------------------------------- "
+         print "Finding the location and width of the trace at %d segments" % \
+             nsteps.shape[0]
+         print "   of the 2D spectrum..."
+         for i in nsteps:
+            pixrange = [xstep[i],xstep[i]+stepsize]
+            mustep[i],sigstep[i] = \
+                self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
+         print "   Done"
+
+      """ Fit a polynomial to the location of the trace """
+      if fitmu:
+         if doplot:
+            if(do_subplot):
+               plt.subplot(222)
+            else:
+               plt.figure(2)
+               plt.clf()
+         print "Fitting a polynomial of order %d to the location of the trace" \
+             % muorder
+         self.mupoly,self.mu = \
+             self.fit_poly_to_trace(xstep,mustep,muorder,self.mu0,fitrange,
+                                    doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
-      if doplot:
-         if(do_subplot):
-            plt.subplot(223)
-         else:
-            plt.figure(3)
-            plt.clf()
-      print "Fitting a polynomial of order %d to the width of the trace" \
-          % sigorder
-      self.sigpoly,self.sig = \
-          self.fit_poly_to_trace(xstep,sigstep,sigorder,self.sig0,fitrange,
-                                 markformat='go',title='Width of Peak',
-                                 ylabel='Width of trace (Gaussian sigma)',
-                                 doplot=doplot)
+      if fitsig:
+         if doplot:
+            if(do_subplot):
+               plt.subplot(223)
+            else:
+               plt.figure(3)
+               plt.clf()
+         print "Fitting a polynomial of order %d to the width of the trace" \
+             % sigorder
+         self.sigpoly,self.sig = \
+             self.fit_poly_to_trace(xstep,sigstep,sigorder,self.sig0,fitrange,
+                                    markformat='go',title='Width of Peak',
+                                    ylabel='Width of trace (Gaussian sigma)',
+                                    doplot=doplot)
       
    #-----------------------------------------------------------------------
 
    def find_and_trace(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
-                      doplot=True, do_subplot=True):
+                      doplot=True, do_subplot=True, verbose=True):
 
       """
       The first step in the spectroscopy reduction process.
@@ -1162,13 +1202,17 @@ class Spec2d(imf.Image):
 
            * This step is done by a call to the trace_spectrum method
 
+      Inputs:
+         stepsize
+         muorder
+         sigorder
       """
 
       self.mu0,self.sig0 = self.locate_trace(showplot=doplot,
-                                             do_subplot=do_subplot)
+                                             do_subplot=do_subplot,verbose=verbose)
 
-      self.trace_spectrum(stepsize,muorder,sigorder,
-                          fitrange,doplot,do_subplot)
+      self.trace_spectrum(stepsize,muorder,sigorder,fitrange,doplot,do_subplot,
+                          verbose=verbose)
 
    #-----------------------------------------------------------------------
 
@@ -1337,7 +1381,10 @@ class Spec2d(imf.Image):
       """ Check for NaNs """
       nansci  = np.isnan(self.data)
       nanvar  = np.isnan(varspec)
-      nanmask = np.isnan(self.data) | np.isnan(varspec)
+      nanmask = np.logical_or(np.isnan(self.data),np.isnan(varspec))
+      nnans = nansci.sum()
+      nnanv = nanvar.sum()
+      nnan = nanmask.sum()
 
       """ 
       Set up a 2d background grid (think about doing this as part of a call
@@ -1358,6 +1405,7 @@ class Spec2d(imf.Image):
       self.extwt = np.zeros(self.data.shape) 
       vmask = varspec <= 0.
       varspec[vmask] = 1.e8
+      varspec[nanvar] = 1.e8
       self.extwt[apmask]  = self.profile[apmask] / (varspec[apmask])
       self.extwt[nanmask] = 0.
       self.extwt[vmask]   = 0.
@@ -1365,6 +1413,8 @@ class Spec2d(imf.Image):
       #wtdenom *= apmask.sum(axis=self.spaceaxis)
 
       """ Compute the weighted sum of the flux """
+      data = self.data
+      data[nansci] = 0.
       flux = \
           ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtdenom
       self.foo = (self.data - bkgd2d).sum(axis=self.spaceaxis)
@@ -1374,12 +1424,21 @@ class Spec2d(imf.Image):
       """
       var = self.profile.sum(axis=self.spaceaxis) / wtdenom
 
+      """ Fix any remaining NaNs """
+      nansci = np.isnan(flux)
+      nanvar = np.isnan(var)
+      flux[nansci] = 0.
+      var[nansci] = 1.e9
+      var[nanvar] = 1.e9
+
       """ Get the wavelength/pixel vector """
       self.get_wavelength()
 
       """
       Save the result as a Spec1d instance
       """
+      print '*** Number of nans: %d %d %d ***' % (nnans,nnanv,nnan)
+      print ''
       self.spec1d = Spec1d(wav=self.wavelength,flux=flux,var=var,sky=bkgd)
       self.apmask = apmask
 
@@ -1391,9 +1450,9 @@ class Spec2d(imf.Image):
       Second step in reduction process.
 
       This function extracts a 1D spectrum from the input 2D spectrum
-      It uses the information about the trace that has been generated by
-      the trace_spectrum function.  In particular, it takes the two
-      polynomials generated by trace_spectrum as the inputs mupoly and sigpoly.
+      It uses the information about the trace profile that has been generated 
+      by the trace_spectrum function and which is stored (for now) in the
+      self.mu and self.sig arrays.
       """
 
       """ Extract the spectrum """
