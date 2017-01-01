@@ -722,7 +722,7 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def get_wavelength(self, hext=None):
+   def get_wavelength(self, hext=None, verbose=False):
       """
       Gets a wavelength vector from the fits header, if it exists
 
@@ -768,7 +768,8 @@ class Spec2d(imf.Image):
       self.wavelength = wstart + (np.arange(self.npix) - wpix) * dw
       if self.logwav:
          self.wavelength = 10.**self.wavelength
-      print self.wavelength
+      if verbose:
+         print self.wavelength
 
    #-----------------------------------------------------------------------
 
@@ -1415,16 +1416,19 @@ class Spec2d(imf.Image):
       """ Compute the weighted sum of the flux """
       data = self.data
       data[nansci] = 0.
+      wtdenom[wtdenom==0] = 1.e9
       flux = \
           ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtdenom
-      self.foo = (self.data - bkgd2d).sum(axis=self.spaceaxis)
 
       """ 
       Compute the proper variance.
       """
       var = self.profile.sum(axis=self.spaceaxis) / wtdenom
 
-      """ Fix any remaining NaNs """
+      """ 
+      Fix any remaining NaNs (there shouldn't be any, but put this in just to
+       be on the safe side
+      """
       nansci = np.isnan(flux)
       nanvar = np.isnan(var)
       flux[nansci] = 0.
@@ -1437,7 +1441,7 @@ class Spec2d(imf.Image):
       """
       Save the result as a Spec1d instance
       """
-      print '*** Number of nans: %d %d %d ***' % (nnans,nnanv,nnan)
+      #print '*** Number of nans: %d %d %d ***' % (nnans,nnanv,nnan)
       print ''
       self.spec1d = Spec1d(wav=self.wavelength,flux=flux,var=var,sky=bkgd)
       self.apmask = apmask
