@@ -117,7 +117,10 @@ class Spec1d:
             print ''
             return
       elif wav is not None and flux is not None:
-         self.wav = wav
+         if self.logwav:
+            self.wav = 10.**wav
+         else:
+            self.wav = wav
          self.flux = flux
          if var is not None:
             self.var = var
@@ -572,6 +575,7 @@ class Spec2d(imf.Image):
       self.apmax     = 4.
       self.muorder   = 3
       self.sigorder  = 3
+      self.p0        = None  # Parameters describing fit to the spatial profile
       self.logwav    = logwav
 
       """ Call the superclass initialization for useful Image attributes """
@@ -861,7 +865,7 @@ class Spec2d(imf.Image):
    #-----------------------------------------------------------------------
 
    def spatial_profile(self, pixrange=None, showplot=True, do_subplot=False,
-                       title='Spatial Profile', normalize=False):
+                       title='Spatial Profile', fit=None, normalize=False):
       """
       Compresses a 2d spectrum along the dispersion axis to create a spatial
        profile, and then plots it if requested
@@ -876,6 +880,7 @@ class Spec2d(imf.Image):
                tmpdat = self.data[pixrange[0]:pixrange[1],:]
             else:
                tmpdat = self.data[:,pixrange[0]:pixrange[1]]
+         #print pixrange
       else:
          tmpdat = self.data.copy()
          
@@ -886,16 +891,30 @@ class Spec2d(imf.Image):
       else:
          self.cdat = np.median(tmpdat,axis=self.specaxis)
       if normalize:
-         self.cdat /= self.cdat.max()
+         cmax = self.cdat.max()
+         self.cdat /= cmax
+         print cmax
       self.x = np.arange(self.cdat.shape[0])
 
-      """ Plot the compressed spectrum """
+      """ 
+      Plot the compressed spectrum, showing the best-fit Gaussian if requested
+      """
       if(showplot):
          plt.plot(self.x,self.cdat,linestyle='steps')
          plt.xlabel('Spatial direction (0-indexed)')
-         if title is None:
-            pass
-         else:
+         if fit is not None:
+            xmod = np.arange(1,self.cdat.shape[0]+1,0.1)
+            if normalize:
+               bkgd = fit[0] / cmax
+               amp  = fit[3] / cmax
+            else:
+               bkgd = fit[0]
+               amp  = fit[3]
+            ymod = make_gauss_plus_bkgd(xmod,fit[1],fit[2],amp,bkgd)
+            plt.plot(xmod,ymod)
+            plt.axvline(fit[1]+self.apmin,color='k')
+            plt.axvline(fit[1]+self.apmax,color='k')
+         if title is not None:
             plt.title(title)
 
    #-----------------------------------------------------------------------
@@ -911,14 +930,8 @@ class Spec2d(imf.Image):
        set the dispaxis to "y" with the set_dispaxis method in this Spec2d class.
       """
 
-      """ Create the spatial profile """
-      if showplot:
-         if(do_subplot):
-            plt.subplot(221)
-         else:
-            plt.figure(1)
-            plt.clf()
-      self.spatial_profile(pixrange,showplot,do_subplot)
+      """ Start by compressing the data, but don't show it yet """
+      self.spatial_profile(pixrange,showplot=False)
 
       """ Set initial guesses """
       if fixmu:
@@ -980,24 +993,23 @@ class Spec2d(imf.Image):
          print "Parameters marked with a ** are held fixed during the fit"
          print ""
 
-      """ Add the best fit model to the plot """
-      if(showplot):
-         """ 
-         Note, the figure will have been set in the call to spatial_profile,
-         so we don't need to create a figure here.
-         """
-         xmod = np.arange(1,self.cdat.shape[0]+1,0.1)
-         ymod = make_gauss_plus_bkgd(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
-         plt.plot(xmod,ymod)
-         plt.axvline(p_out[1]+self.apmin,color='k')
-         plt.axvline(p_out[1]+self.apmax,color='k')
+      """ Now plot the spatial profile, showing the best fit """
+      if showplot:
+         if(do_subplot):
+            plt.subplot(221)
+         else:
+            plt.figure(1)
+            plt.clf()
+         self.spatial_profile(pixrange,showplot,do_subplot,fit=p_out)
 
       """ 
       Return the relevant parameters of the fit 
+        p_out[0] = bkgd, the background level
         p_out[1] = mu, the location of the peak of the fit to the trace
         p_out[2] = sigma, the width of the fit to the trace
+        p_out[3] = amp, the amplitude of the fit
       """
-      return p_out[1],p_out[2]
+      return p_out
 
    #-----------------------------------------------------------------------
 
@@ -1083,8 +1095,9 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def trace_spectrum(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
-                      doplot=True, do_subplot=False, verbose=True):
+   def trace_spectrum(self, ngauss=1, stepsize=25, muorder=3, sigorder=4, 
+                      fitrange=None, doplot=True, do_subplot=False, 
+                      verbose=True):
       """
       Fits a gaussian plus background to the spatial profile of the spectrum
        This is done in binned segments, because for nearly all cases the SNR
@@ -1114,10 +1127,10 @@ class Spec2d(imf.Image):
       fitmu  = True
       fitsig = True
       if muorder == -1:
-         self.mu = np.ones(self.npix) * self.mu0
+         self.mu = np.ones(self.npix) * self.p0[1]
          fitmu = False
       if sigorder == -1:
-         self.sig = np.ones(self.npix) * self.sig0
+         self.sig = np.ones(self.npix) * self.p0[2]
          fitsig = False
 
       """
@@ -1128,8 +1141,8 @@ class Spec2d(imf.Image):
       xstep = np.arange(0,self.npix-stepsize,stepsize)
 
       """ Set up containers for mu and sigma along the trace """
-      mustep  = 0.0 * xstep
-      sigstep = 0.0 * xstep
+      mustep  = np.zeros((xstep.size,ngauss))
+      sigstep = mustep.copy()
       nsteps  = np.arange(xstep.shape[0])
 
 
@@ -1143,8 +1156,10 @@ class Spec2d(imf.Image):
          print "   of the 2D spectrum..."
          for i in nsteps:
             pixrange = [xstep[i],xstep[i]+stepsize]
-            mustep[i],sigstep[i] = \
-                self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
+            p = self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
+            for j in range(ngauss):
+               mustep[i,j]  = p[j*3+1]
+               sigstep[i,j] = p[j*3+2]
          print "   Done"
 
       """ Fit a polynomial to the location of the trace """
@@ -1158,8 +1173,8 @@ class Spec2d(imf.Image):
          print "Fitting a polynomial of order %d to the location of the trace" \
              % muorder
          self.mupoly,self.mu = \
-             self.fit_poly_to_trace(xstep,mustep,muorder,self.mu0,fitrange,
-                                    doplot=doplot)
+             self.fit_poly_to_trace(xstep,mustep[:,0],muorder,self.p0[1],
+                                    fitrange,doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
       if fitsig:
@@ -1172,15 +1187,16 @@ class Spec2d(imf.Image):
          print "Fitting a polynomial of order %d to the width of the trace" \
              % sigorder
          self.sigpoly,self.sig = \
-             self.fit_poly_to_trace(xstep,sigstep,sigorder,self.sig0,fitrange,
-                                    markformat='go',title='Width of Peak',
+             self.fit_poly_to_trace(xstep,sigstep[:,0],sigorder,self.p0[2],
+                                    fitrange,markformat='go',
+                                    title='Width of Peak',
                                     ylabel='Width of trace (Gaussian sigma)',
                                     doplot=doplot)
       
    #-----------------------------------------------------------------------
 
-   def find_and_trace(self, stepsize=25, muorder=3, sigorder=4, fitrange=None, 
-                      doplot=True, do_subplot=True, verbose=True):
+   def find_and_trace(self, ngauss=1, stepsize=25, muorder=3, sigorder=4, 
+                      fitrange=None, doplot=True, do_subplot=True, verbose=True):
 
       """
       The first step in the spectroscopy reduction process.
@@ -1209,11 +1225,11 @@ class Spec2d(imf.Image):
          sigorder
       """
 
-      self.mu0,self.sig0 = self.locate_trace(showplot=doplot,
-                                             do_subplot=do_subplot,verbose=verbose)
+      self.p0 = self.locate_trace(showplot=doplot,do_subplot=do_subplot,
+                                  pixrange=fitrange,verbose=verbose)
 
-      self.trace_spectrum(stepsize,muorder,sigorder,fitrange,doplot,do_subplot,
-                          verbose=verbose)
+      self.trace_spectrum(ngauss,stepsize,muorder,sigorder,fitrange,doplot,
+                          do_subplot,verbose=verbose)
 
    #-----------------------------------------------------------------------
 
