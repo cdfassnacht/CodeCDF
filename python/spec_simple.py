@@ -904,13 +904,16 @@ class Spec2d(imf.Image):
          plt.xlabel('Spatial direction (0-indexed)')
          if fit is not None:
             xmod = np.arange(1,self.cdat.shape[0]+1,0.1)
+            p = np.atleast_1d(fit) # Make sure parameters are in a numpy array
+            ngauss = int((p.size-1)/3)
+            if p.size - (ngauss*3+1) != 0:
+               print 'Fit not plotted since fit has wrong number of parameters'
+               pass
             if normalize:
-               bkgd = fit[0] / cmax
-               amp  = fit[3] / cmax
-            else:
-               bkgd = fit[0]
-               amp  = fit[3]
-            ymod = make_gauss_plus_bkgd(xmod,fit[1],fit[2],amp,bkgd)
+               p[0] /= cmax
+               for j in range(ngauss):
+                  p[i*3+3] /= cmax
+            ymod = make_gauss(xmod,p)
             plt.plot(xmod,ymod)
             plt.axvline(fit[1]+self.apmin,color='k')
             plt.axvline(fit[1]+self.apmax,color='k')
@@ -919,8 +922,9 @@ class Spec2d(imf.Image):
 
    #-----------------------------------------------------------------------
 
-   def locate_trace(self, pixrange=None, mu0=None, sig0=None, fixmu=False,
-                    fixsig=False, showplot=True, do_subplot=False, verbose=True):
+   def locate_trace(self, pixrange=None, init=None, fix=None, 
+                    showplot=True, do_subplot=False, ngauss=1,
+                    verbose=True):
       """
       Compresses a 2d spectrum along the dispersion axis so that
        the trace of the spectrum can be automatically located by fitting
@@ -933,64 +937,102 @@ class Spec2d(imf.Image):
       """ Start by compressing the data, but don't show it yet """
       self.spatial_profile(pixrange,showplot=False)
 
-      """ Set initial guesses """
-      if fixmu:
-         if mu0 is None:
-            print ""
-            print "ERROR: locate_trace.  mu is fixed, but no value for mu0 given"
-            return
-         fixmunote = "**"
+      """ 
+      Set up the container for the parameter values of the fits
+      """
+      nparam = 3*ngauss + 1
+      p_init = np.zeros(nparam)
+
+      """
+      Put in initial guesses if those have been passed via the init parameter.
+      NOTE: the init parameter must be an array (or list) of length nparam
+       otherwise the method will quit
+      If init has not been set, then put in some default values
+      """
+      if init is not None:
+         if len(init) != nparam:
+            print ''
+            print 'ERROR: locate_trace -- init parameter must have length %d' \
+                % nparam
+            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss,ngauss)
+            print ''
+            return np.nan
+         p_init = init
       else:
-         if mu0 is None:
-            i = self.cdat.argsort()
-            mu0    = 1.0 * i[i.shape[0]-1]
-         fixmunote = " "
-      if fixsig:
-         if sig0 is None:
-            print ""
-            print "ERROR: locate_trace."  
-            print 'sigma is fixed, but no value for sig0 given'
-            return
-         fixsignote = "**"
+         p_init[0] = np.median(self.data,axis=None)
+         """ 
+         In the following loop
+          p_init[ind] is either mu (if i==0) or an offset from p_init[1]
+          p_init[ind+1] is sigma
+          p_init[ind+2] is amplitude
+         """
+         for i in range(ngauss):
+            ind = 3*i + 1
+            if i==0:
+               tmp = self.cdat.argsort()
+               p_init[ind] = 1.0 * tmp[tmp.shape[0]-1]
+            else:
+               p_init[ind] = 5. * i * -1.**i
+            p_init[ind+1] = 3.
+            p_init[ind+2] = self.cdat.max() - p_init[0]
+
+      """ 
+      Set up which parameters are fixed based on the fix parameter
+      The default value (fix=None) means that all of the parameters are varied
+       in the fitting process
+      """
+      fixstr = np.zeros(nparam,dtype='S3')
+      if fix is None:
+         fixvec = np.zeros(nparam)
       else:
-         if sig0 is None:
-            sig0 = 3.0
-         fixsignote = " "
-      amp0  = self.cdat.max()
-      bkgd0 = np.median(self.data,axis=None)
-      if(verbose):
-         print ""
-         print "Initial guesses for Gaussian plus background fit"
-         print "------------------------------------------------"
-         print " centroid      = %7.2f%s"   % (mu0,fixmunote)
-         print " width (sigma) =   %5.2f%s" % (sig0,fixsignote)
-         print " amplitude     = %f"        % amp0
-         print " background    = %f"        % bkgd0
-         print "Parameters marked with a ** are held fixed during the fit"
-         print ""
+         fixvec = np.atleast_1d(fix)
+         if fixvec.size != nparam:
+            print ''
+            print 'ERROR: locate_trace -- fix parameter must have length %d' \
+                % nparam
+            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss,ngauss)
+            print ''
+            return np.nan
+         fixstr[fixvec==1] = 'Yes'
+      fitmask = fixvec==0
+      fitind  = np.arange(nparam)[fitmask]
 
       """ Fit a Gaussian plus a background to the compressed spectrum """
       mf=100000
-      if fixmu and fixsig:
-         p = [bkgd0,amp0]
-         pt,ier = optimize.leastsq(fit_gpb_fixmusig,p,
-                                   (self.x,self.cdat,mu0,sig0),maxfev=mf)
-         p_out = [pt[0],mu0,sig0,pt[1]]
-      else:
-         p = [bkgd0,mu0,sig0,amp0]
-         p_out,ier = optimize.leastsq(fit_gauss_plus_bkgd,p,(self.x,self.cdat),
+      p = p_init[fitmask]
+      p_fit,ier = optimize.leastsq(fit_gauss,p,
+                                      (self.x,self.cdat,p_init,fitind),
                                       maxfev=mf)
-
+      """ 
+      Create the full parameter list for the fit by combining the fitted
+      parameters and the fixed parameters
+      """
+      p_out = p_init.copy()
+      p_out[fitind] = p_fit
 
       """ Give results """
       if(verbose):
-         print "Fitted values for Gaussian plus background fit"
-         print "----------------------------------------------"
-         print " centroid      = %7.2f%s"   % (p_out[1],fixmunote)
-         print " width (sigma) =   %5.2f%s" % (p_out[2],fixsignote)
-         print " amplitude     = %f"        % p_out[3]
-         print " background    = %f"        % p_out[0]
-         print "Parameters marked with a ** are held fixed during the fit"
+         print ""
+         print "Profile fit results"
+         print "-------------------"
+         print '                              Held'
+         print 'Parameter        Init Value  fixed? Final Value'
+         print '--------------   ----------  ------ -----------'
+         print "background       %9.3f    %3s    %9.3f"     \
+             % (p_init[0],fixstr[0],p_out[0])
+         for i in range(ngauss):
+            ind = 3*i + 1
+            j=i+1
+            if i==0:
+               mustr = 'mu_1'
+            else:
+               mustr = 'offset_%d' % j
+            print "%-9s        %9.3f    %3s    %9.3f" \
+                % (mustr,p_init[ind],fixstr[ind],p_out[ind])
+            print "sigma_%d          %9.3f    %3s    %9.3f" \
+                % (j,p_init[ind+1],fixstr[ind+1],p_out[ind+1])
+            print "amp_%d            %9.3f    %3s    %9.3f" \
+                % (j,p_init[ind+2],fixstr[ind+2],p_out[ind+2])
          print ""
 
       """ Now plot the spatial profile, showing the best fit """
@@ -1062,7 +1104,7 @@ class Spec2d(imf.Image):
       ymax = dmu + 4.5*dsig
       if doplot:
          plt.plot(x,data,markformat)
-         plt.xlabel("Pixel number in the dispersion direction")
+         plt.xlabel("Pixel (dispersion direction)")
          plt.ylabel(ylabel)
          plt.title(title)
 
@@ -1226,7 +1268,8 @@ class Spec2d(imf.Image):
       """
 
       self.p0 = self.locate_trace(showplot=doplot,do_subplot=do_subplot,
-                                  pixrange=fitrange,verbose=verbose)
+                                  ngauss=ngauss,pixrange=fitrange,
+                                  verbose=verbose)
 
       self.trace_spectrum(ngauss,stepsize,muorder,sigorder,fitrange,doplot,
                           do_subplot,verbose=verbose)
@@ -1293,7 +1336,6 @@ class Spec2d(imf.Image):
    def extract_new(self, gain=1.0, rdnoise=0.0):
       """
 
-      UNDER CONSTRUCTION - USE WITH CAUTION!
       STILL TO DO:
         - implement uniform weighting - OR - pass the method a previously
           generated profile instead of generating it here
@@ -1524,7 +1566,7 @@ def load_2d_spectrum(filename, hdu=0):
 
    NOTE: This has now been replaced by the Spec2d class.
    """
-   data = pf.open(filename)[hdu].data
+   data = Spec2d(filename,hext=hdu)
    print ''
    print 'Loaded a 2-dimensional spectrum from %s' % filename
    print 'Data dimensions (x y): %dx%d' % (data.shape[1],data.shape[0])
@@ -1969,45 +2011,97 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
 
 #-----------------------------------------------------------------------
 
-def make_gauss_plus_bkgd(x,mu,sigma,amp,bkgd):
+#def make_gauss(x,mu,sigma,amp,bkgd):
+def make_gauss(x,p):
    """
-   Creates a gaussian plus background model given input x and parameters.
-   The parameter values are:
-    mu
-    sigma
-    amplitude
-    background level
+   Creates a model comprised of one or more Gaussian profiles plus a
+    (for now) constant background.  
+   NOTE: the only oddity is that, if there are more than one Gaussian in
+    the profile, then the "mu" term for the subsequent Gaussians 
+    (i.e., p[4], p[7], ..) are actually _offsets_ between the mean of the
+    subsequent Gaussian and the mean of the first.  For example,
+    mu_2 = p[0] + p[4]
+    
+   Inputs:
+    x  - The independent variable that is used to generate the model, ymod(x)
+    p  - The parameter values.  The length of this vector will be 1+3*n, where
+          n>=1, for one constant background parameter (p[0]) plus one or more 
+          Gaussian parameters, which come in sets of three.  Thus, p can
+          be decomposed as follows:
+          p[0] - background: required
+          p[1] - mu_1: required
+          p[2] - sigma_1: required
+          p[3] - amplitude_1: required
+          p[4] - offset between mu_2 and mu_1: optional
+          p[5] - sigma_2: optional
+          p[6] - amplitude_2: optional
+          ... etc. for as many Gaussians are used to construct the profile
    """
 
+   """ Calculate the number of Gaussians in the model """
+   ngauss = int((p.size-1)/3)
+   if p.size - (ngauss*3+1) != 0:
+      print ''
+      print 'ERROR: Gaussian model contains the incorrect number of parameters'
+      print ''
+      return np.nan
+
    """ Calculate y_mod using current parameter values """
-   ymod = bkgd + amp * np.exp(-0.5 * ((x - mu)/sigma)**2)
+   ymod = np.zeros(x.size) + p[0]
+   for i in range(ngauss):
+      ind = i*3+1
+      if i == 0:
+         mu = p[ind]
+      else:
+         mu = p[1] + p[ind]
+         
+      ymod += p[ind+2] * np.exp(-0.5 * ((x - mu)/p[ind+1])**2)
 
    return ymod
 
 #-----------------------------------------------------------------------
 
-def fit_gauss_plus_bkgd(p,x,y):
+def fit_gauss(p,x,y,p_init,fitind):
    """
-   Compares the data to the model.  The model is a gaussian plus a 
-    constant background.
-   The parameter values are:
-    p[0] = background level
-    p[1] = mu
-    p[2] = sigma
-    p[3] = amplitude
+   Compares the data to the model.  The model consists of at least one gaussian 
+    plus a constant background and is created by a call to make_gauss.
+    Thus the comparison is between ymod(x) and y, where the latter is the
+    measured quantity.
+
+   NOTE: the only oddity in the model is that, if there are more than one 
+    Gaussian in the profile, then the "mu" term for the subsequent Gaussians 
+    (i.e., p[4], p[7], ..) are actually _offsets_ between the mean of the
+    subsequent Gaussian and the mean of the first.  For example,
+    mu_2 = p[0] + p[4]
+    
+   Inputs:
+    p  - The parameter values.  The length of this vector will be 1+3*n, where
+          n>=1, for one constant background parameter (p[0]) plus one or more 
+          Gaussian parameters, which come in sets of three.  Thus, p can
+          be decomposed as follows:
+          p[0] - background: required
+          p[1] - mu_1: required
+          p[2] - sigma_1: required
+          p[3] - amplitude_1: required
+          p[4] - offset between mu_2 and mu_1: optional
+          p[5] - sigma_2: optional
+          p[6] - amplitude_2: optional
+          ... etc. for as many Gaussians are used to construct the profile
+    x  - The independent variable that is used to generate the model, ymod(x)
+    y  - The measured data, to be compared 
    """
 
-   """ Unpack p """
-   bkgd = p[0]
-   mu   = p[1]
-   sig  = p[2]
-   amp  = p[3]
+   """
+   Create the full list of model parameters by combining the fitted parameters
+   and the fixed parameters
+   """
+   pfull = p_init.copy()
+   pfull[fitind] = p
 
    """
    Compute the difference between model and real values
    """
-
-   ymod = make_gauss_plus_bkgd(x,mu,sig,amp,bkgd)
+   ymod = make_gauss(x,pfull)
    diff = y - ymod
 
    return diff
@@ -2023,20 +2117,19 @@ def fit_gpb_fixmusig(p,x,y,mu,sigma):
     p[1] = amplitude
    """
 
-   """ Unpack p """
-   bkgd = p[0]
-   amp  = p[1]
+   """ 
+   Put parameters into the form that is expected by make_gauss
+   """
+   ptmp = np.array([p[0],mu,sigma,p[1]])
 
    """
    Compute the difference between model and real values
    """
 
-   ymod = make_gauss_plus_bkgd(x,mu,sigma,amp,bkgd)
+   ymod = make_gauss(x,ptmp)
    diff = y - ymod
 
    return diff
-
-#-----------------------------------------------------------------------
 
 #-----------------------------------------------------------------------
 
@@ -2063,7 +2156,7 @@ def fit_gpb_fixmu(p,x,y,mu):
    Compute the difference between model and real values
    """
    if np.shape(amp) != (): mu = np.ones(len(bkgd))*mu
-   ymod = make_gauss_plus_bkgd(x,mu,sigma,amp,bkgd)
+   ymod = make_gauss(x,mu,sigma,amp,bkgd)
    diff = y - ymod
 
    return diff
@@ -2184,7 +2277,7 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
    #p_out,ier = optimize.leastsq(fit_gpb_fixsig,p,(x,cdat,sig0),maxfev=mf)
    else:
       p = [bkgd0,mu0,sig0,amp0]
-      p_out,ier = optimize.leastsq(fit_gauss_plus_bkgd,p,(x,cdat),maxfev=mf)
+      p_out,ier = optimize.leastsq(fit_gauss,p,(x,cdat),maxfev=mf)
 
 
    # Give results
@@ -2207,7 +2300,7 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
          plt.clf()
       plt.plot(x,cdat,linestyle='steps')
       xmod = np.arange(1,cdat.shape[0]+1,0.1)
-      ymod = make_gauss_plus_bkgd(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
+      ymod = make_gauss(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
       plt.plot(xmod,ymod)
       plt.axvline(p_out[1]+apmin,color='k')
       plt.axvline(p_out[1]+apmax,color='k')
@@ -2262,7 +2355,7 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
       gweight = np.zeros(y.size)
       gweight[apmask] = 1.0
    else:
-      gweight = make_gauss_plus_bkgd(y,mu,sig,1.0,0.0)
+      gweight = make_gauss(y,mu,sig,1.0,0.0)
 
    """ Do the weighted sum """
    wtsum = ((spatialdat - bkgd)*gweight)[apmask].sum() / gweight[apmask].sum()
@@ -3443,254 +3536,255 @@ def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
 #===========================================================================
 #
 # Rumbaugh code that may or may not get discarded at a later time
+# (has now been commented out but not yet actually discarded)
 #
 #===========================================================================
 
-#-----------------------------------------------------------------------
-
-def plot_multiple_peaks(cdat,tp,theight,apmin=-4.,apmax=4.,maxpeaks=2,fig=4,clearfig=True,plot_fits=True,apertures=None):
-   plt.figure(fig)
-   if clearfig: plt.clf()
-   plt.plot(np.arange(1,theight+1),cdat,linestyle='steps',color='black')
-   xmod = np.arange(1,theight+1,0.1)
-   tcolors = np.array(['red','cyan','magenta','green','blue','yellow'])
-   for ipg in range(0,maxpeaks):
-      ymod = make_gauss_plus_bkgd(xmod,tp[ipg][1],tp[ipg][2],tp[ipg][3],tp[0][0])
-      if plot_fits: plt.plot(xmod,ymod,color=tcolors[ipg])
-      if apertures == None:
-         plt.axvline(tp[ipg][1]+apmin,color=tcolors[ipg])
-         plt.axvline(tp[ipg][1]+apmax,color=tcolors[ipg])
-      else:
-         plt.axvline(tp[ipg][1]+apertures[ipg],color=tcolors[ipg])
-         plt.axvline(tp[ipg][1]-apertures[ipg],color=tcolors[ipg])
-      if tp[ipg][3]*1.05 > 2*np.max(cdat):
-         plt.text(tp[ipg][1],1.8*np.max(cdat),str(ipg+1),color=tcolors[ipg])
-      elif ((tp[ipg][3]*1.05 < 2*np.min(cdat)) & (tp[ipg][3]*1.05 < -2*np.max(cdat))):
-         plt.text(tp[ipg][1],np.min([1.8*np.min(cdat),-1.8*np.max(cdat)]),str(ipg+1),color=tcolors[ipg])
-      else:
-         plt.text(tp[ipg][1],tp[ipg][3]*1.05,str(ipg+1),color=tcolors[ipg])
-   if plt.ylim()[1] > 2*np.max(cdat):
-      plt.ylim(plt.ylim()[0],2*np.max(cdat))
-   if ((plt.ylim()[0] < 2*np.min(cdat)) & (plt.ylim()[0] < -2*np.max(cdat))):
-      plt.ylim(np.min([2*np.min(cdat),-2*np.max(cdat)]),plt.ylim()[1])
-   plt.xlabel('Pixel number in the spatial direction')
-   plt.title('Compressed Spatial Plot with Potential Peaks')
-
-#-----------------------------------------------------------------------
-
-def find_multiple_peaks(data,dispaxis="x",apmin=-4.,apmax=4.,maxpeaks=2,output_plot=None,output_plot_dir=None,check_aps=False):
-   tdata = data.copy()
-   gfbc = find_blank_columns(tdata)
-   if dispaxis == 'x':
-      data[:,gfbc]
-   tp = np.zeros((maxpeaks,4,))
-   p_prelim = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-   tp[0] = p_prelim
-   for ifmp in range(1,maxpeaks):
-      if dispaxis == 'x':
-         theight = np.shape(tdata[:,gfbc])[0]
-         tlength = np.shape(tdata[:,gfbc])[1]
-         if ifmp == 1: x = np.arange(1,theight+1)
-         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
-         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
-         p_prelim = find_peak(tdata[gx,:],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-         tp[ifmp] = p_prelim
-         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
-         gxprev = gx.copy()
-      else:
-         tlength = np.shape(tdata[gfbc,:])[0]
-         theight = np.shape(tdata[gfbc,:])[1]
-         if ifmp == 1: x = np.arange(1,theight+1)
-         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
-         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
-         p_prelim = find_peak(tdata[:,gxprev],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-         tp[ifmp] = p_prelim
-         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
-         gxprev = gx.copy()
-   tp = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,mu0=tp[:,1])
-   tp[0] = np.ones(len(tp[1]))*tp[0]
-   tp = np.transpose(tp)
-   if dispaxis == 'x':
-      cdat = np.median(data[:,gfbc],axis=1)
-   else:
-      cdat = np.median(data[gfbc,:],axis=0)
-   plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-   print 'Plotting %i highest peaks found\n'%maxpeaks
-   tflag,fitmp,fixmu = False,False,False
-   while not tflag:
-      inp_fitmp = raw_input('Reduce secondary peaks? (y/n)\n')
-      if ((inp_fitmp == 'y') | (inp_fitmp == 'Y')):
-         tflag,fitmp = True,True
-      elif ((inp_fitmp == 'n') | (inp_fitmp == 'N')):
-         tflag = True
-      elif inp_fitmp == 'fixmu':
-         tflag,fixmu = True,True
-      else:
-         print 'Invalid input\n'
-   fitpeaks = np.zeros(maxpeaks,dtype='bool')
-   fitpeaks[0] = True
-   bounds_arr = np.array([0,np.min(np.shape(data))])
-   if fitmp:
-      tflag = False
-      while not tflag:
-         inp_chp1 = raw_input("Is peak 1 okay? (y/n)\n")
-         if ((inp_chp1 == 'y') | (inp_chp1 == 'Y')):
-            tflag = True
-         elif((inp_chp1 == 'n') | (inp_chp1 == 'N')):
-            mflag = False
-            while not mflag:
-               inp_newp = raw_input("Current mu for peak 1 is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(tp[0][1]))
-               if ((inp_newp == 'y') | (inp_newp == 'Y')):
-                  mflag,tflag = True,True
-               else:
-                  try:
-                     tp[0][1] = float(inp_newp)
-                     plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-                  except ValueError:
-                     print 'Invalid input\n'
-         else:
-            print 'Invalid input\n'
-      for iwp in range(1,maxpeaks):
-         tflag = False
-         while not tflag:
-            inp_whichp = raw_input("Reduce peak %i? (y/n/manual) Enter 'manual' to manually set peak position\n"%(iwp+1))
-            if ((inp_whichp == 'y') | (inp_whichp == 'Y')):
-               tflag,fitpeaks[iwp] = True,True
-            elif((inp_whichp == 'n') | (inp_whichp == 'N')):
-               tflag = True
-            elif ((inp_whichp == 'manual') | (inp_whichp == 'm')):
-               mflag = False
-               while not mflag:
-                  inp_newp = raw_input("Current mu for peak %i is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(iwp+1,tp[iwp][1]))
-                  if ((inp_newp == 'y') | (inp_newp == 'Y')):
-                     mflag = True
-                     tflag,fitpeaks[iwp] = True,True
-                  else:
-                     try:
-                        tp[iwp][1] = float(inp_newp)
-                        plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-                     except ValueError:
-                        print 'Invalid input\n'
-            else:
-               print 'Invalid input\n'
-      num_peaks = len(fitpeaks[fitpeaks])
-      mp_out = np.zeros((4,num_peaks))
-      for impo in range(0,maxpeaks): 
-         if fitpeaks[impo]: 
-            inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
-            mp_out[:,inow-1] = tp[inow-1]
-      mus_tmp = mp_out[1]
-      sort_mus = np.sort(mus_tmp)
-      argsort_mus = np.argsort(mus_tmp)
-      tbounds_arr = np.zeros(2*num_peaks)
-      tbounds_arr[2*num_peaks-1] = np.min(np.shape(data))
-      for il in range(0,num_peaks-1): tbounds_arr[2*il+1:2*il+3] = np.mean(sort_mus[il:il+2])
-      bounds_arr = np.zeros(2*num_peaks)
-      aa_mus = np.argsort(argsort_mus)
-      for il in range(0,num_peaks): bounds_arr[2*il:2*il+2] = tbounds_arr[2*aa_mus[il]:2*aa_mus[il]+2]
-      plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
-      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
-      
-      tflag = False
-      inp_aps = raw_input("Are these bounds okay? (y/n)\n")
-      while not tflag:
-         if ((inp_aps == 'y') | (inp_aps == 'Y')):
-            tflag = True
-         elif ((inp_aps == 'n') | (inp_aps == 'N')):
-            for ilf in range(0,num_peaks):
-               tflag2 = False
-               inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
-               while not tflag2:
-                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
-                     tflag2 = True
-                  elif ((inp_aps2 == 'n') | (inp_aps2 == 'N')):
-                     tflag3 = False
-                     nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-                     nub = raw_input('Enter new upper bound:\n')
-                     while not tflag3:
-                        try: 
-                           nlb,nub = float(nlb),float(nub)
-                           if ((nlb < 0) | (nub > np.min(np.shape(data))) | (nub <= nlb)): raise ValueError
-                           bounds_arr[2*ilf],bounds_arr[2*ilf+1] = nlb,nub
-                           plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
-                           for ilt in range(0,2*num_peaks): plt.axvline(bounds_arr[ilt],color='k')
-                           tflag3 = True
-                           inp_aps2 = raw_input("New bounds for peak %i are: (%.1f,%.1f). Are these okay? (y/n)\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-                        except ValueError:
-                           print 'Invalid input. Bounds must be floats between 0 and %.1f.\n'%(np.min(np.shape(data)))
-                           nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-                           nub = raw_input('Enter new upper bound:\n')
-                  else:
-                     print 'Invalid input\n'
-                     inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
-            tflag = True
-         else:
-            print 'Invalid input\n'
-            inp_aps = raw_input("Are these bounds okay? (y/n)\n")
-   try:
-      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))])).all()
-   except AttributeError:
-      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))]))
-   if ((fitpeaks[0]) & (len(fitpeaks[fitpeaks]) == 1) & bnds_bool): 
-      fitmp = False
-      print 'No secondary peaks selected. Reverting to normal analysis.'
-   num_peaks = len(fitpeaks[fitpeaks])
-   mp_out = np.zeros((4,num_peaks))
-   for impo in range(0,maxpeaks): 
-      if fitpeaks[impo]: 
-         inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
-         mp_out[:,inow-1] = tp[inow-1]
-   aflag,change_aps = False,False
-   if check_aps:
-      while not aflag:
-         inp_aps = raw_input("Change apertures? (y/n)\n")
-         if ((inp_aps == 'y') | (inp_aps == 'Y')):
-            aflag,change_aps = True,True
-         elif ((inp_aps == 'n') | (inp_aps == 'N')):
-            aflag = True
-         else:
-            print 'Invalid input.\n'
-   apertures = 4.*np.ones(num_peaks)
-   if change_aps:
-      for iaps in range(0,num_peaks):
-         aflag = False
-         while not aflag:
-            inp_aps = raw_input("Change apertures for peak %i? (y/n)\n"%(iaps+1))
-            if ((inp_aps == 'y') | (inp_aps == 'Y')):
-               aflag2 = False
-               while not aflag2:
-                  inp_aps2 = raw_input("Aperture for peak %i is +%.1f,-%.1f. Is this okay? Enter 'y' or new width.\n"%(iaps+1,apertures[iaps],apertures[iaps]))
-                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
-                     aflag2 = True
-                  else:
-                     try:
-                        if inp_aps > 0: 
-                           apertures[iaps] = inp_aps2
-                           plot_multiple_peaks(cdat,tp,theight,apmin=-1*apertures[iaps],apmax=apertures[iaps],maxpeaks=num_peaks,apertures=apertures)
-                        else:
-                           print 'Input value must be greater than zero.'
-                     except:
-                        print 'Invalid input'
-               aflag = True
-            elif ((inp_aps == 'n') | (inp_aps == 'N')):
-               aflag = True
-            else:
-               print 'Invalid input.\n'
-   if output_plot != None:
-      outplotname = 'bounds.%s'%output_plot
-      if output_plot_dir != None: outplotname = '%s/%s'%(output_plot_dir,outplotname)
-      plot_multiple_peaks(cdat,np.transpose(mp_out),theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks,plot_fits=False,apertures=apertures)
-      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
-      plt.title('Compressed Spatial Plot with Extraction Regions')
-      plt.savefig(outplotname)
-   if check_aps:
-      if num_peaks == 1:
-         return False,fixmu,tp[0],bounds_arr,apertures
-      else:
-         return fitmp,fixmu,mp_out,bounds_arr,apertures
-   else:
-      if num_peaks == 1:
-         return False,fixmu,tp[0],bounds_arr
-      else:
-         return fitmp,fixmu,mp_out,bounds_arr
+##-----------------------------------------------------------------------
+#
+#def plot_multiple_peaks(cdat,tp,theight,apmin=-4.,apmax=4.,maxpeaks=2,fig=4,clearfig=True,plot_fits=True,apertures=None):
+#   plt.figure(fig)
+#   if clearfig: plt.clf()
+#   plt.plot(np.arange(1,theight+1),cdat,linestyle='steps',color='black')
+#   xmod = np.arange(1,theight+1,0.1)
+#   tcolors = np.array(['red','cyan','magenta','green','blue','yellow'])
+#   for ipg in range(0,maxpeaks):
+#      ymod = make_gauss(xmod,tp[ipg][1],tp[ipg][2],tp[ipg][3],tp[0][0])
+#      if plot_fits: plt.plot(xmod,ymod,color=tcolors[ipg])
+#      if apertures == None:
+#         plt.axvline(tp[ipg][1]+apmin,color=tcolors[ipg])
+#         plt.axvline(tp[ipg][1]+apmax,color=tcolors[ipg])
+#      else:
+#         plt.axvline(tp[ipg][1]+apertures[ipg],color=tcolors[ipg])
+#         plt.axvline(tp[ipg][1]-apertures[ipg],color=tcolors[ipg])
+#      if tp[ipg][3]*1.05 > 2*np.max(cdat):
+#         plt.text(tp[ipg][1],1.8*np.max(cdat),str(ipg+1),color=tcolors[ipg])
+#      elif ((tp[ipg][3]*1.05 < 2*np.min(cdat)) & (tp[ipg][3]*1.05 < -2*np.max(cdat))):
+#         plt.text(tp[ipg][1],np.min([1.8*np.min(cdat),-1.8*np.max(cdat)]),str(ipg+1),color=tcolors[ipg])
+#      else:
+#         plt.text(tp[ipg][1],tp[ipg][3]*1.05,str(ipg+1),color=tcolors[ipg])
+#   if plt.ylim()[1] > 2*np.max(cdat):
+#      plt.ylim(plt.ylim()[0],2*np.max(cdat))
+#   if ((plt.ylim()[0] < 2*np.min(cdat)) & (plt.ylim()[0] < -2*np.max(cdat))):
+#      plt.ylim(np.min([2*np.min(cdat),-2*np.max(cdat)]),plt.ylim()[1])
+#   plt.xlabel('Pixel number in the spatial direction')
+#   plt.title('Compressed Spatial Plot with Potential Peaks')
+#
+##-----------------------------------------------------------------------
+#
+#def find_multiple_peaks(data,dispaxis="x",apmin=-4.,apmax=4.,maxpeaks=2,output_plot=None,output_plot_dir=None,check_aps=False):
+#   tdata = data.copy()
+#   gfbc = find_blank_columns(tdata)
+#   if dispaxis == 'x':
+#      data[:,gfbc]
+#   tp = np.zeros((maxpeaks,4,))
+#   p_prelim = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
+#   tp[0] = p_prelim
+#   for ifmp in range(1,maxpeaks):
+#      if dispaxis == 'x':
+#         theight = np.shape(tdata[:,gfbc])[0]
+#         tlength = np.shape(tdata[:,gfbc])[1]
+#         if ifmp == 1: x = np.arange(1,theight+1)
+#         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
+#         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
+#         p_prelim = find_peak(tdata[gx,:],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
+#         tp[ifmp] = p_prelim
+#         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
+#         gxprev = gx.copy()
+#      else:
+#         tlength = np.shape(tdata[gfbc,:])[0]
+#         theight = np.shape(tdata[gfbc,:])[1]
+#         if ifmp == 1: x = np.arange(1,theight+1)
+#         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
+#         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
+#         p_prelim = find_peak(tdata[:,gxprev],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
+#         tp[ifmp] = p_prelim
+#         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
+#         gxprev = gx.copy()
+#   tp = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,mu0=tp[:,1])
+#   tp[0] = np.ones(len(tp[1]))*tp[0]
+#   tp = np.transpose(tp)
+#   if dispaxis == 'x':
+#      cdat = np.median(data[:,gfbc],axis=1)
+#   else:
+#      cdat = np.median(data[gfbc,:],axis=0)
+#   plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
+#   print 'Plotting %i highest peaks found\n'%maxpeaks
+#   tflag,fitmp,fixmu = False,False,False
+#   while not tflag:
+#      inp_fitmp = raw_input('Reduce secondary peaks? (y/n)\n')
+#      if ((inp_fitmp == 'y') | (inp_fitmp == 'Y')):
+#         tflag,fitmp = True,True
+#      elif ((inp_fitmp == 'n') | (inp_fitmp == 'N')):
+#         tflag = True
+#      elif inp_fitmp == 'fixmu':
+#         tflag,fixmu = True,True
+#      else:
+#         print 'Invalid input\n'
+#   fitpeaks = np.zeros(maxpeaks,dtype='bool')
+#   fitpeaks[0] = True
+#   bounds_arr = np.array([0,np.min(np.shape(data))])
+#   if fitmp:
+#      tflag = False
+#      while not tflag:
+#         inp_chp1 = raw_input("Is peak 1 okay? (y/n)\n")
+#         if ((inp_chp1 == 'y') | (inp_chp1 == 'Y')):
+#            tflag = True
+#         elif((inp_chp1 == 'n') | (inp_chp1 == 'N')):
+#            mflag = False
+#            while not mflag:
+#               inp_newp = raw_input("Current mu for peak 1 is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(tp[0][1]))
+#               if ((inp_newp == 'y') | (inp_newp == 'Y')):
+#                  mflag,tflag = True,True
+#               else:
+#                  try:
+#                     tp[0][1] = float(inp_newp)
+#                     plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
+#                  except ValueError:
+#                     print 'Invalid input\n'
+#         else:
+#            print 'Invalid input\n'
+#      for iwp in range(1,maxpeaks):
+#         tflag = False
+#         while not tflag:
+#            inp_whichp = raw_input("Reduce peak %i? (y/n/manual) Enter 'manual' to manually set peak position\n"%(iwp+1))
+#            if ((inp_whichp == 'y') | (inp_whichp == 'Y')):
+#               tflag,fitpeaks[iwp] = True,True
+#            elif((inp_whichp == 'n') | (inp_whichp == 'N')):
+#               tflag = True
+#            elif ((inp_whichp == 'manual') | (inp_whichp == 'm')):
+#               mflag = False
+#               while not mflag:
+#                  inp_newp = raw_input("Current mu for peak %i is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(iwp+1,tp[iwp][1]))
+#                  if ((inp_newp == 'y') | (inp_newp == 'Y')):
+#                     mflag = True
+#                     tflag,fitpeaks[iwp] = True,True
+#                  else:
+#                     try:
+#                        tp[iwp][1] = float(inp_newp)
+#                        plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
+#                     except ValueError:
+#                        print 'Invalid input\n'
+#            else:
+#               print 'Invalid input\n'
+#      num_peaks = len(fitpeaks[fitpeaks])
+#      mp_out = np.zeros((4,num_peaks))
+#      for impo in range(0,maxpeaks): 
+#         if fitpeaks[impo]: 
+#            inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
+#            mp_out[:,inow-1] = tp[inow-1]
+#      mus_tmp = mp_out[1]
+#      sort_mus = np.sort(mus_tmp)
+#      argsort_mus = np.argsort(mus_tmp)
+#      tbounds_arr = np.zeros(2*num_peaks)
+#      tbounds_arr[2*num_peaks-1] = np.min(np.shape(data))
+#      for il in range(0,num_peaks-1): tbounds_arr[2*il+1:2*il+3] = np.mean(sort_mus[il:il+2])
+#      bounds_arr = np.zeros(2*num_peaks)
+#      aa_mus = np.argsort(argsort_mus)
+#      for il in range(0,num_peaks): bounds_arr[2*il:2*il+2] = tbounds_arr[2*aa_mus[il]:2*aa_mus[il]+2]
+#      plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
+#      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
+#      
+#      tflag = False
+#      inp_aps = raw_input("Are these bounds okay? (y/n)\n")
+#      while not tflag:
+#         if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#            tflag = True
+#         elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#            for ilf in range(0,num_peaks):
+#               tflag2 = False
+#               inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
+#               while not tflag2:
+#                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
+#                     tflag2 = True
+#                  elif ((inp_aps2 == 'n') | (inp_aps2 == 'N')):
+#                     tflag3 = False
+#                     nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
+#                     nub = raw_input('Enter new upper bound:\n')
+#                     while not tflag3:
+#                        try: 
+#                           nlb,nub = float(nlb),float(nub)
+#                           if ((nlb < 0) | (nub > np.min(np.shape(data))) | (nub <= nlb)): raise ValueError
+#                           bounds_arr[2*ilf],bounds_arr[2*ilf+1] = nlb,nub
+#                           plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
+#                           for ilt in range(0,2*num_peaks): plt.axvline(bounds_arr[ilt],color='k')
+#                           tflag3 = True
+#                           inp_aps2 = raw_input("New bounds for peak %i are: (%.1f,%.1f). Are these okay? (y/n)\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
+#                        except ValueError:
+#                           print 'Invalid input. Bounds must be floats between 0 and %.1f.\n'%(np.min(np.shape(data)))
+#                           nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
+#                           nub = raw_input('Enter new upper bound:\n')
+#                  else:
+#                     print 'Invalid input\n'
+#                     inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
+#            tflag = True
+#         else:
+#            print 'Invalid input\n'
+#            inp_aps = raw_input("Are these bounds okay? (y/n)\n")
+#   try:
+#      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))])).all()
+#   except AttributeError:
+#      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))]))
+#   if ((fitpeaks[0]) & (len(fitpeaks[fitpeaks]) == 1) & bnds_bool): 
+#      fitmp = False
+#      print 'No secondary peaks selected. Reverting to normal analysis.'
+#   num_peaks = len(fitpeaks[fitpeaks])
+#   mp_out = np.zeros((4,num_peaks))
+#   for impo in range(0,maxpeaks): 
+#      if fitpeaks[impo]: 
+#         inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
+#         mp_out[:,inow-1] = tp[inow-1]
+#   aflag,change_aps = False,False
+#   if check_aps:
+#      while not aflag:
+#         inp_aps = raw_input("Change apertures? (y/n)\n")
+#         if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#            aflag,change_aps = True,True
+#         elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#            aflag = True
+#         else:
+#            print 'Invalid input.\n'
+#   apertures = 4.*np.ones(num_peaks)
+#   if change_aps:
+#      for iaps in range(0,num_peaks):
+#         aflag = False
+#         while not aflag:
+#            inp_aps = raw_input("Change apertures for peak %i? (y/n)\n"%(iaps+1))
+#            if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#               aflag2 = False
+#               while not aflag2:
+#                  inp_aps2 = raw_input("Aperture for peak %i is +%.1f,-%.1f. Is this okay? Enter 'y' or new width.\n"%(iaps+1,apertures[iaps],apertures[iaps]))
+#                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
+#                     aflag2 = True
+#                  else:
+#                     try:
+#                        if inp_aps > 0: 
+#                           apertures[iaps] = inp_aps2
+#                           plot_multiple_peaks(cdat,tp,theight,apmin=-1*apertures[iaps],apmax=apertures[iaps],maxpeaks=num_peaks,apertures=apertures)
+#                        else:
+#                           print 'Input value must be greater than zero.'
+#                     except:
+#                        print 'Invalid input'
+#               aflag = True
+#            elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#               aflag = True
+#            else:
+#               print 'Invalid input.\n'
+#   if output_plot != None:
+#      outplotname = 'bounds.%s'%output_plot
+#      if output_plot_dir != None: outplotname = '%s/%s'%(output_plot_dir,outplotname)
+#      plot_multiple_peaks(cdat,np.transpose(mp_out),theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks,plot_fits=False,apertures=apertures)
+#      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
+#      plt.title('Compressed Spatial Plot with Extraction Regions')
+#      plt.savefig(outplotname)
+#   if check_aps:
+#      if num_peaks == 1:
+#         return False,fixmu,tp[0],bounds_arr,apertures
+#      else:
+#         return fitmp,fixmu,mp_out,bounds_arr,apertures
+#   else:
+#      if num_peaks == 1:
+#         return False,fixmu,tp[0],bounds_arr
+#      else:
+#         return fitmp,fixmu,mp_out,bounds_arr
 
