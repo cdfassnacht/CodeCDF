@@ -938,16 +938,36 @@ class Spec2d(imf.Image):
       self.spatial_profile(pixrange,showplot=False)
 
       """ 
-      Set up the container for the parameter values of the fits
+      Set up the container for the initial guesses for the parameter values
       """
       nparam = 3*ngauss + 1
       p_init = np.zeros(nparam)
 
       """
-      Put in initial guesses if those have been passed via the init parameter.
+      Put default choices, which may be overridden, into p_init
+      """
+      p_init[0] = np.median(self.data,axis=None)
+      for i in range(ngauss):
+         """ 
+         In this loop the parameters are set as follows:
+           p_init[ind] is either mu (if i==0) or an offset from p_init[1]
+           p_init[ind+1] is sigma
+           p_init[ind+2] is amplitude
+         """
+         ind = 3*i + 1
+         if i==0:
+            tmp = self.cdat.argsort()
+            p_init[ind] = 1.0 * tmp[tmp.shape[0]-1]
+         else:
+            p_init[ind] = 5. * i * (-1.)**(i+1)
+         p_init[ind+1] = 3.
+         p_init[ind+2] = self.cdat.max() - p_init[0]
+
+      """
+      Override the default values if init has been set.
       NOTE: the init parameter must be an array (or list) of length nparam
        otherwise the method will quit
-      If init has not been set, then put in some default values
+      NOTE: A value of -999 in init means keep the default value
       """
       if init is not None:
          if len(init) != nparam:
@@ -957,24 +977,9 @@ class Spec2d(imf.Image):
             print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss,ngauss)
             print ''
             return np.nan
-         p_init = init
-      else:
-         p_init[0] = np.median(self.data,axis=None)
-         """ 
-         In the following loop
-          p_init[ind] is either mu (if i==0) or an offset from p_init[1]
-          p_init[ind+1] is sigma
-          p_init[ind+2] is amplitude
-         """
-         for i in range(ngauss):
-            ind = 3*i + 1
-            if i==0:
-               tmp = self.cdat.argsort()
-               p_init[ind] = 1.0 * tmp[tmp.shape[0]-1]
-            else:
-               p_init[ind] = 5. * i * -1.**i
-            p_init[ind+1] = 3.
-            p_init[ind+2] = self.cdat.max() - p_init[0]
+         for j in range(nparam):
+            if init[j]>-998.:
+               p_init[j] = init[j]
 
       """ 
       Set up which parameters are fixed based on the fix parameter
