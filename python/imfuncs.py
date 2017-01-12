@@ -7,6 +7,7 @@ Image class, the code for which is at the beginning of this file.
 
 Methods (functions) in the Image class
 --------------------------------------
+Lots of functionality now, but not yet documented well.
 
 Stand-alone functions
 ---------------------
