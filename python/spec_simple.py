@@ -589,16 +589,6 @@ class Spec2d(imf.Image):
          self.hdu = inspec
       else:
          imf.Image.__init__(self,inspec,verbose=verbose)
-      #if infile is None:
-      #   if hdulist is None:
-      #      print ''
-      #      print 'ERROR: Both infile and hdulist are set to None.  One of them'
-      #      print ' must be set to load a 2d spectrum'
-      #      print ''
-      #      return None
-      #   self.hdu = hdulist
-      #else:
-      #   imf.Image.__init__(self,infile,verbose=verbose)
 
       """ Read in the external variance file if there is one """
       if extvar is not None:
