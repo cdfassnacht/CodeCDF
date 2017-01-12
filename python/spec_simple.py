@@ -912,7 +912,7 @@ class Spec2d(imf.Image):
             if normalize:
                p[0] /= cmax
                for j in range(ngauss):
-                  p[i*3+3] /= cmax
+                  p[j*3+3] /= cmax
             ymod = make_gauss(xmod,p)
             plt.plot(xmod,ymod)
             plt.axvline(fit[1]+self.apmin,color='k')
