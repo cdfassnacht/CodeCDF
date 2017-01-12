@@ -514,7 +514,7 @@ class Spec2d(imf.Image):
     in imfuncs.py
    """
 
-   def __init__(self, infile, hdulist=None, hext=0, extvar=None,
+   def __init__(self, inspec, hext=0, extvar=None,
                 xtrim=None, ytrim=None, transpose=False, fixnans=True, 
                 logwav=False, verbose=True):
       """
@@ -523,18 +523,19 @@ class Spec2d(imf.Image):
       stores it in a Spec2d class container.
 
       Required inputs:
-         infile    - name of input fits file.
-                     NOTE: it is sometimes the case, e.g., with multi-extension
-                     fits files such as those produced by ESI, that the
-                     fits file has already been loaded.  In this case set
-                     infile to None and use the optional hdulist input parameter
-                     instead.
+         inspec    - The input spectrum.  This can either be: 
+                     1. a filename, the most common case
+                          - or -
+                     2. a HDU list.  It is sometimes the case, e.g., with 
+                     multi-extension fits files such as those produced by ESI, 
+                     that the fits file has already been loaded.  In this case 
+                     it is more efficient to first read the HDU list from the
+                     input file (external to this class) and then pass that
+                     HDU list and a desired HDU (set by the hext parameter, see
+                     below) to Spec2d instead.  For example, the Esi2d class
+                     does this.
 
       Optional inputs:
-         hdulist   - ONLY used if infile is None.  If a fits file has already
-                     been loaded, then it is stored as a HDUList.  This
-                     can be passed to the Spec2d.__init__ method instead of
-                     the input file name in that case.
          hext      - The header-data unit (HDU) that contains the 2-dimensional
                      spectroscopic data.  The default value (hdu=0) should work
                      for most fits files.
@@ -578,17 +579,26 @@ class Spec2d(imf.Image):
       self.p0        = None  # Parameters describing fit to the spatial profile
       self.logwav    = logwav
 
-      """ Call the superclass initialization for useful Image attributes """
-      if infile is None:
-         if hdulist is None:
-            print ''
-            print 'ERROR: Both infile and hdulist are set to None.  One of them'
-            print ' must be set to load a 2d spectrum'
-            print ''
-            return None
-         self.hdu = hdulist
+      """ 
+      Read in the data and call the superclass initialization for useful 
+      Image attributes (for now this superclass initialization only works if
+      inpsec is a file name.
+      """
+      test = str(type(inspec))
+      if test.rfind('hdu') > 0:
+         self.hdu = inspec
       else:
-         imf.Image.__init__(self,infile,verbose=verbose)
+         imf.Image.__init__(self,inspec,verbose=verbose)
+      #if infile is None:
+      #   if hdulist is None:
+      #      print ''
+      #      print 'ERROR: Both infile and hdulist are set to None.  One of them'
+      #      print ' must be set to load a 2d spectrum'
+      #      print ''
+      #      return None
+      #   self.hdu = hdulist
+      #else:
+      #   imf.Image.__init__(self,infile,verbose=verbose)
 
       """ Read in the external variance file if there is one """
       if extvar is not None:
@@ -645,7 +655,7 @@ class Spec2d(imf.Image):
          print ''
          print '----------------------------------------------------------------'
          print ''
-         if infile is None:
+         if self.infile is None:
             print 'Read in 2-dimensional spectrum from HDU=%d' % hext
          else:
             print 'Read in 2-dimensional spectrum from %s (HDU=%d)' % \
