@@ -1079,6 +1079,51 @@ class Image:
 
    #-----------------------------------------------------------------------
 
+   def make_header(self, radec, pixscale, nx, ny=None, rot=None):
+      """
+
+      Makes a header with wcs information.
+
+      Inputs:
+        radec    - The desired (RA, Dec) pair to be put into the CRVAL keywords.
+                   NOTE: This should be in the SkyCoord format defined in
+                    astropy.coordinates.  To convert a "normal" pair of
+                    numbers / sexigesimal strings to SkyCoord format, use the
+                    radec_to_skycoord method in this Image class.
+        pixscale - Desired pixel scale in arcsec/pix
+        nx       - image size along the x-axis --or-- if the image is square
+                    (indicated by ny=None) then this is also the y-axis size
+        ny       - [OPTIONAL] y-axis size, if different from the x-axis size
+                    ny=None means that the two axes have the same size
+        rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
+                   NOT IMPLEMENTED YET
+      """
+
+      """ Create a blank 2d WCS container """
+      w = wcs.WCS(naxis=2)
+
+      """ Get the image size and central pixel """
+      cp1 = nx / 2.
+      if ny is None:
+         cp2 = cp1
+      else:
+         cp2 = ny / 2.
+
+      """ Fill it in with appropriate values and save it """
+      px = pixscale / 3600.
+      w.wcs.crpix = [cp1, cp2]
+      w.wcs.crval = [radec.ra.degree, radec.dec.degree]
+      w.wcs.cdelt = [(-1.*px), px]
+      w.wcs.ctype = ['RA---TAN','DEC--TAN']
+      w.wcs.equinox = 2000.
+      self.subim_wcs = w
+
+      """ Convert to a fits header format """
+      hdr = w.wcs.to_header()
+      return hdr
+
+   #-----------------------------------------------------------------------
+
    def def_subim_xy(self, hext=0, verbose=True):
       """
 
@@ -1165,10 +1210,15 @@ class Image:
          verbose - Print out informational statements if True (default=True)
       """
 
-      """ First check to make sure that a subimage is even requested """
+      """
+      The following assignment gets used whether a subimage has been requested
+      or not
+      """
+      self.subimhdr = self.hdu[hext].header.copy()
+
+      """ Check to make sure that a subimage is even requested """
       if ra is None or dec is None or xsize is None:
          self.subim    = self.hdu[hext].data.copy()
-         self.subimhdr = self.hdu[hext].header.copy()
          self.subsizex = self.hdu[hext].data.shape[1]
          self.subsizey = self.hdu[hext].data.shape[0]
          return
@@ -1177,7 +1227,6 @@ class Image:
       self.radec_to_skycoord(ra,dec)
 
       """ Calculate the (x,y) that is associated with the requested center"""
-      self.subimhdr = self.hdu[hext].header.copy()
       w = wcs.WCS(self.subimhdr)
       radec = np.zeros(self.subimhdr['naxis'])
       radec[0] = self.radec.ra.degree
@@ -1185,7 +1234,6 @@ class Image:
       xy = w.wcs_world2pix([radec],0)[0]
       x = xy[0]
       y = xy[1]
-      #x,y = w.wcs_world2pix([[self.radec.ra.degree,self.radec.dec.degree]],0)[0]
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
@@ -1216,56 +1264,68 @@ class Image:
              (xsize,ysize)
          print " Requested size in input pixels: %d %d" % (inpixxsize,inpixysize)
 
-      """
-      In order to account for rotations, etc., when cutting out the
-      desired image section, start with a region that is larger
-      (by a factor of 2, if the image is large enough).
-      """
-      x0 = max(0,int(x-inpixxsize))
-      x1 = min(self.subimhdr['naxis1'],int(x+inpixxsize))
-      y0 = max(0,int(y-inpixysize))
-      y1 = min(self.subimhdr['naxis2'],int(y+inpixysize))
-      if verbose:
-         print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
-
-      """ Actually get the data in the large region """
-      if  self.subimhdr['naxis'] == 4:
-         data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
-      else:
-         data = self.hdu[dext].data[y0:y1,x0:x1].copy()
-      data[~np.isfinite(data)] = 0.
-
-      """ Update the headers to reflect the cutout center"""
-      try:
-         self.subimhdr['CRPIX1'] -= x0
-      except:
-         print 'Warning: CRPIX1 header not found in %s' % self.infile
-         pass
-      try:
-         self.subimhdr['CRPIX2'] -= y0
-      except:
-         print 'Warning: CRPIX2 header not found in %s' % self.infile
-         pass
+      # """
+      # In order to account for rotations, etc., when cutting out the
+      # desired image section, start with a region that is larger
+      # (by a factor of 2, if the image is large enough).
+      # """
+      # x0 = max(0,int(x-inpixxsize))
+      # x1 = min(self.subimhdr['naxis1'],int(x+inpixxsize))
+      # y0 = max(0,int(y-inpixysize))
+      # y1 = min(self.subimhdr['naxis2'],int(y+inpixysize))
+      # if verbose:
+      #    print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
+      # 
+      # """ Actually get the data in the large region """
+      # if  self.subimhdr['naxis'] == 4:
+      #    #data = self.hdu[dext].data[0,0,y0:y1,x0:x1].copy()
+      #    data = self.hdu[dext].data[0,0,:,:].copy()
+      # else:
+      #    #data = self.hdu[dext].data[y0:y1,x0:x1].copy()
+      #    data = self.hdu[dext].data.copy()
+      # data[~np.isfinite(data)] = 0.
+      # 
+      # """ Update the headers to reflect the cutout center"""
+      # try:
+      #    self.subimhdr['CRPIX1'] -= x0
+      # except:
+      #    print 'Warning: CRPIX1 header not found in %s' % self.infile
+      #    pass
+      # try:
+      #    self.subimhdr['CRPIX2'] -= y0
+      # except:
+      #    print 'Warning: CRPIX2 header not found in %s' % self.infile
+      #    pass
 
       """ 
       Set up the output header and do the coordinate transform preparation 
       """
-      outheader = wcsmwa.make_header(self.radec.ra.degree,self.radec.dec.degree,
-                                     self.subsizex,self.subsizey,outscale,
-                                     docdmatx=docdmatx)
+      if  self.subimhdr['naxis'] == 4:
+         data = self.hdu[dext].data[0,0,:,:].copy()
+      else:
+         data = self.hdu[dext].data.copy()
+      outhdr = self.make_header(self.radec,outscale,self.subsizex,self.subsizey)
       coords = np.indices((self.subsizey,self.subsizex)).astype(np.float32)
-      skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
-      ccdcoords = wcsmwa.sky2pix(self.subimhdr,skycoords[0],skycoords[1])
-      coords[1] = ccdcoords[0]
+      skycoords = self.subim_wcs.wcs_pix2world(coords[1],coords[0],0)
+      ccdcoords = w.wcs_world2pix(skycoords[0],skycoords[1],0)
       coords[0] = ccdcoords[1]
+      coords[1] = ccdcoords[0]
       self.coords = coords.copy()
+
+      # *** Now need to deal with regions that extend outside the data
+      # should be doable, since map_coordinates just takes coordinate pairs
+      # so masking the inputte ccdcoords arrays should be possible for 
+      # coordinates < 0 or > nx,ny
+      #
+      # Also, still need to try doing the integer pixel cutout for subimages
+      #  that are both large enough and have PA=0.
 
       """ Transform the coordinates """
       self.subim = ndimage.map_coordinates(data,coords,output=np.float64,order=5)
-      self.subimhdr = outheader.copy()
+      self.subimhdr = outhdr
 
       """ Clean up """
-      del data,outheader,coords,skycoords,ccdcoords
+      del data,coords,skycoords,ccdcoords
 
    #-----------------------------------------------------------------------
 
@@ -2097,90 +2157,6 @@ def del_history_cards(hdu):
 
 #-----------------------------------------------------------------------
 
-def image_cutout_hdu(hdu,ra,dec,xsize,ysize,scale,hext=0,dext=0,verbose=True):
-   """
-   Given a central coordinate (RA,Dec), a size in pixels, and a pixel scale,
-   creates an output cutout (as a HDU).
-
-   The vast majority of the code is Matt Auger's (his image_cutout in 
-   imagelib.py).
-   Some modifications have been made by Chris Fassnacht.
-
-   """
-
-   """ Convert ra and dec to decimal degrees if necessary """
-   if wcsmwa.is_degree(ra)==False:
-      ra = wcsmwa.ra2deg(ra)
-   if wcsmwa.is_degree(dec)==False:
-      dec = wcsmwa.dec2deg(dec)
-
-   """ Calculate the (x,y) that is associated with the requested center"""
-   inhdr = hdu[hext].header.copy()
-   x,y = wcsmwa.sky2pix(inhdr,ra,dec)
-
-   """ 
-   Get rough image size in pixels for the segment of input image, since the pixel
-   scale for the output image does not necessarily match that of the input 
-   image.
-   Note that wcsinfo[2] is the CD matrix.  The rough scale is just the
-   x-axis scale, assuming that the y-axis scale is the same.
-   """
-   wcsinfo = wcsmwa.parse_header(inhdr)
-   inscale = sqrt(wcsinfo[2][0,0]**2 + wcsinfo[2][1,0]**2)*3600.
-   wcsxsize = xsize * scale
-   wcsysize = ysize * scale
-   inpixxsize = int(wcsxsize / inscale)
-   inpixysize = int(wcsysize / inscale)
-
-   """ Summarize the request """
-   if verbose:
-      print " Requested center (RA,Dec): %11.7f %+10.6f" % (ra,dec)
-      print " Requested center (x,y):    %8.2f %8.2f" % (x,y)
-      print " Requested image size (arcsec): %6.2f %6.2f" % \
-          (wcsxsize,wcsysize)
-      print " Requested size in input pixels: %d %d" % (inpixxsize,inpixysize)
-
-   """
-   In order to account for rotations, etc., when cutting out the
-   desired image section, start with a region that is larger
-   (by a factor of 2, if the image is large enough).
-   """
-   x0 = max(0,int(x-inpixxsize))
-   x1 = min(inhdr['naxis1'],int(x+inpixxsize))
-   y0 = max(0,int(y-inpixysize))
-   y1 = min(inhdr['naxis2'],int(y+inpixysize))
-   if verbose:
-      print " Cutting out image with x=%d--%d, y=%d--%d" % (x0,x1,y0,y1)
-
-   """ Actually get the data in the large region """
-   if  inhdr['naxis'] == 4:
-      data = hdu[dext].data[0,0,y0:y1,x0:x1].copy()
-   else:
-      data = hdu[dext].data[y0:y1,x0:x1].copy()
-   data[~np.isfinite(data)] = 0.
-
-   """ Update the headers to reflect the cutout center"""
-   inhdr.update('CRPIX1',inhdr['CRPIX1']-x0)
-   inhdr.update('CRPIX2',inhdr['CRPIX2']-y0)
-
-   """ Set up the output header and do the coordinate transform preparation """
-   outheader = wcsmwa.make_header(ra,dec,xsize,ysize,scale)
-   coords = np.indices((ysize,xsize)).astype(np.float32)
-   skycoords = wcsmwa.pix2sky(outheader,coords[1],coords[0])
-   ccdcoords = wcsmwa.sky2pix(inhdr,skycoords[0],skycoords[1])
-   coords[1] = ccdcoords[0]
-   coords[0] = ccdcoords[1]
-   print coords.shape
-
-   """ Create the output HDU, while at the same time transforming the coords """
-   out = pf.PrimaryHDU(ndimage.map_coordinates(data,coords,
-                                               output=np.float64,order=5))
-   out.header = outheader.copy()
-
-   return out
-
-#-----------------------------------------------------------------------
-
 def make_snr_image(infile, xmin=0, xmax=0, ymin=0, ymax=0, 
                    outfile=None, hext=0):
    """
@@ -2224,87 +2200,6 @@ def make_snr_image(infile, xmin=0, xmax=0, ymin=0, ymax=0,
       print ""
       del snrim
       return None
-
-#-----------------------------------------------------------------------
-
-def overlay_contours_hdu(hdu1, hdu2, ra, dec, imsize, pixscale, rms1=None,
-                         rms2=None, fmax=10., title=None, showradec=True,
-                         verbose=True):
-   """
-   The machinery used to do all of the work for overlay_contours.
-
-   See overlay_contours for parameter explanations, etc.
-   """
-
-   """ 
-   Create HDUs containing the postage stamp cutouts, sampled on the 
-   output grid
-   """
-   outsize = int(imsize / pixscale)
-   print "Image 1"
-   print "------"
-   ohdu1 = image_cutout_hdu(hdu1,ra,dec,outsize,outsize,pixscale,verbose=verbose)
-   print "Image 2"
-   print "------"
-   ohdu2 = image_cutout_hdu(hdu2,ra,dec,outsize,outsize,pixscale,verbose=verbose)
-
-   """ Get data from the HDUs """
-   dat1 = ohdu1.data.copy()
-   dat2 = ohdu2.data.copy()
-
-   """ Set display limits """
-   if rms1 is not None:
-      vmin = 0.0
-      vmax = fmax * rms1
-   else:
-      m1,s1 = ccd.sigma_clip(dat1)
-      vmin = m1 - s1
-      vmax = m1 + fmax * s1
-
-   """ Invert greyscale for better display """
-   dat1 *= -1.0
-   tmp = -1.0 * vmin
-   vmin = -1.0 * vmax
-   vmax = tmp
-
-   """ Set contour levels """
-   if rms2 is None:
-      m2,rms2 = ccd.sigma_clip(dat2)
-   contbase = sqrt(3.)
-   maxcont = int(log((dat2.max()/rms2),contbase))
-   if maxcont < 3:
-      clevs = np.array([-3.,3.,contbase**3])
-   else:
-      clevs = np.concatenate(([-contbase**2],
-                             np.logspace(2.,maxcont,maxcont-1,base=contbase)))
-   print "Contour levels: %f *" % rms2
-   print clevs
-   clevs *= rms2
-
-   """ Actually plot the data and overlay """
-   coords = np.indices((outsize,outsize)).astype(np.float32)
-   maxi = outsize - 1
-   #skyc   = wcsmwa.pix2sky(hdu1.header,coords[1],coords[0])
-   pltc   = (coords - outsize/2.)*pixscale
-   pltc[1] *= -1.
-   plt.imshow(dat1,origin='bottom',vmin=vmin,vmax=vmax,cmap=plt.cm.gray,
-              interpolation='none',aspect='equal',
-              extent=(pltc[1][0,0],pltc[1][maxi,maxi],
-                      pltc[0][0,0],pltc[0][maxi,maxi]))
-   plt.xlabel(r"$\Delta \alpha$ (arcsec)")
-   plt.ylabel(r"$\Delta \delta$ (arcsec)")
-   
-   plt.contour(pltc[1],pltc[0],dat2,clevs,colors='r')
-   if title is not None:
-      plt.title(title)
-   if showradec:
-      xloc = pltc[1][0,0] - 0.03*imsize
-      yloc = pltc[0][0,0] + 0.04*imsize
-      plt.text(xloc,yloc,"(%11.7f,%+10.6f)" % \
-                  (ra,dec),fontsize=14,weight='bold')
-
-   """ Clean up """
-   del dat1,dat2,ohdu1,ohdu2
 
 #---------------------------------------------------------------------------
 
