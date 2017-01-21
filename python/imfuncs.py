@@ -2507,7 +2507,7 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
 #-----------------------------------------------------------------------
 
 def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None, 
-                               rakey='ra', deckey='dec', hduext=0):
+                               rakey='ra', deckey='dec', hext=0):
    """
    Many fits files produced by cameras on ground-based telescopes
    do not come with full WCS header cards.  However, most do store the
@@ -2521,8 +2521,8 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
 
    Inputs:
       infile    -  input fits file
-      pixscale  -  desired pixel scale for the output header (should be the
-                   expected pixel scale for the camera)
+      pixscale  -  desired pixel scale in arcsec/pix for the output header 
+                   (should be the expected pixel scale for the camera)
       rotatekey -  [OPTIONAL] if the image was taken with a rotation, that can
                    be incorporated into the output header.  In that case,
                    rotatekey needs to be set to the keyword for the header
@@ -2532,7 +2532,7 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
                    from the default value of 'RA'
       deckey    -  [OPTIONAL] header keyword for Dec of pointing, if different
                    from the default value of 'Dec'
-      hduext    -  [OPTIONAL] HDU number to use.  Default=0 (i.e., the primary
+      hext    -  [OPTIONAL] HDU number to use.  Default=0 (i.e., the primary
                    HDU)
    """
 
@@ -2546,10 +2546,10 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
       exit()
    print 'Opened input fits file: %s' % infile
    try:
-      inhdr = hdu[hduext].header
+      inhdr = hdu[hext].header
    except:
       print ''
-      print 'ERROR: Could not open header for HDU %d in %s' % (infile,hduext)
+      print 'ERROR: Could not open header for HDU %d in %s' % (infile,hext)
       print ''
       hdu.close()
       exit()
@@ -2628,7 +2628,7 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
 #-----------------------------------------------------------------------
 
 def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
-                          hduext=0, rakey='ra', deckey='dec'):
+                          hext=0, rakey='ra', deckey='dec'):
    """
    Creates a full WCS header from the telescope pointing information in
    the reffile, and then copies the WCS information into the infiles.
@@ -2644,7 +2644,7 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                    case, rotatekey needs to be set to the keyword for the header
                    card that contains the rotation value (these card keywords
                    are very non-standardized).
-      hduext    -  HDU number to use.  Default=0 (i.e., the primary HDU)
+      hext    -  HDU number to use.  Default=0 (i.e., the primary HDU)
       rakey     -  [OPTIONAL] header keyword for RA of pointing, if different
                    from the default value of 'RA'
       deckey    -  [OPTIONAL] header keyword for Dec of pointing, if different
@@ -2659,13 +2659,13 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
    except:
       print "ERROR.  Could not read reference file %s" % reffile
       return
-   refhdr = refhdu[hduext].header
+   refhdr = refhdu[hext].header
 
    try:
       inhdu = open_fits(infile,mode='update')
    except:
       return
-   inhdr = inhdu[hduext].header
+   inhdr = inhdu[hext].header
 
    """ Make the temporary header with full WCS info from reffile """
    try:
