@@ -1211,29 +1211,51 @@ class Image:
       """
 
       """
-      The following assignment gets used whether a subimage has been requested
+      The following assignments gets used whether a subimage has been requested
       or not
       """
       self.subimhdr = self.hdu[hext].header.copy()
+      nx = self.hdu[hext].data.shape[1]
+      ny = self.hdu[hext].data.shape[0]
 
       """ Check to make sure that a subimage is even requested """
-      if ra is None or dec is None or xsize is None:
+      if (ra is None or dec is None) and xsize is None:
          self.subim    = self.hdu[hext].data.copy()
-         self.subsizex = self.hdu[hext].data.shape[1]
-         self.subsizey = self.hdu[hext].data.shape[0]
+         self.subsizex = nx
+         self.subsizey = ny
          return
 
-      """ Convert ra and dec into astropy.coordinates SkyCoord format """
-      self.radec_to_skycoord(ra,dec)
-
-      """ Calculate the (x,y) that is associated with the requested center"""
+      """ 
+      If a sub-image is required, set up an astropy WCS structure that will
+      be used for the calculations
+      """
       w = wcs.WCS(self.subimhdr)
-      radec = np.zeros(self.subimhdr['naxis'])
-      radec[0] = self.radec.ra.degree
-      radec[1] = self.radec.dec.degree
-      xy = w.wcs_world2pix([radec],0)[0]
-      x = xy[0]
-      y = xy[1]
+
+      """ 
+      If the passed ra or dec is None, then just take the central pixel
+       of the image as the requested center. 
+      If not, then we need to do some calculations
+      """
+      if ra is None or dec is None:
+         x = nx / 2.
+         y = ny / 2.
+
+      else:
+         """ 
+         We have to convert the requested (RA,Dec) center into the associated
+          pixel values.  
+         The first step is to convert ra and dec into astropy.coordinates 
+          SkyCoord format 
+         """
+         self.radec_to_skycoord(ra,dec)
+
+         """ Calculate the (x,y) that is associated with the requested center"""
+         radec = np.zeros(self.subimhdr['naxis'])
+         radec[0] = self.radec.ra.degree
+         radec[1] = self.radec.dec.degree
+         xy = w.wcs_world2pix([radec],0)[0]
+         x = xy[0]
+         y = xy[1]
 
       """ 
       Get rough image size in pixels for the segment of input image, since the 
