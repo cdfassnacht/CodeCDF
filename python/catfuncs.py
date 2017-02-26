@@ -13,6 +13,8 @@ import imfuncs as imf
 from matplotlib import pyplot as plt
 from math import pi
 from astrom_simple import select_good_ast
+from astropy.io import ascii
+from astropy.table import Table
 
 #------------------------------------------------------------------------------
 
@@ -40,7 +42,12 @@ class Secat:
          secat = Secat(infile)
 
       Inputs:
-         infile - input file containing the catalog
+         infile    - input file containing the catalog
+         catformat - format of the input file.  Options:
+                      ascii    - 
+                      ldac     - 
+                      sdssfits - 
+                      secat    -
       """
 
       """
@@ -62,8 +69,25 @@ class Secat:
          print "Expected catalog format: %s" % catformat
          print ""
 
-      """ ASCII format """
-      if catformat=='ascii':
+      if catformat == 'secat':
+         try:
+            self.data = ascii.read(infile)
+            ncols = len(self.data.colnames)
+            nrows = len(self.data)
+            """ Set the field names """
+            self.rafield  = 'ALPHA_J2000'
+            self.decfield = 'DELTA_J2000'
+         except:
+            print "  ERROR. Problem in loading file %s" % infile
+            print "  Check to make sure filename matches an existing file."
+            print ""
+            print "  This also may have failed if the input file is in the"
+            print "   SExtractor FITS LDAC format.  Checking that..."
+            print ""
+            read_success = False
+
+      elif catformat=='ascii':
+         """ ASCII format """
          try:
             """ Set up the data format in the catalog """
             foo = n.loadtxt(infile,dtype='S30')
@@ -83,6 +107,7 @@ class Secat:
             """ Actually read in the data """
             self.informat = 'ascii'
             self.data = n.loadtxt(infile,dtype=dt)
+            nrows = self.data.shape[0]
 
             """ Set the field names """
             if racol is not None:
@@ -113,8 +138,7 @@ class Secat:
             print ""
             read_success = False
 
-      """ FITS LDAC format """
-      if catformat.lower()=='ldac' or read_success==False:
+      elif catformat.lower()=='ldac' or read_success==False:
          try:
             self.hdu = pf.open(infile,mode='update')
          except:
@@ -126,13 +150,38 @@ class Secat:
          self.informat = 'ldac'
          self.data = self.hdu[2].data
          ncols = self.hdu[2].header['tfields']
+         nrows = len(self.hdu[2].data)
 
          """ Set the field names """
          self.rafield = 'alpha_j2000'
          self.decfield = 'delta_j2000'
 
+      elif catformat.lower()=='sdssfits' or read_success==False:
+         try:
+            self.hdu = pf.open(infile)
+         except:
+            print "  ERROR. Problem in loading file %s" % infile
+            print "  Check to make sure filename matches an existing file."
+            print "  "
+            return
+
+         self.informat = 'sdss'
+         self.data = self.hdu[1].data
+         ncols = self.hdu[1].header['tfields']
+         nrows = len(self.hdu[1].data)
+
+         """ Set the field names """
+         self.rafield = 'ra'
+         self.decfield = 'dec'
+
+      else:
+         print ''
+         print 'Unrecognized format.  Must be one of:'
+         print '  ascii, ldac, sdssfits'
+         exit()
+
       if verbose:
-         print "Number of rows:    %d" % self.data.shape[0]
+         print "Number of rows:    %d" % nrows
          print "Number of columns: %d" % ncols
       self.infile = infile
 
@@ -283,7 +332,21 @@ class Secat:
          ylim    - initial limits for mag axis on plot.  Default = (28,16)
       """
 
-      plt.plot(self.data[fwhmcol],self.data[magcol],'bo')
+      try:
+         fwhm = self.data[fwhmcol]
+      except KeyError:
+         print ''
+         print 'Catalog does not contain a %d column' % fwhmcol
+         print ''
+         return
+      try:
+         mag = self.data[magcol]
+      except KeyError:
+         print ''
+         print 'Catalog does not contain a %d column' % magcol
+         print ''
+         return
+      plt.plot(fwhm,mag,'bo')
       plt.xlim(xlim)
       plt.ylim(ylim)
       plt.xlabel('FWHM (pixels)')

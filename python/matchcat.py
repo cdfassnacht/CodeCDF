@@ -17,6 +17,8 @@ import numpy as n
 import coords
 from matplotlib import pyplot as plt
 from math import sqrt
+from astropy.io import ascii
+from astropy.table import Table
 
 #------------------------------------------------------------------------------
 
@@ -54,16 +56,16 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    print ""
    print "Catalog info"
    print "--------------------------------------------"
-   print " Catalog 1: %d coordinates" % ra1.size
-   print " Catalog 2: %d coordinates" % ra2.size
+   print " Catalog 1: %d coordinates" % len(ra1)
+   print " Catalog 2: %d coordinates" % len(ra2)
 
    """ Initialize containers for output information """
-   nmatch   = n.zeros(ra1.size,dtype=int)
-   dxmatch  = n.zeros(ra1.size)
-   dymatch  = n.zeros(ra1.size)
-   ramatch  = n.zeros(ra1.size)
-   decmatch = n.zeros(ra1.size)
-   indmatch = n.ones(ra1.size,dtype=int) * -1
+   nmatch   = n.zeros(len(ra1),dtype=int)
+   dxmatch  = n.zeros(len(ra1))
+   dymatch  = n.zeros(len(ra1))
+   ramatch  = n.zeros(len(ra1))
+   decmatch = n.zeros(len(ra1))
+   indmatch = n.ones(len(ra1),dtype=int) * -1
 
    """ Correct for known shifts """
    #dec2 += 1.39e-4 temporary kludge for fixing Cl1604 matches
@@ -74,7 +76,7 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    print ""
    print "Searching for matches..."
    print "------------------------------"
-   for i in range(ra1.size):
+   for i in range(len(ra1)):
       dx,dy = coords.sky_to_darcsec(ra1[i],dec1[i],ra2,dec2)
       dpos = n.sqrt(dx**2 + dy**2)
       isort = n.argsort(dpos)
@@ -275,6 +277,7 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
       cat1 = catfuncs.Secat(catfile1,catformat=catformat1,racol=racol1,
                             deccol=deccol1,namecol=namecol1)
       cat1.get_radec()
+      print cat1.ra
    except:
       print ""
       print "ERROR: Could not read RA and Dec from %s" % catfile1
