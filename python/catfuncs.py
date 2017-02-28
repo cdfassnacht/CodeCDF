@@ -13,8 +13,15 @@ import imfuncs as imf
 from matplotlib import pyplot as plt
 from math import pi
 from astrom_simple import select_good_ast
+import astropy
+if astropy.__version__[:3] == '0.3':
+   from astropy.coordinates import ICRS as SkyCoord
+else:
+   from astropy.coordinates import SkyCoord
+from astropy import units as u
 from astropy.io import ascii
 from astropy.table import Table
+import sys
 
 #------------------------------------------------------------------------------
 
@@ -53,11 +60,13 @@ class Secat:
       """
       Define a flag for successful reading of input catalog
       """
-
       read_success = True
 
       """ Set a flag showing whether the file has been modified """
       self.modified = False
+
+      """ Set other default values """
+      self.radec = None
 
       """
       Start by loading the catalog information
@@ -177,13 +186,17 @@ class Secat:
       else:
          print ''
          print 'Unrecognized format.  Must be one of:'
-         print '  ascii, ldac, sdssfits'
-         exit()
+         print '  ascii, secat, ldac, sdssfits'
+         sys.exit()
 
       if verbose:
          print "Number of rows:    %d" % nrows
          print "Number of columns: %d" % ncols
+
       self.infile = infile
+      self.catformat = catformat
+      self.nrows = nrows
+      self.ncols = ncols
 
    #-----------------------------------------------------------------------
 
@@ -312,6 +325,49 @@ class Secat:
                self.dec = self.data['y_world'].copy()
             except:
                self.dec = None
+
+      """ 
+      Put data into a SkyCoords container for easy coordinate-based calculations
+      """
+      if (self.ra is not None) and (self.dec is not None):
+         """ 
+         Determine whether the RA coordinate is in hours or in degrees
+         For now this test is made simple: if the format of the RA data is
+          a string, then the data is expected to be in hms format, otherwise
+          expect decimal degrees.
+         """
+         if type(self.ra[0]) is str:
+            raunit = u.hourangle
+         else:
+            raunit = u.deg
+         self.radec = SkyCoord(self.ra,self.dec,unit=(raunit,u.deg))
+
+
+   #----------------------------------------------------------------------
+
+   def sort_by_pos(self, centpos):
+      """
+      Sorts the catalog in terms of distance from some central position, which
+      is passed as a SkyCoord variable (from astropy.coordinates)
+      """
+
+      """ First check to see that we actual have WCS information  """
+      if self.radec is None:
+         print ''
+         print 'ERROR: sort_by_pos.  No WCS information in catalog'
+         print ''
+         return
+
+      """ Otherwise, use the SkyCoords functionality to easily sort """
+      sep   = self.radec.separation(centpos)
+      ind   = n.argsort(sep.arcsec)
+      if self.catformat == 'ascii':
+         self.data = self.data[ind,:]
+      else:
+         print self.catformat
+         self.data = self.data[ind]
+      self.radec = self.radec[ind]
+      self.sep   = sep[ind]
 
 
    #-----------------------------------------------------------------------
