@@ -277,7 +277,6 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
       cat1 = catfuncs.Secat(catfile1,catformat=catformat1,racol=racol1,
                             deccol=deccol1,namecol=namecol1)
       cat1.get_radec()
-      print cat1.ra
    except:
       print ""
       print "ERROR: Could not read RA and Dec from %s" % catfile1
