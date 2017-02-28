@@ -15,8 +15,11 @@ Generic functions
 """
 
 import numpy as n
-import pyfits as pf
 import imfuncs as im
+try:
+   from astropy.io import fits as pf
+except:
+   import pyfits as pf
 import wcs as wcsmwa
 import coords 
 from ccdredux import sigma_clip

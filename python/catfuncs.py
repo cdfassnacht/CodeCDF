@@ -8,12 +8,15 @@ necessarily have to.
 """
 
 import numpy as n
-import pyfits as pf
 import imfuncs as imf
 from matplotlib import pyplot as plt
 from math import pi
 from astrom_simple import select_good_ast
 import astropy
+try:
+   from astropy.io import fits as pf
+except:
+   import pyfits as pf
 if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
