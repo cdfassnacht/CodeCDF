@@ -46,7 +46,8 @@ class Secat:
    """
 
    def __init__(self, infile, catformat='ldac', verbose=True, namecol=None,
-                racol=None, deccol=None, usecols=False):
+                racol=None, deccol=None, rafield=None, decfield=None,
+                usecols=False):
       """
       This method gets called when the user types something like
          secat = Secat(infile)
@@ -55,6 +56,7 @@ class Secat:
          infile    - input file containing the catalog
          catformat - format of the input file.  Options:
                       ascii    - 
+                      asciitab -
                       ldac     - 
                       sdssfits - 
                       secat    -
@@ -97,6 +99,27 @@ class Secat:
             print "   SExtractor FITS LDAC format.  Checking that..."
             print ""
             read_success = False
+
+      elif catformat == 'asciitab':
+         try:
+            self.data = ascii.read(infile,guess=False,format='commented_header')
+         except:
+            try:
+               self.data = ascii.read(infile)
+            except:
+               print ''
+               print 'ERROR: Could not properly read data from %s' % infile
+               print 'Tried both the automatic formatting and commented_header'
+               print ' format and neither worked.  Please check input file.'
+               print ''
+               exit()
+         ncols = len(self.data.colnames)
+         nrows = len(self.data)
+         """ Set the field names """
+         if rafield:
+            self.rafield = rafield
+         if decfield:
+            self.decfield = decfield
 
       elif catformat=='ascii':
          """ ASCII format """
@@ -288,7 +311,7 @@ class Secat:
           a string, then the data is expected to be in hms format, otherwise
           expect decimal degrees.
          """
-         if type(self.ra[0]) is str:
+         if type(self.ra[0]) is str or type(self.ra[0]) is n.string_:
             raunit = u.hourangle
          else:
             raunit = u.deg
@@ -368,10 +391,10 @@ class Secat:
 
       """ Write the output region file """
       f = open(outfile,'w')
-      f.write('global color=%s\n',color)
+      f.write('global color=%s\n' % color)
       for i in range(self.ra.size):
          f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
-                    (self.ra[i],self.dec[i],rcirc))
+                    (self.radec[i].ra.degree,self.radec[i].dec.degree,rcirc))
       if plot_high_snr and ngood>0:
          f.write('global color=red\n')
          for i in range(ragood.size):
@@ -390,7 +413,7 @@ class Secat:
          cosdec = n.cos(pi * self.dec / 180.)
          xx = self.ra + 0.0012 * cosdec
          yy = self.dec + 0.0012
-         f.write('global color=green\n')
+         f.write('global color=%s\n' % color)
          for i in range(self.ra.size):
             f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
                        (xx[i],yy[i],str(lab[i])))
