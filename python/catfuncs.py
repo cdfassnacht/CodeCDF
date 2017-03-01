@@ -222,82 +222,31 @@ class Secat:
          print 'WARNING. Calling close_ldac but file is not in ldac format'
          print ''
 
-   #-----------------------------------------------------------------------
+   #----------------------------------------------------------------------
 
-   def make_reg_file(self, outfile, fluxcol=None, fluxerrcol=None, labcol=None, 
-                     plot_high_snr=False):
+   def make_magmask(self, magname, mfaint=None, mbright=None):
       """
-      Uses the RA and Dec info in the catalog to make a region file that
-      can be used with ds9.
-      """
+      Makes a mask that is True for magnitudes brighter than mfaint and
+       fainter than mbright.
+      Note that one of these two could have the value None, in which case
+       it would be ignored.  For example, if mbright is None, then the mask
+       will be True for all galaxies brighter than mfaint
 
-      """ 
-      Start by putting the RA and Dec info into a somewhat more convenient
-      format
-      """
-
-      self.get_radec()
-      if self.ra is None:
-         print ""
-         print "ERROR: No columns for RA or Dec given."
-         print "Cannot make region file unless those columns are specified."
-         return
-
-      """ 
-      If the flux information is given, then report on high SNR detections
+      Inputs:
+       magname - the name in the catalog for the column that represents the
+                  object magnitudes.  This could be something like, e.g., 'r' 
+                  or 'MAG_AUTO'
       """
 
-      ngood = 0
-      if fluxcol is not None and fluxerrcol is not None:
-         if self.informat == 'ldac':
-            if type(fluxcol) is int:
-               flux = self.data.field(fluxcol)
-               fluxerr = self.data.field(fluxerrcol)
-            else:
-               flux = self.data[fluxcol]
-               fluxerr = self.data[fluxerrcol]
-         else:
-            flux = self.data['f%d' %fluxcol]
-            fluxerr = self.data['f%d' % fluxerrcol]
-         snr = flux / fluxerr
-         ragood  = self.ra[snr>10.]
-         decgood = self.dec[snr>10.]
-         ntot = self.ra.size
-         ngood = ragood.size
-         print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
-
-      """ Write the output region file """
-      f = open(outfile,'w')
-      f.write('global color=green\n')
-      for i in range(self.ra.size):
-         f.write('fk5;circle(%10.6f,%+10.6f,0.0007)\n'% (self.ra[i],self.dec[i]))
-      if plot_high_snr and ngood>0:
-         f.write('global color=red\n')
-         for i in range(ragood.size):
-            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
-                       %(ragood[i],decgood[i]))
-
-      """ Add labels if requested """
-      if labcol is not None:
-         if self.informat == 'ldac':
-            if type(labcol) is int:
-               lab = self.data.field(labcol)
-            else:
-               lab = self.data[labcol]
-         else:
-            lab = self.data['f%d' % labcol]
-         cosdec = n.cos(pi * self.dec / 180.)
-         xx = self.ra + 0.0012 * cosdec
-         yy = self.dec + 0.0012
-         f.write('global color=green\n')
-         for i in range(self.ra.size):
-            f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
-                       (xx[i],yy[i],str(lab[i])))
-
-      """ Wrap up """
-      print "Wrote region file %s" % outfile
-      f.close()
-
+      mag = self.data[magname]
+      if mfaint is None and mbright is None:
+         self.magmask = np.ones(self.nrows,dtype=bool)
+      elif mfaint is None:
+         self.magmask = mag >= mbright
+      elif mbright is None:
+         self.magmask = mag <= mfaint
+      else:
+         self.magmask = (mag>=mbright) & (mag<=mfaint)
 
    #-----------------------------------------------------------------------
 
@@ -371,6 +320,84 @@ class Secat:
          self.data = self.data[ind]
       self.radec = self.radec[ind]
       self.sep   = sep[ind]
+
+
+   #-----------------------------------------------------------------------
+
+   def make_reg_file(self, outfile, rcirc, color='green', fluxcol=None, 
+                     fluxerrcol=None, labcol=None, plot_high_snr=False):
+      """
+      Uses the RA and Dec info in the catalog to make a region file that
+      can be used with ds9.
+      """
+
+      """ 
+      Start by putting the RA and Dec info into a somewhat more convenient
+      format
+      """
+
+      self.get_radec()
+      if self.ra is None:
+         print ""
+         print "ERROR: No columns for RA or Dec given."
+         print "Cannot make region file unless those columns are specified."
+         return
+
+      """ 
+      If the flux information is given, then report on high SNR detections
+      """
+
+      ngood = 0
+      if fluxcol is not None and fluxerrcol is not None:
+         if self.informat == 'ldac':
+            if type(fluxcol) is int:
+               flux = self.data.field(fluxcol)
+               fluxerr = self.data.field(fluxerrcol)
+            else:
+               flux = self.data[fluxcol]
+               fluxerr = self.data[fluxerrcol]
+         else:
+            flux = self.data['f%d' %fluxcol]
+            fluxerr = self.data['f%d' % fluxerrcol]
+         snr = flux / fluxerr
+         ragood  = self.ra[snr>10.]
+         decgood = self.dec[snr>10.]
+         ntot = self.ra.size
+         ngood = ragood.size
+         print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
+
+      """ Write the output region file """
+      f = open(outfile,'w')
+      f.write('global color=%s\n',color)
+      for i in range(self.ra.size):
+         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
+                    (self.ra[i],self.dec[i],rcirc))
+      if plot_high_snr and ngood>0:
+         f.write('global color=red\n')
+         for i in range(ragood.size):
+            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+                       %(ragood[i],decgood[i]))
+
+      """ Add labels if requested """
+      if labcol is not None:
+         if self.informat == 'ldac':
+            if type(labcol) is int:
+               lab = self.data.field(labcol)
+            else:
+               lab = self.data[labcol]
+         else:
+            lab = self.data['f%d' % labcol]
+         cosdec = n.cos(pi * self.dec / 180.)
+         xx = self.ra + 0.0012 * cosdec
+         yy = self.dec + 0.0012
+         f.write('global color=green\n')
+         for i in range(self.ra.size):
+            f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
+                       (xx[i],yy[i],str(lab[i])))
+
+      """ Wrap up """
+      print "Wrote region file %s" % outfile
+      f.close()
 
 
    #-----------------------------------------------------------------------
