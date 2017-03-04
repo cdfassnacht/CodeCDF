@@ -390,16 +390,30 @@ class Secat:
          print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
 
       """ Write the output region file """
-      f = open(outfile,'w')
-      f.write('global color=%s\n' % color)
-      for i in range(self.ra.size):
-         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
-                    (self.radec[i].ra.degree,self.radec[i].dec.degree,rcirc))
-      if plot_high_snr and ngood>0:
-         f.write('global color=red\n')
-         for i in range(ragood.size):
-            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
-                       %(ragood[i],decgood[i]))
+      #dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
+      #dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
+      #          'pa']
+      #outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
+      #outarr['id'] = self.dstab['id']
+      #outarr['ra'] = tmpra
+      #outarr['dec'] = tmpdec
+      #outarr['equinox'] += 2000.
+      outarr = n.zeros((self.ra.size,3))
+      outarr[:,0] = self.radec.ra.degree
+      outarr[:,1] = self.radec.dec.degree
+      outarr[:,2] += rcirc
+      n.savetxt(outfile,outarr,fmt='fk5;circle(%10.6f,%+10.6f,%.1f")',
+                header='global color=%s'%color,comments='')
+      #f = open(outfile,'w')
+      #f.write('global color=%s\n' % color)
+      #for i in range(self.ra.size):
+      #   f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
+      #              (self.radec[i].ra.degree,self.radec[i].dec.degree,rcirc))
+      #if plot_high_snr and ngood>0:
+      #   f.write('global color=red\n')
+      #   for i in range(ragood.size):
+      #      f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+      #                 %(ragood[i],decgood[i]))
 
       """ Add labels if requested """
       if labcol is not None:
@@ -420,7 +434,7 @@ class Secat:
 
       """ Wrap up """
       print "Wrote region file %s" % outfile
-      f.close()
+      #f.close()
 
 
    #-----------------------------------------------------------------------
