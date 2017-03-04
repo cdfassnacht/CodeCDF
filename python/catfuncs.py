@@ -24,7 +24,7 @@ else:
 from astropy import units as u
 from astropy.io import ascii
 from astropy.table import Table
-import sys
+import os,sys
 
 #------------------------------------------------------------------------------
 
