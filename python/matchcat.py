@@ -251,6 +251,7 @@ def match_xy(x1, y1, x2, y2, rmatch, dx2=0., dy2=0., doplot=True):
 def find_match(catfile1, catfile2, rmatch, catformat1='ascii', 
                catformat2='ascii', 
                racol1=None, deccol1=None, racol2=None, deccol2=None,
+               rafield1=None, decfield1=None, rafield2=None, decfield2=None,
                namecol1=None, namecol2=None, dra2=0., ddec2=0., doplot=True):
    """
    The main function to match catalogs contained in two input files.  The
@@ -275,7 +276,8 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
    import catfuncs
    try:
       cat1 = catfuncs.Secat(catfile1,catformat=catformat1,racol=racol1,
-                            deccol=deccol1,namecol=namecol1)
+                            deccol=deccol1,rafield=rafield1,decfield=decfield1,
+                            namecol=namecol1)
       cat1.get_radec()
    except:
       print ""
@@ -283,7 +285,8 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
       return
    try:
       cat2 = catfuncs.Secat(catfile2,catformat=catformat2,racol=racol2,
-                            deccol=deccol2,namecol=namecol2)
+                            deccol=deccol2,rafield=rafield2,decfield=decfield2,
+                            namecol=namecol2)
       cat2.get_radec()
    except:
       print ""

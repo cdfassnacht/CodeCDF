@@ -7,7 +7,7 @@ necessarily have to.
 
 """
 
-import numpy as n
+import numpy as np
 import imfuncs as imf
 from matplotlib import pyplot as plt
 from math import pi
@@ -125,10 +125,10 @@ class Secat:
          """ ASCII format """
          try:
             """ Set up the data format in the catalog """
-            foo = n.loadtxt(infile,dtype='S30')
+            foo = np.loadtxt(infile,dtype='S30')
             ncols = foo.shape[1]
             del foo
-            coltypes = n.ones(ncols,dtype='S3')
+            coltypes = np.ones(ncols,dtype='S3')
             coltypes[:] = 'f8'
             if namecol is not None:
                print "Object name column: %d" % namecol
@@ -137,11 +137,11 @@ class Secat:
             for i in range(ncols):
                colstr = '%s,%s' % (colstr,coltypes[i])
             colstr = colstr[1:]
-            dt = n.dtype(colstr)
+            dt = np.dtype(colstr)
 
             """ Actually read in the data """
             self.informat = 'ascii'
-            self.data = n.loadtxt(infile,dtype=dt)
+            self.data = np.loadtxt(infile,dtype=dt)
             nrows = self.data.shape[0]
 
             """ Set the field names """
@@ -311,7 +311,7 @@ class Secat:
           a string, then the data is expected to be in hms format, otherwise
           expect decimal degrees.
          """
-         if type(self.ra[0]) is str or type(self.ra[0]) is n.string_:
+         if type(self.ra[0]) is str or type(self.ra[0]) is np.string_:
             raunit = u.hourangle
          else:
             raunit = u.deg
@@ -335,7 +335,7 @@ class Secat:
 
       """ Otherwise, use the SkyCoords functionality to easily sort """
       sep   = self.radec.separation(centpos)
-      ind   = n.argsort(sep.arcsec)
+      ind   = np.argsort(sep.arcsec)
       if self.catformat == 'ascii':
          self.data = self.data[ind,:]
       else:
@@ -348,7 +348,8 @@ class Secat:
    #-----------------------------------------------------------------------
 
    def make_reg_file(self, outfile, rcirc, color='green', fluxcol=None, 
-                     fluxerrcol=None, labcol=None, plot_high_snr=False):
+                     fluxerrcol=None, labcol=None, plot_high_snr=False,
+                     mask=None, snrgood=10.):
       """
       Uses the RA and Dec info in the catalog to make a region file that
       can be used with ds9.
@@ -360,10 +361,9 @@ class Secat:
       """
 
       self.get_radec()
-      if self.ra is None:
+      if self.radec is None:
          print ""
-         print "ERROR: No columns for RA or Dec given."
-         print "Cannot make region file unless those columns are specified."
+         print "ERROR: Could not read RA and Dec information from input file"
          return
 
       """ 
@@ -371,6 +371,7 @@ class Secat:
       """
 
       ngood = 0
+      snrmask = None
       if fluxcol is not None and fluxerrcol is not None:
          if self.informat == 'ldac':
             if type(fluxcol) is int:
@@ -383,12 +384,31 @@ class Secat:
             flux = self.data['f%d' %fluxcol]
             fluxerr = self.data['f%d' % fluxerrcol]
          snr = flux / fluxerr
-         ragood  = self.ra[snr>10.]
-         decgood = self.dec[snr>10.]
-         ntot = self.ra.size
-         ngood = ragood.size
-         print "Out of %d total objects, %d have SNR>10" %(ntot,ngood)
+         snrmask = snr>snrgood
 
+      """ Mask the input data if requested """
+      print ''
+      print 'Total objects in catalog:        %d' % len(self.radec)
+      if mask is not None:
+         radec  = self.radec[mask]
+         selmask = mask
+         print 'Objects selected by mask:        %d' % len(radec)
+      else:
+         radec = self.radec
+         selmask = np.ones(len(radec),dtype=bool)
+      ntot   = len(radec)
+      radeg  = radec.ra.degree
+      decdeg = radec.dec.degree
+
+      """ Select the high SNR objects, if requested """
+      if snrmask is not None:
+         selsnrmask = (selmask) & (snrmask)
+         radecgood = self.radec[selsnrmask]
+         ngood = len(radecgood)
+         print 'Of those, objects with SNR>%.1f: %d' % (snrgood,ngood)
+         gradeg  = radecgood.ra.degree
+         gdecdeg = radecgood.dec.degree
+         
       """ Write the output region file """
       #dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
       #dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
@@ -398,35 +418,36 @@ class Secat:
       #outarr['ra'] = tmpra
       #outarr['dec'] = tmpdec
       #outarr['equinox'] += 2000.
-      outarr = n.zeros((self.ra.size,3))
-      outarr[:,0] = self.radec.ra.degree
-      outarr[:,1] = self.radec.dec.degree
-      outarr[:,2] += rcirc
-      n.savetxt(outfile,outarr,fmt='fk5;circle(%10.6f,%+10.6f,%.1f")',
-                header='global color=%s'%color,comments='')
-      #f = open(outfile,'w')
-      #f.write('global color=%s\n' % color)
-      #for i in range(self.ra.size):
-      #   f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
-      #              (self.radec[i].ra.degree,self.radec[i].dec.degree,rcirc))
-      #if plot_high_snr and ngood>0:
-      #   f.write('global color=red\n')
-      #   for i in range(ragood.size):
-      #      f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
-      #                 %(ragood[i],decgood[i]))
+      #outarr = np.zeros((self.ra.size,3))
+      #outarr[:,0] = self.radec.ra.degree
+      #outarr[:,1] = self.radec.dec.degree
+      #outarr[:,2] += rcirc
+      #np.savetxt(outfile,outarr,fmt='fk5;circle(%10.6f,%+10.6f,%.1f")',
+      #          header='global color=%s'%color,comments='')
+      f = open(outfile,'w')
+      f.write('global color=%s\n' % color)
+      for i in range(ntot):
+         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
+                    (radeg[i],decdeg[i],rcirc))
+      if plot_high_snr and ngood>0:
+         f.write('global color=red\n')
+         for i in range(ngood):
+            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+                       %(gradeg[i],gdecdeg[i]))
 
       """ Add labels if requested """
       if labcol is not None:
          if self.informat == 'ldac':
             if type(labcol) is int:
-               lab = self.data.field(labcol)
+               lab0 = self.data.field(labcol)
             else:
-               lab = self.data[labcol]
+               lab0 = self.data[labcol]
          else:
-            lab = self.data['f%d' % labcol]
-         cosdec = n.cos(pi * self.dec / 180.)
-         xx = self.ra + 0.0012 * cosdec
-         yy = self.dec + 0.0012
+            lab0 = self.data['f%d' % labcol]
+         lab = lab0[selmask]
+         cosdec = np.cos(pi * self.dec[selmask] / 180.)
+         xx = self.ra[selmask] + 0.0012 * cosdec
+         yy = self.dec[selmask] + 0.0012
          f.write('global color=%s\n' % color)
          for i in range(self.ra.size):
             f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
@@ -434,7 +455,7 @@ class Secat:
 
       """ Wrap up """
       print "Wrote region file %s" % outfile
-      #f.close()
+      f.close()
 
 
    #-----------------------------------------------------------------------
@@ -534,15 +555,15 @@ class Secat:
       print " Catalog 2: %d coordinates" % ra2.size
 
       """ Initialize containers for output information """
-      ramatch  = n.zeros(self.ra.size)
-      decmatch = n.zeros(self.ra.size)
-      self.nmatch   = n.zeros(self.ra.size,dtype=int)
-      self.matchdx  = n.zeros(self.ra.size)
-      self.matchdy  = n.zeros(self.ra.size)
-      self.indmatch = n.ones(self.ra.size,dtype=int) * -1
+      ramatch  = np.zeros(self.ra.size)
+      decmatch = np.zeros(self.ra.size)
+      self.nmatch   = np.zeros(self.ra.size,dtype=int)
+      self.matchdx  = np.zeros(self.ra.size)
+      self.matchdy  = np.zeros(self.ra.size)
+      self.indmatch = np.ones(self.ra.size,dtype=int) * -1
 
       """ Correct for known shifts """
-      ra2 = ra2.copy() + dra2/(3600.*n.cos(dec2))
+      ra2 = ra2.copy() + dra2/(3600.*np.cos(dec2))
       dec2 = dec2.copy() + ddec2/3600.
 
       """ Loop over catalog """
@@ -551,8 +572,8 @@ class Secat:
       print "------------------------------"
       for i in range(self.ra.size):
          dx,dy = coords.sky_to_darcsec(self.ra[i],self.dec[i],ra2,dec2)
-         dpos = n.sqrt(dx**2 + dy**2)
-         isort = n.argsort(dpos)
+         dpos = np.sqrt(dx**2 + dy**2)
+         isort = np.argsort(dpos)
          if dpos[isort[0]]<=rmatch:
             ramatch[i]  = self.ra[i]
             decmatch[i] = self.dec[i]
@@ -567,8 +588,8 @@ class Secat:
       mdec = decmatch[self.nmatch>0]
       mdx  = self.matchdx[self.nmatch>0]
       mdy  = self.matchdy[self.nmatch>0]
-      mdx0 = n.median(mdx)
-      mdy0 = n.median(mdy)
+      mdx0 = np.median(mdx)
+      mdy0 = np.median(mdy)
       print " Median offset for matches (RA):  %+6.2f arcsec" % mdx0
       print " Median offset for matches (Dec): %+6.2f arcsec" % mdy0
 
@@ -582,7 +603,7 @@ class Secat:
          plt.title('Offsets between matched sources (rmatch = %5.2f)' % rmatch)
          plt.axvline(0.0,color='r')
          plt.axhline(0.0,color='r')
-         plt.plot(n.array([mdx0]),n.array([mdy0]),'r*',ms=20)
+         plt.plot(np.array([mdx0]),np.array([mdy0]),'r*',ms=20)
          plt.xlim(-1.1*rmatch,1.1*rmatch)
          plt.ylim(-1.1*rmatch,1.1*rmatch)
 
@@ -652,7 +673,7 @@ class Secat:
       catalog (represented by xast,yast).
       """
 
-      self.matchind = n.zeros(xast.size, dtype=int)
+      self.matchind = np.zeros(xast.size, dtype=int)
 
       xfield = 'f%d' % xcol
       yfield = 'f%d' % ycol
@@ -661,7 +682,7 @@ class Secat:
          dx = xast[i] - self.data[xfield]
          dy = yast[i] - self.data[yfield]
          dpos = dx**2 + dy**2
-         sindex = n.argsort(dpos)
+         sindex = np.argsort(dpos)
          self.matchind[i] = sindex[0]
 
       self.matchdx = xast - self.data[xfield][self.matchind]
@@ -687,20 +708,20 @@ class Secat:
          xa0 = xa - dxmed
          ya0 = ya - dymed
          self.find_closest_xy(xa0,ya0,xcol,ycol)
-         dxmed = n.median(self.matchdx)
-         dymed = n.median(self.matchdy)
+         dxmed = np.median(self.matchdx)
+         dymed = np.median(self.matchdy)
          if max_offset is not None:
-            dpos = n.sqrt(self.matchdx**2 + self.matchdy**2)
+            dpos = np.sqrt(self.matchdx**2 + self.matchdy**2)
             goodmask = dpos<max_offset
             if verbose:
                print "Applying a maximum offset cut of %7.1f pixels" % max_offset
                print "Median shifts before clipping: %7.2f %7.2f" % (dxmed,dymed)
          else:
-            goodmask = n.ones(xa.size,dtype=bool)
+            goodmask = np.ones(xa.size,dtype=bool)
          dxm  = self.matchdx[goodmask]
          dym  = self.matchdy[goodmask]
-         dxmed = n.median(dxm)
-         dymed = n.median(dym)
+         dxmed = np.median(dxm)
+         dymed = np.median(dym)
          if verbose:
             print "Median shifts after pass:   %7.2f %7.2f" % (dxmed,dymed)
 
@@ -772,8 +793,8 @@ class Secat:
 
       """ Plot the offsets if desired """
       if doplot:
-         dxmed = n.median(self.matchdx)
-         dymed = n.median(self.matchdx)
+         dxmed = np.median(self.matchdx)
+         dymed = np.median(self.matchdx)
          plt.figure()
          plt.scatter(self.matchdx,self.matchdy)
          plt.xlabel('x offset (pix)')
