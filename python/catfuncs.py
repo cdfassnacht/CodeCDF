@@ -317,6 +317,15 @@ class Secat:
             raunit = u.deg
          self.radec = SkyCoord(self.ra,self.dec,unit=(raunit,u.deg))
 
+      """ 
+      If radec has not been set, report this information
+      (consider raising an exception in future versions of the code)
+      """
+      if self.radec is None:
+         print ''
+         print 'WARNING: get_radec was called but RA and Dec information was'
+         print '         not found.  Please check the format of your catalog.'
+         print ''
 
    #----------------------------------------------------------------------
 
@@ -341,8 +350,13 @@ class Secat:
       else:
          print self.catformat
          self.data = self.data[ind]
-      self.radec = self.radec[ind]
-      self.sep   = sep[ind]
+
+      """ Also sort things that are outside the data table """
+      self.radec   = self.radec[ind]
+      self.ra      = self.ra[ind]
+      self.dec     = self.ra[ind]
+      self.sep     = sep[ind]
+      self.sortind = ind
 
 
    #-----------------------------------------------------------------------
@@ -387,7 +401,6 @@ class Secat:
          snrmask = snr>snrgood
 
       """ Mask the input data if requested """
-      print ''
       print 'Total objects in catalog:        %d' % len(self.radec)
       if mask is not None:
          radec  = self.radec[mask]

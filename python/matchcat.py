@@ -22,25 +22,33 @@ from astropy.table import Table
 
 #------------------------------------------------------------------------------
 
-class matchcat:
-
-   """ A class contaiing matching methods """
-
-   def __init__(self, catfile1, catfile2):
-      """
-      Sets up the matchcat container
-      """
-
-      self.catfile1 = catfile1
-      self.catfile2 = catfile2
-
-   """ TO BE CONTINUED """
+#class matchcat:
+#
+#   """ 
+#   A class contaiing matching methods 
+#   DON'T USE - JUST A POSSIBLE WAY FORWARD THAT HAS NOT BEEN DEVELOPED
+#   """
+#
+#   def __init__(self, catfile1, catfile2):
+#      """
+#      Sets up the matchcat container
+#      """
+#
+#      self.catfile1 = catfile1
+#      self.catfile2 = catfile2
+#
+#   """ TO BE CONTINUED """
 
 #-----------------------------------------------------------------------------
 
 def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    """
-   The main function to match coordinates.  
+   The main function to match coordinates (may be called by matchcat function).
+
+   NOTE: the matchcat function below provides a simple input for match_coords
+   if the two sets of input coordinates are contained in Secat containers.
+   See find_match for how to create such Secat containers from input files.
+  
    Inputs:
       ra1      - RA (decimal degrees) for first catalog
       dec1     - Dec (decimal degrees) for first catalog
@@ -248,6 +256,35 @@ def match_xy(x1, y1, x2, y2, rmatch, dx2=0., dy2=0., doplot=True):
 
 #-----------------------------------------------------------------------
 
+def matchcat(cat1, cat2, rmatch, dra2=0., ddec2=0., doplot=True):
+   """
+   Does a match on two Secat catalogs that have already been read in from
+   the appropriate files, or created in some other way.  This funccti
+   """
+
+   """ Make sure that each of the input catalogs has radec coordinates """
+   if cat1.radec is None:
+      cat1.get_radec()
+   if cat2.radec is None:
+      cat2.get_radec()
+   if cat1.radec is None or cat2.radec is None:
+      print ''
+      print 'ERROR.  Cannot match catalogs since RA,Dec information was not'
+      print '        available in the expected place.'
+      print ''
+      return
+
+   """ Do the matching """
+   cat1.indmatch,cat1.nmatch,cat1.matchdx,cat1.matchdy = \
+       match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec, \
+                    rmatch,dra2,ddec2,doplot)
+
+   cat1.mask = cat1.indmatch>-1
+   cat2.mask = cat1.indmatch[cat1.mask]
+
+
+#-----------------------------------------------------------------------
+
 def find_match(catfile1, catfile2, rmatch, catformat1='ascii', 
                catformat2='ascii', 
                racol1=None, deccol1=None, racol2=None, deccol2=None,
@@ -297,12 +334,13 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
    #dec2 += 1.39e-4 temporary kludge for fixing Cl1604 matches
    
    """ Do the matching """
-   cat1.indmatch,cat1.nmatch,cat1.matchdx,cat1.matchdy = \
-       match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec, \
-                    rmatch,dra2,ddec2,doplot)
-
-   cat1.mask = cat1.indmatch>-1
-   cat2.mask = cat1.indmatch[cat1.mask]
+   #cat1.indmatch,cat1.nmatch,cat1.matchdx,cat1.matchdy = \
+   #    match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec, \
+   #                 rmatch,dra2,ddec2,doplot)
+   #
+   #cat1.mask = cat1.indmatch>-1
+   #cat2.mask = cat1.indmatch[cat1.mask]
+   matchcat(cat1,cat2,rmatch,dra2=dra2,ddec2=ddec2,doplot=doplot)
    
    return cat1,cat2
 
