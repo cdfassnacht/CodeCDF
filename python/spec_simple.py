@@ -2,15 +2,24 @@
 spec_simple.py - A library of functions to do various basic CCD spectroscopy
   processing operations
 
-Functions:
-   xxxx  - descriptions here
-
 Classes (UNDER CONSTRUCTION, BUT GETTING THERE...)
   Spec1d
   Spec2d
+
+NOTE: More and more of the previous stand-alone functionality has been moved
+into either the Spec1d or  Spec2d class.  However, some stand-alone functions
+will probably not be moved.  These include the list below.
+
+Stand-alone functions:
+   plot_model_sky_ir  - plots the NIR sky transmission as well as the night-sky
+                        emission lines to aid in planning NIR spectroscopy
+                        observations.
+   xxxx               - more descriptions here
+
 """
 
-import sys
+import sys, os
+import glob
 from math import sqrt,pi
 try:
    from astropy.io import fits as pf
@@ -21,7 +30,6 @@ import numpy as np
 import scipy as sp
 from scipy import optimize,interpolate,ndimage
 import matplotlib.pyplot as plt
-import glob
 import ccdredux as ccd
 #import nirspec
 
@@ -38,7 +46,7 @@ def clear_all():
 
 #-----------------------------------------------------------------------
 
-class Spec1d:
+class Spec1d():
    """
    A class to process and analyze 1-dimensional spectra.
    """
@@ -48,6 +56,7 @@ class Spec1d:
       """
       Reads in the input 1-dimensional spectrum.
       This can be done in two mutually exclusive ways:
+
         1. By providing some 1-d arrays containing the wavelength vector,
            the flux vector, and, optionally, the variance vector.
 
@@ -2756,7 +2765,7 @@ def make_sky_model(wavelength, smoothKernel=25., verbose=True):
    # Use NIR sky model if starting wavelength is redder than 9000 Angstrom
    if wstart >= 9000.:
       # Read in skymodel, which is in a B-spline format
-      skymodel_file = '/Users/cdf/Code/python/nirspec/nirspec_skymodel.dat'
+      skymodel_file = '/Users/cdf/git/KeckCDF/python/nirspec/nirspec_skymodel.dat'
       skymodel = np.load(skymodel_file)
    else:
       # Read in the sky model
@@ -3371,6 +3380,62 @@ def mark_spec_absorption(z, w=None, f=None, labww=20., labfs=12, ticklen=0.,
 
 #-----------------------------------------------------------------------
 
+def atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0, modfile='default'):
+   """
+   Creates a Spec1d instance (i.e., a 1-dimensional spectrum) containing the 
+   transmission of the Earth's atmosphere as a function of wavelength in
+   the near-infrared (NIR) part of the spectrum.  The returned spectrum
+   is for the wavelength range specified by the required w parameter, which
+   is a wavelength vector.
+
+   Inputs:
+      w       - wavelength vector whose min and max values set the wavelength
+                range of the returned atmospheric transmission spectrum
+      fwhm    - smoothing parameter for the output spectrum
+      modfile - the full path+name of the file containing the atmospheric
+                transmission data.  The default location is in the Data
+                subdirectory contained within the directory in which this
+                code is found.
+   """
+
+   """ Read in the atmospheric transmission data"""
+   if modfile != 'default':
+      infile = modfile
+   else:
+      infile = '%s/Data/mk_atm_trans_zm_10_10.dat' \
+          % __file__.split('spec_simple')[0]
+   print "Loading atmospheric data from %s" % infile
+   atm0 = Spec1d(infile)
+   atm0.wav *= 1.0e4
+
+   """ Only use the relevant part of the atmospheric transmission spectrum"""
+   mask = np.where((atm0.wav>=w.min())&(atm0.wav<=w.max()))
+   watm = atm0.wav[mask]
+   trans = atm0.flux[mask]
+   del atm0
+   
+   """ Smooth the spectrum """
+   trans = ndimage.gaussian_filter(trans,fwhm)
+   
+   """ Resample the smoothed spectrum """
+   watm,trans = resample_spec(watm,trans,w)
+   
+   """ If an input spectrum has been given, then rescale the trans spectrum """
+   if flux is not None:
+      trans *= scale * flux.max()
+   else:
+      trans *= scale
+   
+   """ Add any requested vertical offset """
+   trans += offset
+
+   """ Save as a Spec1d instance and return """
+   atm = Spec1d(wav=watm,flux=trans)
+   del watm,trans
+   return atm
+
+#-----------------------------------------------------------------------
+
 def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
                    color='g', linestyle='-', return_atm=False):
    """
@@ -3378,36 +3443,6 @@ def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
    vectors, and a rough fwhm (in Angstrom), smooths and resamples the 
    atmospheric transmission spectrum for the NIR and plots it.
    """
-
-   """ Read in the atmospheric transmission data"""
-   print ""
-   atm_filename = \
-       '/Users/cdf/Projects/Active/nirspec_redux/mk_atm_trans_zm_10_10.dat'
-   print "Loading atmospheric data from %s" % atm_filename
-   atmwave,atmtrans = np.loadtxt(atm_filename,unpack=True)
-   atmwave *= 1.0e4
-
-   """ Only use the relevant part of the atmospheric transmission spectrum"""
-   mask = np.where((atmwave>=w.min())&(atmwave<=w.max()))
-   watm = atmwave[mask]
-   atm  = atmtrans[mask]
-   del atmwave
-   del atmtrans
-
-   """ Smooth the spectrum """
-   atm = ndimage.gaussian_filter(atm,fwhm)
-
-   """ Resample the smoothed spectrum """
-   watm,atm = resample_spec(watm,atm,w)
-
-   """ If an input spectrum has been given, then rescale the atm spectrum """
-   if flux is not None:
-      atm *= scale * flux.max()
-   else:
-      atm *= scale
-
-   """ Add any requested vertical offset """
-   atm += offset
 
    """ Plot the results """
    ls = "steps%s" % linestyle
@@ -3428,8 +3463,9 @@ def plot_model_sky_ir():
    will fall in good parts of the sky
    """
 
-   wsky = np.arange(10000.,23000.)
-   plot_atm_trans(wsky)
+   wsky = np.arange(10000.,26000.)
+   atm = atm_trans(wsky)
+   atm.plot()
    skymod = make_sky_model(wsky)
    skymod /= skymod.max()
    plt.plot(wsky,skymod)
