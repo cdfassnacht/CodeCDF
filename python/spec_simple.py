@@ -63,11 +63,18 @@ class Spec1d():
                  ---- or ----
 
         2. By providing the name of a file that contains the spectrum.
-            There are three possible input file formats:
+            There are four possible input file formats:
               fits: A multi-extension fits file
                     Extension 1 is the wavelength vector
                     Extension 2 is the extracted spectrum (flux)
                     Extension 3 is the variance spectrum
+              fitstab: A binary fits table, stored as a recarray, that has 
+                    columns (or "fields" as they are referred to in a recarray
+                    structure) corresponding to, at a mininum, wavelength and
+                    flux.
+                    NOTE. The table is assumed to be in Extension 1 and the
+                    table is assumed to have wavelength in field 0 and flux in
+                    field 1
               mwa:  A multi-extension fits file with wavelength info in
                     the fits header
                     Extension 1 is the extracted spectrum (flux)
@@ -88,7 +95,7 @@ class Spec1d():
          infile     - Name of the input file.  If infile is None, then the
                        spectrum must be provided via the wavelength and flux
                        vectors.
-         informat   - format of input file ('fits', 'mwa', or 'text'). 
+         informat   - format of input file ('fits', 'fitstab', 'mwa', or 'text').
                        Default = 'text'
          wav        - 1-dimensional array containing "wavelength" information,
                        either as actual wavelength or in pixels
@@ -171,6 +178,16 @@ class Spec1d():
          self.var  = hdu[3].data.copy()
          self.varspec = True
          del hdu
+      elif informat=='fitstab':
+         hdu = pf.open(self.infile)
+         #hdu.info()
+         tdat = hdu[1].data
+         self.wav  = tdat.field(0)
+         self.flux = tdat.field(1)
+         if len(tdat[0]) > 2:
+            self.var = tdat.field(3)
+            self.varspec = True
+         del hdu
       elif informat=='mwa':
          hdu = pf.open(self.infile)
          self.flux = hdu[1].data.copy()
@@ -197,10 +214,13 @@ class Spec1d():
          del spec
 
       """ Check for NaN's, which this code can't handle """
-      mask = (np.isnan(self.flux)) | (np.isnan(self.var))
-      varmax = self.var[~mask].max()
+      if self.varspec:
+         mask = (np.isnan(self.flux)) | (np.isnan(self.var))
+         varmax = self.var[~mask].max()
+         self.var[mask] = varmax * 5.
+      else:
+         mask = (np.isnan(self.flux))
       self.flux[mask] = 0
-      self.var[mask] = varmax * 5.
       if verbose:
          print " Spectrum Start: %8.2f" % self.wav[0]
          print " Spectrum End:   %8.2f" % self.wav[-1]
@@ -212,10 +232,10 @@ class Spec1d():
    #-----------------------------------------------------------------------
 
    def plot(self, xlabel='Wavelength (Angstroms)', ylabel='Relative Flux', 
-            title='default', docolor=True, color='b', rmscolor='r', 
-            rmsoffset=0, rmsls=None, fontsize=12, add_atm_trans=False, 
-            atmscale=1.05, atmfwhm=15., atmoffset=0., atmls='-', 
-            usesmooth=False, verbose=True):
+            title='default', docolor=True, color='b', linestyle='', label=None,
+            fontsize=12, rmscolor='r', rmsoffset=0, rmsls=None, 
+            add_atm_trans=False, atmscale=1.05, atmfwhm=15., atmoffset=0., 
+            atmls='-', usesmooth=False, verbose=True):
       """
       Plots the spectrum
       """
@@ -242,7 +262,12 @@ class Spec1d():
       else:
          flux = self.flux
          var  = self.var
-      plt.plot(self.wav,flux,color,linestyle='steps',label='Flux')
+      ls = "steps%s" % linestyle
+      if label is not None:
+         plabel = label
+      else:
+         plabel = 'Flux'
+      plt.plot(self.wav,flux,color,linestyle=ls,label=plabel)
       plt.tick_params(labelsize=fontsize)
       plt.xlabel(xlabel,fontsize=fontsize)
 
@@ -1562,11 +1587,14 @@ class Spec2d(imf.Image):
 # *** End of Spec2d class definition ***
 #
 # Below here are:
-#   1. mostly old functions that will be kept for legacy purposes but will
+#   1. a few stand-alone functions that do not fit particularly well into
+#      either the Spec1d or Spec2d class and so will be maintained in
+#      their stand-alone format
+#   2. mostly old functions that will be kept for legacy purposes but will
 #      slowly be modified to function in exactly the way but via calls to
 #      the Spec2d and Spec1d classes.  This will be done in such a way to
 #      be transparent to the user.
-#   2. code that really should be incorporated into the Spec1d or Spec2d
+#   3. code that really should be incorporated into the Spec1d or Spec2d
 #      classes.  This code will slowly disappear as it gets integrated
 #      into the new classes.
 #
@@ -2785,7 +2813,10 @@ def make_sky_model(wavelength, smoothKernel=25., verbose=True):
 
    # Finally use the initial guess for the dispersion and evaluate the
    #  model sky at those points, using the B-spline model
-   skymod = interpolate.splev(wavelength,model)
+   skyflux = interpolate.splev(wavelength,model)
+
+   """ Create a Spec1d instance containing the sky model """
+   skymod = Spec1d(wav=wavelength,flux=skyflux)
 
    # Clean up and return
    del skymodel,tmpskymod,wave
@@ -2820,6 +2851,8 @@ def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
 
 def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    """
+   MOVE TO SPEC1D CLASS!
+
    Plots the wavelength-calibrated sky information from the input file
    on top of a smoothed model of the night sky emission so that
    the quality of the wavelength calibration can be evaluated.
@@ -2869,17 +2902,17 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    spectrum
    """
 
-   deltamod = skymod.max() - skymod.min()
+   deltamod = skymod.flux.max() - skymod.flux.min()
    deltaobs = skyobs.max() - skyobs.min()
-   skymod *= 0.75*deltaobs/deltamod
-   skymod += skyobs.mean() - skymod.mean()
+   skymod.flux *= 0.75*deltaobs/deltamod
+   skymod.flux += skyobs.mean() - skymod.flux.mean()
 
    """ Make the plot """
    wrange = waveobs.max() - waveobs.min()
    xmin = waveobs.min() - 0.05*wrange
    xmax = waveobs.max() + 0.05*wrange
    plt.plot(waveobs,skyobs,'k',ls='steps', label=skylab)
-   plt.plot(waveobs,skymod,'r',ls='steps', label='Model sky')
+   skymod.plot(color='r',label='Model sky')
    plt.legend()
    plt.xlim(xmin,xmax)
 
@@ -3157,10 +3190,10 @@ def atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0, modfile='default')
    if modfile != 'default':
       infile = modfile
    else:
-      infile = '%s/Data/mk_atm_trans_zm_10_10.dat' \
+      infile = '%s/Data/atm_trans_maunakea.fits' \
           % __file__.split('spec_simple')[0]
    print "Loading atmospheric data from %s" % infile
-   atm0 = Spec1d(infile)
+   atm0 = Spec1d(infile,informat='fitstab')
    atm0.wav *= 1.0e4
 
    """ Only use the relevant part of the atmospheric transmission spectrum"""
@@ -3192,18 +3225,20 @@ def atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0, modfile='default')
 #-----------------------------------------------------------------------
 
 def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
-                   color='g', linestyle='-', return_atm=False):
+                   color='g', linestyle='-', return_atm=False,
+                   modfile='default', title=None):
    """
    Given an input spectrum, represented by the wavelength (w) and flux (spec)
    vectors, and a rough fwhm (in Angstrom), smooths and resamples the 
    atmospheric transmission spectrum for the NIR and plots it.
    """
 
-   """ Plot the results """
-   ls = "steps%s" % linestyle
-   plt.plot(watm,atm,color,ls=ls)
+   """ Get the atmospheric spectrum that matches the input wavelength array """
+   atm = atm_trans(w,flux=flux,scale=scale,offset=offset,modfile=modfile)
 
-   del watm
+   """ Plot the results """
+   atm.plot(color=color,linestyle=linestyle,title=title)
+
    if return_atm:
       return atm
    else:
