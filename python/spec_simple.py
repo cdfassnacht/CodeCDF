@@ -1,14 +1,14 @@
 """
-spec_simple.py - A library of functions to do various basic CCD spectroscopy
-  processing operations
+spec_simple.py - A library of functions to do various basic spectroscopy
+  processing and plotting operations
 
 Classes (UNDER CONSTRUCTION, BUT GETTING THERE...)
   Spec1d
   Spec2d
 
 NOTE: More and more of the previous stand-alone functionality has been moved
-into either the Spec1d or  Spec2d class.  However, some stand-alone functions
-will probably not be moved.  These include the list below.
+ into either the Spec1d or  Spec2d class.  However, some stand-alone functions
+ will probably not be moved.  These include the list below.
 
 Stand-alone functions:
    plot_model_sky_ir  - plots the NIR sky transmission as well as the night-sky
@@ -347,51 +347,52 @@ class Spec1d():
    def load_linelist(self):
 
       linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
-                    ('dxlab',float),('dir',int),('plot',bool)]
+                    ('dxlab',float),('type',int),('plot',bool)]
       self.lineinfo = np.array([
-            ("Ly-alpha",  1216.,    r"Ly $\alpha$",0.0,1,True),
-            ("C IV",      1549.,    "C IV",        0.0,1,True),
-            ("C III]",    1909.,    "C III]",      0.0,1,True),
-            ("Mg II",     2800.,    "Mg II",       0.0,0,True),
-            ("[O II]",    3726.03,  "[O II]",      0.0,1,True),
-            ("[O II]",    3728.82,  "[O II]",      0.0,1,False),
-            ("CN bandhd", 3883,     "CN",          0.0,-1,True),
-            ("CaII K",    3933.667, "CaII K",      0.0,-1,True),
-            ("CaII H",    3968.472, "CaII H",      0.0,-1,True),
-            ("H-delta",   4101,     r"H$\delta$",  0.0,0,True),
-            ("G-band",    4305,     "G-band",      0.0,-1,True),
-            ("H-gamma",   4340,     r"H$\gamma$",  0.0,0,True),
-            ("Fe4383",    4383,     "Fe4383",      0.0,-1,True),
-            ("Ca4455",    4455,     "Ca4455",      0.0,-1,True),
-            ("Fe4531",    4531,     "Fe4531",      0.0,-1,True),
-            ("H-beta",    4861,     r"H$\beta$",   0.0,0,True),
-            ("[O III]",   4962.,    "[O III]",     0.0,1,False),
-            ("[O III]",   5007.,    "[O III]",     0.0,1,True),
-            ("Mg I (b)",  5176,     "Mg b",        0.0,-1,True),
-            ("[N I]",     5199.,    "[N I]",       0.0,1,True),
-            ("HeI",       5876.,    "He I",        0.0,1,True),
-            ("Na I (D)",  5893,     "Na D",        0.0,-1,True),
-            ("[O I]",     6300.,    "[O I]",       0.0,1,True),
-            ("[N II]",    6548.,    "[N II]",      0.0,1,False),
-            ("H-alpha",   6562.8,   r"H$\alpha$",  0.0,0,True),
-            ("[N II]",    6583.5,   "[N II]",      0.0,1,False),
-            ("[S II]",    6716.4,   "[S II]",      0.0,1,False),
-            ("[S II]",    6730.8,   "[S II]",      0.0,1,True),
-            ("Ca triplet",8498.03,  "CaII",        0.0,-1,True),
-            ("Ca triplet",8542.09,  "CaII",        0.0,-1,True),
-            ("Ca triplet",8662.14,  "CaII",        0.0,-1,True),
-            ("[S III]",   9069,     "[S III]",     0.0,1,True),
-            ("[S III]",   9532,     "[S III]",     0.0,1,True),
-            ("Pa-gamma", 10900.,    r"Pa $\gamma$",0.0,1,True),
-            ("Pa-beta",  12800.,    r"Pa $\beta$", 0.0,1,True),
-            ("Pa-alpha", 18700.,    r"Pa $\alpha$",0.0,1,True)\
+            ("Ly-alpha",  1216.,    r"Ly $\alpha$",0.0,4,True),
+            ("C IV",      1549.,    "C IV",        0.0,4,True),
+            ("C III]",    1909.,    "C III]",      0.0,4,True),
+            ("Mg II",     2800.,    "Mg II",       0.0,3,True),
+            ("[O II]",    3726.03,  "[O II]",      0.0,4,True),
+            ("[O II]",    3728.82,  "[O II]",      0.0,4,False),
+            ("CN bandhd", 3883,     "CN",          0.0,0,True),
+            ("CaII K",    3933.667, "CaII K",      0.0,0,True),
+            ("CaII H",    3968.472, "CaII H",      0.0,0,True),
+            ("H-delta",   4101,     r"H$\delta$",  0.0,1,True),
+            ("G-band",    4305,     "G-band",      0.0,0,True),
+            ("H-gamma",   4340,     r"H$\gamma$",  0.0,1,True),
+            ("Fe4383",    4383,     "Fe4383",      0.0,0,True),
+            ("Ca4455",    4455,     "Ca4455",      0.0,0,True),
+            ("Fe4531",    4531,     "Fe4531",      0.0,0,True),
+            ("H-beta",    4861,     r"H$\beta$",   0.0,3,True),
+            ("[O III]",   4962.,    "[O III]",     0.0,4,False),
+            ("[O III]",   5007.,    "[O III]",     0.0,4,True),
+            ("Mg I (b)",  5176,     "Mg b",        0.0,0,True),
+            ("[N I]",     5199.,    "[N I]",       0.0,2,True),
+            ("HeI",       5876.,    "He I",        0.0,2,True),
+            ("Na I (D)",  5893,     "Na D",        0.0,0,True),
+            ("[O I]",     6300.,    "[O I]",       0.0,2,True),
+            ("[N II]",    6548.,    "[N II]",      0.0,2,False),
+            ("H-alpha",   6562.8,   r"H$\alpha$",  0.0,3,True),
+            ("[N II]",    6583.5,   "[N II]",      0.0,2,False),
+            ("[S II]",    6716.4,   "[S II]",      0.0,2,False),
+            ("[S II]",    6730.8,   "[S II]",      0.0,2,True),
+            ("Ca triplet",8498.03,  "CaII",        0.0,0,True),
+            ("Ca triplet",8542.09,  "CaII",        0.0,0,True),
+            ("Ca triplet",8662.14,  "CaII",        0.0,0,True),
+            ("[S III]",   9069,     "[S III]",     0.0,2,True),
+            ("[S III]",   9532,     "[S III]",     0.0,2,True),
+            ("Pa-gamma", 10900.,    r"Pa $\gamma$",0.0,4,True),
+            ("Pa-beta",  12800.,    r"Pa $\beta$", 0.0,4,True),
+            ("Pa-alpha", 18700.,    r"Pa $\alpha$",0.0,4,True)\
             ],dtype=linefmt)
 
    #-----------------------------------------------------------------------
 
    def mark_speclines(self, linetype, z, usesmooth=False, marktype='tick', 
                       labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
-                      showz=True, labloc='default', labcolor='k'):
+                      showz=True, labloc='default', labcolor='k',
+                      namepos='top'):
       """
       A generic routine for marking spectral lines in the plotted spectrum.
       The required linetype parameter can be either 'abs' or 'em' and will 
@@ -399,11 +400,12 @@ class Spec1d():
 
       Inputs:
         linetype - Must be either 'abs' or 'em' to mark absorption or emission
-                    lines, respectively
+                    lines, respectively.  A third option, 'strongem' only
+                    marks strong emission lines
         z        - redshift to be marked
         labww    - width in pixels of the window used to set the vertical
                    location of the tickmark (location is set from the minimum
-                   value within the window).
+                   or maximum value within the window).
         labfs    - font size for labels, in points
         ticklen  - override of auto-determination of tick length if > 0
       """
@@ -412,12 +414,12 @@ class Spec1d():
       if linetype == 'abs':
          pm = -1.
          labva = 'top'
-      elif linetype == 'em':
+      elif linetype == 'em' or linetype == 'strongem':
          pm = 1.
          labva = 'bottom'
       else:
          print ''
-         print "ERROR: linetype must be either 'abs' or 'em'"
+         print "ERROR: linetype must be either 'abs', 'em', or 'strongem'"
          print ''
          return
 
@@ -440,18 +442,22 @@ class Spec1d():
       """ Select lines within current display range """
       zlines = (z+1.0) * self.lineinfo['wavelength']
       zmask = np.logical_and(zlines>lammin,zlines<lammax)
+      tmptype = self.lineinfo['type']
       if linetype == 'em':
-         tmask = self.lineinfo['dir'] > -1
+         tmask = tmptype > 0
+      elif linetype == 'strongem':
+         tmask = tmptype > 2
       else:
-         tmask = self.lineinfo['dir'] < 1
+         tmask = (tmptype < 2) | (tmptype == 3)
       mask = zmask & tmask
       tmplines = self.lineinfo[mask]
       zlines = (z+1.0) * tmplines['wavelength']
-      print ""
-      print "Line      lambda_obs"
-      print "--------  -----------"
+      print ''
+      print 'Line      lambda_rest  lambda_obs'
+      print '--------  -----------  -----------'
       for i in range(len(tmplines)):
-         print "%-9s %8.2f" % (tmplines['name'][i],zlines[i])
+         line = tmplines[i]
+         print "%-9s %8.2f %8.2f" % (line['name'],line['wavelength'],zlines[i])
 
       """ Set the length of the ticks """
       ticklen = tickfrac * ydiff
@@ -463,18 +469,30 @@ class Spec1d():
          flux = self.flux
 
       print ''
-      if (len(tmplines) > 0):
-         xarr = np.zeros(len(tmplines))
-         specflux = np.zeros(len(tmplines))
-         for i in range(len(tmplines)):
-            xarr[i] = tmplines['wavelength'][i]*(z+1.0)
-            tmpmask = np.fabs(self.wav-xarr[i])<dlocwin
-            if linetype == 'em':
-               specflux[i] = flux[tmpmask].max()
-            else:
-               specflux[i] = flux[tmpmask].min()
-         for i in range(len(tmplines)):
-            info = tmplines[i]
+      if (len(tmplines) == 0):
+         print ''
+         print 'No lines of the requested type within the wavelength'
+         print ' range covered by this spectrum.' 
+         print ''
+         return
+
+      xarr = np.zeros(len(tmplines))
+      specflux = np.zeros(len(tmplines))
+      for i in range(len(tmplines)):
+         xarr[i] = tmplines['wavelength'][i]*(z+1.0)
+         tmpmask = np.fabs(self.wav-xarr[i])<dlocwin
+         if linetype == 'em':
+            specflux[i] = flux[tmpmask].max()
+         else:
+            specflux[i] = flux[tmpmask].min()
+
+      """ 
+      Mark the location of the spectral lines with either tickmarks (default)
+      or vertical dashed lines
+      """
+      for i in range(len(tmplines)):
+         info = tmplines[i]
+         if marktype == 'tick':
             tickstart = specflux[i] + pm*tickfac*ticklen
             tickend = tickstart + pm*ticklen
             labstart  = tickstart + pm*1.5*ticklen
@@ -483,9 +501,13 @@ class Spec1d():
                plt.text(xarr[i]+info['dxlab'],labstart,info['label'],
                         rotation='vertical',ha='center',va=labva,
                         color=labcolor,fontsize=labfs)
-            #elif tmpfmin[i] > plt.ylim()[0]:
-            #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
-            #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
+         else:
+            plt.axvline(xarr[i],color='k',ls='--')
+            #if namepos=='bottom':
+            #   labstart = 
+         #elif tmpfmin[i] > plt.ylim()[0]:
+         #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
+         #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
 
       """ Label the plot with the redshift, if requested """
       if showz:
@@ -3168,7 +3190,7 @@ def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
 
 #-----------------------------------------------------------------------
 
-def atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0, modfile='default'):
+def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    """
    Creates a Spec1d instance (i.e., a 1-dimensional spectrum) containing the 
    transmission of the Earth's atmosphere as a function of wavelength in
@@ -3246,19 +3268,52 @@ def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
 
 #-----------------------------------------------------------------------
 
-def plot_model_sky_ir():
+def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    """
    Calls plot_atm_trans and make_sky_model to make a combined plot for
    the NIR sky that can be used to judge whether expected spectral lines
    will fall in good parts of the sky
    """
 
-   wsky = np.arange(10000.,26000.)
-   atm = atm_trans(wsky)
-   atm.plot(color='g',title=None)
+   """ 
+   Create the transmission and night-sky emission line spectra over the 
+   requested wavelength range
+   """
+   wsky   = np.arange(wmin,wmax)
+   atm    = atm_trans(wsky)
    skymod = make_sky_model(wsky)
-   skymod /= skymod.max()
-   plt.plot(wsky,skymod)
+   skymod.flux /= skymod.flux.max()
+
+   """ Set limits to improve appearance of the plot """
+   xscale = 0.02
+   wrange = wmax - wmin
+   xmin = wmin - xscale*wrange
+   xmax = wmax + xscale*wrange
+
+   """ Get rid of the space between the subplots"""
+   plt.figure(1)
+   plt.subplots_adjust(hspace=0.001)
+
+   """ Plot the atmospheric transmission spectrum """
+   ax1 = plt.subplot(211)
+   atm.plot(color='g',title='Near IR Sky')
+   if z is not None:
+      print atm.mark_speclines('strongem',z,marktype='line',showz=False)
+   plt.xlim(xmin,xmax)
+   plt.ylim(-0.15,1.1)
+
+   """ Plot the night-sky emission lines """
+   ax2 = plt.subplot(212,sharex=ax1)
+   skymod.plot(title=None)
+   if z is not None:
+      print atm.mark_speclines('strongem',z,marktype='line')
+   plt.xlim(xmin,xmax)
+   dy = 0.05 * skymod.flux.max()
+   plt.ylim(-dy,(skymod.flux.max()+dy))
+
+   """ 
+   Plot the locations of bright emission features at the requested redshift
+   """
 
 #-----------------------------------------------------------------------
 
