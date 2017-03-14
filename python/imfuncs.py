@@ -1277,7 +1277,7 @@ class Image:
          rastr = '%02d %02d %06.3f' % \
              (self.radec.ra.hms.h,self.radec.ra.hms.m,self.radec.ra.hms.s)
          decstr = '%+03d %02d %05.2f' % \
-             (self.radec.dec.hms.h,self.radec.dec.hms.m,self.radec.dec.hms.s)
+             (self.radec.dec.dms.d,self.radec.dec.dms.m,self.radec.dec.dms.s)
          print " Requested center (RA,Dec): %11.7f   %+10.6f" % \
              (self.radec.ra.deg,self.radec.dec.deg)
          print " Requested center (RA,Dec):  %s %s" % (rastr,decstr)
