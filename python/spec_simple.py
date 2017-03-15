@@ -25,11 +25,11 @@ try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
-import imfuncs as imf
 import numpy as np
 import scipy as sp
 from scipy import optimize,interpolate,ndimage
 import matplotlib.pyplot as plt
+import imfuncs as imf
 import ccdredux as ccd
 #import nirspec
 
@@ -68,6 +68,7 @@ class Spec1d():
                     Extension 1 is the wavelength vector
                     Extension 2 is the extracted spectrum (flux)
                     Extension 3 is the variance spectrum
+                    [OPTIONAL] Extension 4 is the sky spectrum
               fitstab: A binary fits table, stored as a recarray, that has 
                     columns (or "fields" as they are referred to in a recarray
                     structure) corresponding to, at a mininum, wavelength and
@@ -91,7 +92,8 @@ class Spec1d():
                     C.  wavelength flux variance sky
 
 
-      Inputs:
+      Inputs (all inputs are optional, but at least one way of specifiying
+      the input spectrum must be used):
          infile     - Name of the input file.  If infile is None, then the
                        spectrum must be provided via the wavelength and flux
                        vectors.
@@ -101,9 +103,9 @@ class Spec1d():
                        either as actual wavelength or in pixels
          flux       - 1-dimensional array containing the flux information for
                        the extracted spectrum
-         var        - [OPTIONAL] 1-dimensional array containing the variance
+         var        - 1-dimensional array containing the variance
                        spectrum.  Remember: rms = sqrt(variance)
-         sky        - [OPTIONAL] 1-dimensional array containing the sky spectrum
+         sky        - 1-dimensional array containing the sky spectrum
          logwav     - if True then input wavelength is logarithmic, i.e., the
                        numbers in the input wavelength vector are actually
                        log10(wavelength)
@@ -131,7 +133,7 @@ class Spec1d():
             print ''
             print 'Could not read input file %s' % infile
             print ''
-            return
+            return None
       elif wav is not None and flux is not None:
          if self.logwav:
             self.wav = 10.**wav
@@ -169,14 +171,17 @@ class Spec1d():
       """ Read in the input spectrum """
       if informat=='fits':
          hdu = pf.open(self.infile)
-         print hdu[1].data
+         #print hdu[1].data
          if self.logwav:
             self.wav  = 10.**(hdu[1].data)
          else:
             self.wav  = hdu[1].data.copy()
          self.flux = hdu[2].data.copy()
-         self.var  = hdu[3].data.copy()
+         if len(hdu)>3:
+            self.var  = hdu[3].data.copy()
          self.varspec = True
+         if len(hdu)>4:
+            self.sky = hdu[4].data.copy()
          del hdu
       elif informat=='fitstab':
          hdu = pf.open(self.infile)
@@ -294,7 +299,7 @@ class Spec1d():
          plt.xlim([self.wav[-1],self.wav[0]])
       else:
          plt.xlim([self.wav[0],self.wav[-1]])
-      print self.wav[0],self.wav[-1]
+      #print self.wav[0],self.wav[-1]
 
       """ Plot the atmospheric transmission if requested """
       if add_atm_trans:
@@ -303,8 +308,53 @@ class Spec1d():
 
    #-----------------------------------------------------------------------
 
+   def plot_sky(self, color='g', linestyle='-', xlabel='default', verbose=True):
+      """
+
+      Plots the sky spectrum, if the appropriate information is available.
+      There are two ways in which the sky spectrum may be stored:
+        1. In the sky variable
+        2. In the var variable if the sky variable is not available.  In this
+           case the rms spectrum (i.e., the square root of the variance
+           spectrum) should be a decent representation of the sky if the
+           object was not super bright.
+      """
+
+      """ Check to make sure that there is a spectrum to plot """
+      if self.sky is not None:
+         skyflux = self.sky
+      elif self.var is not None:
+         skyflux = np.sqrt(self.var)
+      else:
+         if verbose:
+            print ''
+            print 'Cannot plot sky spectrum.'
+            print 'No sky or variance information in the spectrum'
+            print ''
+         return
+
+      """ Set up for plotting """
+      ls = 'steps%s' % linestyle
+      if xlabel=='default':
+         xlab = 'Wavelength (Angstroms)'
+      else:
+         xlab = xlabel
+
+      """ Plot the spectrum """
+      plt.plot(self.wav,skyflux,ls=ls,color=color)
+      plt.title('Sky Spectrum')
+      plt.xlabel(xlab)
+      plt.ylabel('Relative flux')
+      if(self.wav[0] > self.wav[-1]):
+         plt.xlim([self.wav[-1],self.wav[0]])
+      else:
+         plt.xlim([self.wav[0],self.wav[-1]])
+
+   #-----------------------------------------------------------------------
+
    def smooth_boxcar(self, filtwidth, doplot=True, outfile=None, 
-                     color='b', title='default'):
+                     color='b', title='default', 
+                     xlabel='Wavelength (Angstroms)'):
       """
       Does a boxcar smooth of the spectrum.  
       The default is to do inverse variance weighting, using the variance 
@@ -331,7 +381,7 @@ class Spec1d():
 
       """ Plot the smoothed spectrum if desired """
       if doplot:
-         self.plot(usesmooth=True,title=title,color=color)
+         self.plot(usesmooth=True,title=title,xlabel=xlabel,color=color)
 
       """ Save the output file if desired """
       #if(outfile):
@@ -457,7 +507,8 @@ class Spec1d():
       print '--------  -----------  -----------'
       for i in range(len(tmplines)):
          line = tmplines[i]
-         print "%-9s %8.2f %8.2f" % (line['name'],line['wavelength'],zlines[i])
+         print "%-9s   %8.2f     %8.2f" % \
+             (line['name'],line['wavelength'],zlines[i])
 
       """ Set the length of the ticks """
       ticklen = tickfrac * ydiff
@@ -525,29 +576,52 @@ class Spec1d():
 
    #-----------------------------------------------------------------------
 
-   def save(self, outfile, outformat='text'):
+   def save(self, outfile, outformat='text', verbose=True):
       """
-      Saves a spectrum as a text file
+      Saves a spectrum into the designated output file.
+      Right now, there is only one option:
+         1. text file
       """
 
-      if self.var is not None:
-         if self.sky is not None:
-            outdata = np.zeros((self.wav.shape[0],4))
-            fmtstring = '%7.2f %9.3f %10.4f %9.3f'
-            outdata[:,3] = self.sky
+      if outformat=='text':
+         if self.var is not None:
+            if self.sky is not None:
+               outdata = np.zeros((self.wav.shape[0],4))
+               fmtstring = '%7.2f %9.3f %10.4f %9.3f'
+               outdata[:,3] = self.sky
+            else:
+               outdata = np.zeros((self.wav.shape[0],3))
+               fmtstring = '%7.2f %9.3f %10.4f'
+            outdata[:,2] = self.var
          else:
-            outdata = np.zeros((self.wav.shape[0],3))
-            fmtstring = '%7.2f %9.3f %10.4f'
-         outdata[:,2] = self.var
-      else:
-         outdata = np.zeros((self.wav.shape[0],2))
-         fmtstring = '%7.2f %9.3f'
-      outdata[:,0] = self.wav
-      outdata[:,1] = self.flux
-      print ""
-      print "Saving spectrum to file %s" % outfile
-      np.savetxt(outfile,outdata,fmt=fmtstring)
-      del outdata
+            outdata = np.zeros((self.wav.shape[0],2))
+            fmtstring = '%7.2f %9.3f'
+         outdata[:,0] = self.wav
+         outdata[:,1] = self.flux
+         print ""
+         np.savetxt(outfile,outdata,fmt=fmtstring)
+         del outdata
+      elif outformat=='fits':
+         hdu  = pf.HDUList()
+         phdu = pf.PrimaryHDU()
+         hdr = phdu.header
+         #hdr['object'] = pref
+         hdu.append(phdu)
+         outwv   = pf.ImageHDU(self.wav,name='wavelength')
+         outflux = pf.ImageHDU(self.flux,name='flux')
+         hdu.append(outwv)
+         hdu.append(outflux)
+         if self.var is not None:
+            outvar  = pf.ImageHDU(self.var,name='variance')
+            hdu.append(outvar)
+         if self.sky is not None:
+            outsky  = pf.Image.HDU(self.sky,name='sky')
+            hdu.append(outsky)
+         hdu.writeto(outname,clobber=True)
+
+      if verbose:
+         print "Saved spectrum to file %s in format %s" % (outfile,outformat)
+
 
    #-----------------------------------------------------------------------
    #-----------------------------------------------------------------------
@@ -568,6 +642,11 @@ class Spec2d(imf.Image):
     that can be analyzed using the Spec1d class.
    NOTE: Spec2d inherits the properties of the Image class that is defined
     in imfuncs.py
+
+   Example of standard processing on a spectrum within this class:
+     - myspec = Spec2d('myspec2d.fits')
+     - myspec.find_and_trace()
+     - myspec.extract_spectrum(outfile='myspec1d.txt')
    """
 
    def __init__(self, inspec, hext=0, extvar=None,
@@ -1811,119 +1890,6 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
 
 #-----------------------------------------------------------------------
 
-def save_spectrum(filename,x,flux,var=None):
-   """
-   Saves a spectrum as a text file
-   """
-
-   if var is not None:
-      outdata = np.zeros((x.shape[0],3))
-      outdata[:,2] = var
-      fmtstring = '%7.2f %9.3f %10.4f'
-   else:
-      outdata = np.zeros((x.shape[0],2))
-      fmtstring = '%7.2f %9.3f'
-   outdata[:,0] = x
-   outdata[:,1] = flux
-   print ""
-   print "Saving spectrum to file %s" % filename
-   np.savetxt(filename,outdata,fmt=fmtstring)
-   del outdata
-
-#-----------------------------------------------------------------------
-
-def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
-                        ylabel="Relative Flux", title='Extracted Spectrum', 
-                        docolor=True, speccolor='b', rmscolor='r', 
-                        rmsoffset=0, rmsls=None, fontsize=12):
-
-   """
-   Given two input arrays, plot a spectrum.
-   """
-
-   """ Override color assignments if docolor is False"""
-   if not docolor:
-      speccolor = 'k'
-      rmscolor  = 'k'
-   plt.axhline(color='k')
-   plt.plot(x,flux,speccolor,linestyle='steps',label='Flux')
-   plt.tick_params(labelsize=fontsize)
-   plt.xlabel(xlabel,fontsize=fontsize)
-   if var is not None:
-      rms = np.sqrt(var)+rmsoffset
-      if rmsls is None:
-         if docolor:
-            rlinestyle = 'steps'
-         else:
-            rlinestyle = 'steps:'
-      else:
-         rlinestyle = 'steps%s' % rmsls
-      if docolor:
-         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS')
-      else:
-         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS',lw=2)
-   plt.ylabel(ylabel,fontsize=fontsize)
-   if(title):
-      plt.title(title)
-   if(x[0] > x[-1]):
-      plt.xlim([x[-1],x[0]])
-   else:
-      plt.xlim([x[0],x[-1]])
-
-#-----------------------------------------------------------------------
-
-def plot_spectrum(filename, varspec=True, informat="text", 
-                  xlabel="Wavelength (Angstroms)", ylabel="Relative Flux",
-                  title='default', fontsize=12, docolor=True, speccolor='b', 
-                  rmscolor='r', rmsoffset=0, rmsls=None,
-                  add_atm_trans=False, atmscale=1.05, atmfwhm=15.,
-                  atmoffset=0., atmls='-', verbose=True):
-   """
-   Given an input file with spectroscopy information, plot a spectrum.  
-   The input file can have one of two formats: text (the default) or mwa
-   For the text format, the input file is an ascii text file, with 2 or 3 columns
-      1. Wavelength (or pixel position in the dispersion direction)
-      2. Flux (counts, etc.)
-      3. Variance spectrum (OPTIONAL)
-   The mwa format is created by the make_spec function in the spectools
-    library (probably found in the mostools package).
-    The format is a multi-extension FITS file:
-      Extension 1: the science spectrum
-      Extension 2: a smoothed version of the science spectrum
-      Extension 3: the variance spectrum.
-    NOTE: For this format, the wavelength information is contained in the
-      FITS header cards, and is not stored as a separate array.
-   """
-
-   """ Read in the spectrum, using the appropriate input format """
-   wavelength,flux,var = read_spectrum(filename, informat, varspec, verbose)
-
-   """ Plot the spectrum """
-   if title == 'default':
-      title = 'Spectrum for %s' % filename
-   if varspec:
-      plot_spectrum_array(wavelength,flux,var=var,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,speccolor=speccolor,
-                          rmscolor=rmscolor,rmsoffset=rmsoffset,
-                          rmsls=rmsls,fontsize=fontsize)
-   else:
-      plot_spectrum_array(wavelength,flux,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,speccolor=speccolor,
-                          rmscolor=rmscolor,rmsoffset=rmsoffset,
-                          fontsize=fontsize)
-
-   """ Plot the atmospheric transmission if requested """
-   if add_atm_trans:
-      plot_atm_trans(wavelength, atmfwhm, flux, scale=atmscale, 
-                     offset=atmoffset, linestyle=atmls)
-
-   del wavelength
-   del flux
-   if(varspec):
-      del var
-
-#-----------------------------------------------------------------------
-
 def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
                       bscale=10., xlim=[3000.,9500.], title='default', 
                       z=None, mark_em=False, mark_abs=True):
@@ -2602,115 +2568,6 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
    # Return the fitted parameters
    return mupoly,sigpoly
 
-#--------------------------------------------------------------------------
-
-def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
-                   muorder=3, sigorder=4, fitrange=None, doplot=True,
-                   do_subplot=False):
-
-   """
-   Combines the first two steps in the spectroscopy reduction process.
-   The find_and_trace function will:
-      1. Locate roughly where the target object is in the spatial direction 
-         (usually the y axis is the spatial direction) by taking the
-         median in the spectral direction so the peak in the spatial
-         direction stands out.  This step provides the initial guesses
-         for the location (mu0) and width (sig0) of the peak that are
-         then used in the second step.
-      2. Once the rough location of the peak has been found, determines how
-         its location and width change in the spectral direction.
-         That is, this will find where the peak falls in each column.
-         It returns the position (pos) and width (width) of the peak as
-         a function of x location
-
-   This function accomplishes these tasks by calling first the find_trace
-   function and the the trace_spectrum function.
-   """
-
-   mu0,sig0 = find_trace(data,dispaxis,apmin,apmax,doplot,do_subplot)
-
-   pos,width = trace_spectrum(data,mu0,sig0,dispaxis,stepsize,muorder,
-                              sigorder,fitrange,doplot,do_subplot)
-
-   return pos,width
-
-#-----------------------------------------------------------------------
-
-def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
-                     weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
-                     doplot=True, do_subplot=False, outfile=None):
-   """
-   Third step in reduction process.
-   This function extracts a 1D spectrum from the input 2D spectrum (data)
-   It uses the information about the trace that has been generated by
-   the trace_spectrum function.  In particular, it takes the two
-   polynomials generated by trace_spectrum as the inputs mupoly and sigpoly.
-   """
-
-   # Set the dispersion axis direction
-   if dispaxis == "y":
-      specaxis  = 0
-      spaceaxis = 1
-   else:
-      specaxis  = 1
-      spaceaxis = 0
-
-   # Set the wavelength axis
-   pix = np.arange(data.shape[specaxis])
-
-   # Set the fixed mu and sigma for the Gaussian fit at each point in the
-   #  spectrum, using the input polynomials
-
-   fitx = np.arange(data.shape[specaxis]).astype(np.float32)
-   mu = 0.0 * fitx
-   for i in range(mupoly.size):
-      mu += mupoly[i] * fitx**(mupoly.size - 1 - i)
-   sig = 0.0 * fitx
-   for i in range(sigpoly.size):
-      sig += sigpoly[i] * fitx**(sigpoly.size - 1 - i)
-
-   # Set up the containers for the amplitude and variance of the spectrum
-   #  along the trace
-   amp = 0.0 * pix
-   var = 0.0 * pix
-
-   # Step through the data
-   print ""
-   print "Extracting the spectrum..."
-   for i in pix:
-      #print pix[i], mu[i], sig[i]
-      if specaxis == 0:
-         tmpdata = data[i,:]
-      else:
-         tmpdata = data[:,i]
-      if (sky == None):
-         skyval = None
-      else:
-         skyval = sky[i]
-      amp[i],var[i] = extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],
-                                        gain=gain,rdnoise=rdnoise,sky=skyval,
-                                        weight=weight)
-   print "   Done"
-
-   # Plot the extracted spectrum
-   if doplot:
-      print ""
-      print "Plotting the spectrum"
-      if(do_subplot):
-         plt.subplot(224)
-      else:
-         plt.figure(4)
-         plt.clf()
-      plot_spectrum_array(pix,amp,title='Extracted spectrum (pixels)',
-                          xlabel='Pixel number in the dispersion direction')
-
-   # Save the extracted spectrum
-   if outfile is not None:
-      save_spectrum(outfile,pix,amp,var)
-
-   # Return the extracted spectrum
-   return amp,var
-
 #-----------------------------------------------------------------------
 
 def resample_spec(w, spec, owave=None):
@@ -2777,23 +2634,7 @@ def combine_spectra(txt_files,outfile):
 
 #-----------------------------------------------------------------------
 
-def plot_sky(infile):
-   """
-   Given an input 2-dimensional fits file for which the sky has NOT been 
-   subtracted, this function will take the median along the spatial axis
-   to produce a sky spectrum. 
-
-   *** NB: Right now this ASSUMES that the dispersion is in the x direction ***
-   """
-
-   data = pf.getdata(infile)
-   sky = np.median(data,axis=0)
-   pix = np.arange(sky.size)
-   plot_spectrum_array(pix,sky,xlabel='Pixels',title='Sky Spectrum')
-
-#-----------------------------------------------------------------------
-
-def make_sky_model(wavelength, smoothKernel=25., verbose=True):
+def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
    """
    Given an input wavelength vector, creates a smooth model of the
    night sky emission that matches the wavelength range and stepsize
@@ -2812,19 +2653,34 @@ def make_sky_model(wavelength, smoothKernel=25., verbose=True):
       print "Model ending wavelength:   %f" % wend
       print "Model dispersion:          %f" % disp
 
-   # Use NIR sky model if starting wavelength is redder than 9000 Angstrom
+   """ 
+   Read in the appropriate skymodel:
+    * If the starting wavelength is > 9000 Ang, then use the NIR sky model
+    * Otherwise use the optical sky model
+   These are in a B-spline format, which is apparently what
+    the call to interpolate.splev needs (see code just below).
+   However, they used to be stored in a numpy savefile (for the NIR spectrum)
+    or a pickle save format (for the optical spectrum).
+    To make things more consistent with the rest of the code here, I converted
+    them to the 'fitstab' format (i.e., binary fits tables) and then will,
+    in the code below, convert them back into the appropriate B-spline tuple 
+    format that interpolate.splev requires.
+   """
+   moddir = __file__.split('spec_simple')[0]
    if wstart >= 9000.:
-      # Read in skymodel, which is in a B-spline format
-      skymodel_file = '/Users/cdf/git/KeckCDF/python/nirspec/nirspec_skymodel.dat'
-      skymodel = np.load(skymodel_file)
+      modfile = '%sData/nirspec_skymodel.fits' % moddir
    else:
-      # Read in the sky model
-      skymodel_file = '/Users/cdf/Code/python/LRISredux/data/uves_sky.model'
-      f = open(skymodel_file)
-      skymodel = pickle.load(f)
-      f.close()
+      modfile = '%sData/uves_skymodel.fits' % moddir
+   modspec = Spec1d(modfile,informat='fitstab')
+   if modspec is None:
+      return None
+   skymodel = (modspec.wav, modspec.flux, 3)
 
-   # Resample and smooth the model spectrum
+   """ 
+   Resample and smooth the model spectrum.  
+   The call to splev does a spline interpolation of the sky model onto the 
+    points defined by the "wave" array
+   """
    wave = np.arange(wstart,wend,0.2)
    tmpskymod = interpolate.splev(wave,skymodel)
    tmpskymod = ndimage.gaussian_filter(tmpskymod,smoothKernel)
@@ -2839,6 +2695,10 @@ def make_sky_model(wavelength, smoothKernel=25., verbose=True):
 
    """ Create a Spec1d instance containing the sky model """
    skymod = Spec1d(wav=wavelength,flux=skyflux)
+
+   """ Plot the output model if requested """
+   if doplot:
+      skymod.plot(title='Model Sky Spectrum')
 
    # Clean up and return
    del skymodel,tmpskymod,wave
@@ -3317,54 +3177,6 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 
 #-----------------------------------------------------------------------
 
-def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
-   """
-   Does a boxcar smooth of an input spectrum.  The default is to do
-   inverse variance weighting, using the variance encoded in the third column
-   of the input spectrum file.
-   The other default is not to write out an output file.  This can be
-   changed by setting the outfile parameter.
-   """
-
-   """ Read the input spectrum """
-   inspec = np.loadtxt(infile)
-   wavelength = inspec[:,0]
-   influx = inspec[:,1]
-   if(varwt):
-      if(inspec.shape[1] < 3):
-         print ""
-         print "ERROR: Inverse variance weighting requested, but input file"
-         print "       has fewer than 3 columns (ncol = %d)" % inspec.shape[1]
-         return
-      else:
-         wt = 1.0 / inspec[:,2]
-   else:
-      wt = 0.0 * influx + 1.0
-
-   """ Smooth spectrum """
-   yin = wt * influx
-   outflux = ndimage.filters.uniform_filter(yin,filtwidth)
-   outflux /= ndimage.filters.uniform_filter(wt,filtwidth)
-   if varwt:
-      outvar = 1.0 / (filtwidth * ndimage.filters.uniform_filter(wt,filtwidth))
-
-   """ Plot the smoothed spectrum """
-   if varwt:
-      plot_spectrum_array(wavelength,outflux,outvar,title=None)
-   else:
-      plot_spectrum_array(wavelength,outflux,title=None)
-
-   """ Save the output file if desired """
-   if(outfile):
-      print "Saving smoothed spectrum to %s" % outfile
-      if varwt:
-         save_spectrum(outfile,wavelength,outflux,outvar)
-      else:
-         save_spectrum(outfile,wavelength,outflux)
-      print ""
-
-#-----------------------------------------------------------------------
-
 def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
                   showsub=False):
    """
@@ -3418,6 +3230,302 @@ def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
    print delwave
    intflux = (lineflux * delwave).sum()
    print intflux
+
+#===========================================================================
+#
+# Code below here consists of functions that were originally the basis of
+# the spec_simple code but which now have been incorporated into the
+# (relatively) new Spec2d and Spec1d classes.
+#
+#===========================================================================
+
+#--------------------------------------------------------------------------
+
+def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
+                   muorder=3, sigorder=4, fitrange=None, doplot=True,
+                   do_subplot=False):
+
+   """
+   Combines the first two steps in the spectroscopy reduction process.
+   The find_and_trace function will:
+      1. Locate roughly where the target object is in the spatial direction 
+         (usually the y axis is the spatial direction) by taking the
+         median in the spectral direction so the peak in the spatial
+         direction stands out.  This step provides the initial guesses
+         for the location (mu0) and width (sig0) of the peak that are
+         then used in the second step.
+      2. Once the rough location of the peak has been found, determines how
+         its location and width change in the spectral direction.
+         That is, this will find where the peak falls in each column.
+         It returns the position (pos) and width (width) of the peak as
+         a function of x location
+
+   This function accomplishes these tasks by calling first the find_trace
+   function and the the trace_spectrum function.
+   """
+
+   mu0,sig0 = find_trace(data,dispaxis,apmin,apmax,doplot,do_subplot)
+
+   pos,width = trace_spectrum(data,mu0,sig0,dispaxis,stepsize,muorder,
+                              sigorder,fitrange,doplot,do_subplot)
+
+   return pos,width
+
+#-----------------------------------------------------------------------
+
+def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
+                     weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
+                     doplot=True, do_subplot=False, outfile=None):
+   """
+   Third step in reduction process.
+   This function extracts a 1D spectrum from the input 2D spectrum (data)
+   It uses the information about the trace that has been generated by
+   the trace_spectrum function.  In particular, it takes the two
+   polynomials generated by trace_spectrum as the inputs mupoly and sigpoly.
+   """
+
+   # Set the dispersion axis direction
+   if dispaxis == "y":
+      specaxis  = 0
+      spaceaxis = 1
+   else:
+      specaxis  = 1
+      spaceaxis = 0
+
+   # Set the wavelength axis
+   pix = np.arange(data.shape[specaxis])
+
+   # Set the fixed mu and sigma for the Gaussian fit at each point in the
+   #  spectrum, using the input polynomials
+
+   fitx = np.arange(data.shape[specaxis]).astype(np.float32)
+   mu = 0.0 * fitx
+   for i in range(mupoly.size):
+      mu += mupoly[i] * fitx**(mupoly.size - 1 - i)
+   sig = 0.0 * fitx
+   for i in range(sigpoly.size):
+      sig += sigpoly[i] * fitx**(sigpoly.size - 1 - i)
+
+   # Set up the containers for the amplitude and variance of the spectrum
+   #  along the trace
+   amp = 0.0 * pix
+   var = 0.0 * pix
+
+   # Step through the data
+   print ""
+   print "Extracting the spectrum..."
+   for i in pix:
+      #print pix[i], mu[i], sig[i]
+      if specaxis == 0:
+         tmpdata = data[i,:]
+      else:
+         tmpdata = data[:,i]
+      if (sky == None):
+         skyval = None
+      else:
+         skyval = sky[i]
+      amp[i],var[i] = extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],
+                                        gain=gain,rdnoise=rdnoise,sky=skyval,
+                                        weight=weight)
+   print "   Done"
+
+   # Plot the extracted spectrum
+   if doplot:
+      print ""
+      print "Plotting the spectrum"
+      if(do_subplot):
+         plt.subplot(224)
+      else:
+         plt.figure(4)
+         plt.clf()
+      plot_spectrum_array(pix,amp,title='Extracted spectrum (pixels)',
+                          xlabel='Pixel number in the dispersion direction')
+
+   # Save the extracted spectrum
+   if outfile is not None:
+      save_spectrum(outfile,pix,amp,var)
+
+   # Return the extracted spectrum
+   return amp,var
+
+#-----------------------------------------------------------------------
+
+def plot_sky(infile):
+   """
+   Given an input 2-dimensional fits file for which the sky has NOT been 
+   subtracted, this function will take the median along the spatial axis
+   to produce a sky spectrum. 
+
+   *** NB: Right now this ASSUMES that the dispersion is in the x direction ***
+   """
+
+   data = pf.getdata(infile)
+   sky = np.median(data,axis=0)
+   pix = np.arange(sky.size)
+   plot_spectrum_array(pix,sky,xlabel='Pixels',title='Sky Spectrum')
+
+#-----------------------------------------------------------------------
+
+def save_spectrum(filename,x,flux,var=None):
+   """
+   Saves a spectrum as a text file
+   """
+
+   if var is not None:
+      outdata = np.zeros((x.shape[0],3))
+      outdata[:,2] = var
+      fmtstring = '%7.2f %9.3f %10.4f'
+   else:
+      outdata = np.zeros((x.shape[0],2))
+      fmtstring = '%7.2f %9.3f'
+   outdata[:,0] = x
+   outdata[:,1] = flux
+   print ""
+   print "Saving spectrum to file %s" % filename
+   np.savetxt(filename,outdata,fmt=fmtstring)
+   del outdata
+
+#-----------------------------------------------------------------------
+
+def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
+                        ylabel="Relative Flux", title='Extracted Spectrum', 
+                        docolor=True, speccolor='b', rmscolor='r', 
+                        rmsoffset=0, rmsls=None, fontsize=12):
+
+   """
+   Given two input arrays, plot a spectrum.
+   """
+
+   """ Override color assignments if docolor is False"""
+   if not docolor:
+      speccolor = 'k'
+      rmscolor  = 'k'
+   plt.axhline(color='k')
+   plt.plot(x,flux,speccolor,linestyle='steps',label='Flux')
+   plt.tick_params(labelsize=fontsize)
+   plt.xlabel(xlabel,fontsize=fontsize)
+   if var is not None:
+      rms = np.sqrt(var)+rmsoffset
+      if rmsls is None:
+         if docolor:
+            rlinestyle = 'steps'
+         else:
+            rlinestyle = 'steps:'
+      else:
+         rlinestyle = 'steps%s' % rmsls
+      if docolor:
+         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS')
+      else:
+         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS',lw=2)
+   plt.ylabel(ylabel,fontsize=fontsize)
+   if(title):
+      plt.title(title)
+   if(x[0] > x[-1]):
+      plt.xlim([x[-1],x[0]])
+   else:
+      plt.xlim([x[0],x[-1]])
+
+#-----------------------------------------------------------------------
+
+def plot_spectrum(filename, varspec=True, informat="text", 
+                  xlabel="Wavelength (Angstroms)", ylabel="Relative Flux",
+                  title='default', fontsize=12, docolor=True, speccolor='b', 
+                  rmscolor='r', rmsoffset=0, rmsls=None,
+                  add_atm_trans=False, atmscale=1.05, atmfwhm=15.,
+                  atmoffset=0., atmls='-', verbose=True):
+   """
+   Given an input file with spectroscopy information, plot a spectrum.  
+   The input file can have one of two formats: text (the default) or mwa
+   For the text format, the input file is an ascii text file, with 2 or 3 columns
+      1. Wavelength (or pixel position in the dispersion direction)
+      2. Flux (counts, etc.)
+      3. Variance spectrum (OPTIONAL)
+   The mwa format is created by the make_spec function in the spectools
+    library (probably found in the mostools package).
+    The format is a multi-extension FITS file:
+      Extension 1: the science spectrum
+      Extension 2: a smoothed version of the science spectrum
+      Extension 3: the variance spectrum.
+    NOTE: For this format, the wavelength information is contained in the
+      FITS header cards, and is not stored as a separate array.
+   """
+
+   """ Read in the spectrum, using the appropriate input format """
+   wavelength,flux,var = read_spectrum(filename, informat, varspec, verbose)
+
+   """ Plot the spectrum """
+   if title == 'default':
+      title = 'Spectrum for %s' % filename
+   if varspec:
+      plot_spectrum_array(wavelength,flux,var=var,xlabel=xlabel,ylabel=ylabel,
+                          title=title,docolor=docolor,speccolor=speccolor,
+                          rmscolor=rmscolor,rmsoffset=rmsoffset,
+                          rmsls=rmsls,fontsize=fontsize)
+   else:
+      plot_spectrum_array(wavelength,flux,xlabel=xlabel,ylabel=ylabel,
+                          title=title,docolor=docolor,speccolor=speccolor,
+                          rmscolor=rmscolor,rmsoffset=rmsoffset,
+                          fontsize=fontsize)
+
+   """ Plot the atmospheric transmission if requested """
+   if add_atm_trans:
+      plot_atm_trans(wavelength, atmfwhm, flux, scale=atmscale, 
+                     offset=atmoffset, linestyle=atmls)
+
+   del wavelength
+   del flux
+   if(varspec):
+      del var
+
+#-----------------------------------------------------------------------
+
+def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
+   """
+   Does a boxcar smooth of an input spectrum.  The default is to do
+   inverse variance weighting, using the variance encoded in the third column
+   of the input spectrum file.
+   The other default is not to write out an output file.  This can be
+   changed by setting the outfile parameter.
+   """
+
+   """ Read the input spectrum """
+   inspec = np.loadtxt(infile)
+   wavelength = inspec[:,0]
+   influx = inspec[:,1]
+   if(varwt):
+      if(inspec.shape[1] < 3):
+         print ""
+         print "ERROR: Inverse variance weighting requested, but input file"
+         print "       has fewer than 3 columns (ncol = %d)" % inspec.shape[1]
+         return
+      else:
+         wt = 1.0 / inspec[:,2]
+   else:
+      wt = 0.0 * influx + 1.0
+
+   """ Smooth spectrum """
+   yin = wt * influx
+   outflux = ndimage.filters.uniform_filter(yin,filtwidth)
+   outflux /= ndimage.filters.uniform_filter(wt,filtwidth)
+   if varwt:
+      outvar = 1.0 / (filtwidth * ndimage.filters.uniform_filter(wt,filtwidth))
+
+   """ Plot the smoothed spectrum """
+   if varwt:
+      plot_spectrum_array(wavelength,outflux,outvar,title=None)
+   else:
+      plot_spectrum_array(wavelength,outflux,title=None)
+
+   """ Save the output file if desired """
+   if(outfile):
+      print "Saving smoothed spectrum to %s" % outfile
+      if varwt:
+         save_spectrum(outfile,wavelength,outflux,outvar)
+      else:
+         save_spectrum(outfile,wavelength,outflux)
+      print ""
+
+
 
 #===========================================================================
 #
