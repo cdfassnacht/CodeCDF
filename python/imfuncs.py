@@ -1928,7 +1928,7 @@ class Image:
             plt.xlabel('x (pix)')
             plt.ylabel('y (pix)')
       if self.title is not None:
-         plt.title(title)
+         plt.title(self.title)
 
       """ 
       Now add the x and y projections if requested (i.e., if show_xyproj is True

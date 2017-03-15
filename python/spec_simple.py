@@ -31,7 +31,6 @@ from scipy import optimize,interpolate,ndimage
 import matplotlib.pyplot as plt
 import imfuncs as imf
 import ccdredux as ccd
-#import nirspec
 
 #-----------------------------------------------------------------------
 
@@ -119,7 +118,7 @@ class Spec1d():
       self.var  = None
       self.sky  = None
       self.varspec = None
-      self.infile = None
+      self.infile  = None
       self.smoflux = None
       self.smovar  = None
 
@@ -392,6 +391,43 @@ class Spec1d():
       #      save_spectrum(outfile,wavelength,outflux)
       #   print ""
 
+#-----------------------------------------------------------------------
+
+   def apply_wavecal_linear(self, lambda0, dlambda, outfile=None, 
+                            outformat='text', doplot=True):
+      """
+
+      Applies a very simple linear mapping from pixels to wavelength
+      and saves the output if desired.  The required inputs provide an
+      intercept (lambda0) and a slope (dlambda) that are used to define the
+      linear mapping, i.e.,
+           wavelength = lambda0 + pix * dlambda
+
+      Required inputs:
+         lambda0:   Intercept value in Angstrom
+         dlambda:   Slope (dispersion) in Angstrom/pix
+      Optional inputs:
+         outfile:   Name of output file, if one is desired.  Default value (None)
+                     means no output file is produced
+         outformat: Format of output file (see help file for Spec1d.save for
+                     the possible values).  Default value is 'text'
+         doplot:    Plot the spectrum with the new wavelength calibration if
+                     desired.  Default value (True) means make the plot.
+
+      """
+
+      """ Make the new wavelength vector """
+      x = np.arange(self.wav.size)
+      self.wav = lambda0 + dlambda * x
+
+      """ Plot the spectrum if desired """
+      if doplot:
+         self.plot()
+
+      """ Save the wavelength-calibrated spectrum if desired """
+      if outfile is not None:
+         self.save(outfile,outformat=outformat)
+
    #-----------------------------------------------------------------------
 
    def load_linelist(self):
@@ -579,11 +615,34 @@ class Spec1d():
    def save(self, outfile, outformat='text', verbose=True):
       """
       Saves a spectrum into the designated output file.
-      Right now, there is only one option:
-         1. text file
+      Right now, there are two options:
+         1. 'text'    - produces a text file with columns for wavelength, flux,
+                        variance (if available), and sky (if available)
+         2. 'fits'    - produces a multiextension fits files with separate
+                        HDUs for wavelength, flux, variance (if available), and
+                        sky (if available).
+         
       """
 
-      if outformat=='text':
+      if outformat=='fits':
+         hdu  = pf.HDUList()
+         phdu = pf.PrimaryHDU()
+         hdr = phdu.header
+         #hdr['object'] = pref
+         hdu.append(phdu)
+         outwv   = pf.ImageHDU(self.wav,name='wavelength')
+         outflux = pf.ImageHDU(self.flux,name='flux')
+         hdu.append(outwv)
+         hdu.append(outflux)
+         if self.var is not None:
+            outvar  = pf.ImageHDU(self.var,name='variance')
+            hdu.append(outvar)
+         if self.sky is not None:
+            outsky  = pf.ImageHDU(self.sky,name='sky')
+            hdu.append(outsky)
+         hdu.writeto(outfile,clobber=True)
+
+      elif outformat=='text':
          if self.var is not None:
             if self.sky is not None:
                outdata = np.zeros((self.wav.shape[0],4))
@@ -601,23 +660,6 @@ class Spec1d():
          print ""
          np.savetxt(outfile,outdata,fmt=fmtstring)
          del outdata
-      elif outformat=='fits':
-         hdu  = pf.HDUList()
-         phdu = pf.PrimaryHDU()
-         hdr = phdu.header
-         #hdr['object'] = pref
-         hdu.append(phdu)
-         outwv   = pf.ImageHDU(self.wav,name='wavelength')
-         outflux = pf.ImageHDU(self.flux,name='flux')
-         hdu.append(outwv)
-         hdu.append(outflux)
-         if self.var is not None:
-            outvar  = pf.ImageHDU(self.var,name='variance')
-            hdu.append(outvar)
-         if self.sky is not None:
-            outsky  = pf.Image.HDU(self.sky,name='sky')
-            hdu.append(outsky)
-         hdu.writeto(outname,clobber=True)
 
       if verbose:
          print "Saved spectrum to file %s in format %s" % (outfile,outformat)
@@ -1647,7 +1689,8 @@ class Spec2d(imf.Image):
    #-----------------------------------------------------------------------
 
    def extract_spectrum(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
-                        doplot=True, do_subplot=True, outfile=None):
+                        doplot=True, do_subplot=True, outfile=None,
+                        outformat='text'):
       """
       Second step in reduction process.
 
@@ -1678,7 +1721,7 @@ class Spec2d(imf.Image):
 
       """ Save the extracted spectrum to a file if requested """
       if outfile is not None:
-         self.spec1d.save(outfile)
+         self.spec1d.save(outfile,outformat=outformat)
 
    #-----------------------------------------------------------------------
 
@@ -2706,31 +2749,6 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
 
 #-----------------------------------------------------------------------
 
-def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
-   """
-   Given an input file containing 2 columns (x and flux), and the y-intercept
-   and slope of the x-lambda transformation, convert x to wavelength units
-   and write the output as outfile.
-   """
-
-   """ Read the input file """
-   x,flux,var = read_spectrum(infile,varspec=varspec)
-
-   """ Convert x from pixels to wavelength units """
-   wavelength = lambda0 + dlambda * x
-
-   """ Plot and save the results """
-   if varspec == True:
-      plot_spectrum_array(wavelength,flux,var=var,
-                          title="Wavelength-calibrated spectrum")
-      save_spectrum(outfile,wavelength,flux,var)
-   else:
-      plot_spectrum_array(wavelength,flux,title="Wavelength-calibrated spectrum")
-      save_spectrum(outfile,wavelength,flux)
-
-
-#-----------------------------------------------------------------------
-
 def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    """
    MOVE TO SPEC1D CLASS!
@@ -3524,6 +3542,31 @@ def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
       else:
          save_spectrum(outfile,wavelength,outflux)
       print ""
+
+#-----------------------------------------------------------------------
+
+def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
+   """
+   Given an input file containing 2 columns (x and flux), and the y-intercept
+   and slope of the x-lambda transformation, convert x to wavelength units
+   and write the output as outfile.
+   """
+
+   """ Read the input file """
+   x,flux,var = read_spectrum(infile,varspec=varspec)
+
+   """ Convert x from pixels to wavelength units """
+   wavelength = lambda0 + dlambda * x
+
+   """ Plot and save the results """
+   if varspec == True:
+      plot_spectrum_array(wavelength,flux,var=var,
+                          title="Wavelength-calibrated spectrum")
+      save_spectrum(outfile,wavelength,flux,var)
+   else:
+      plot_spectrum_array(wavelength,flux,title="Wavelength-calibrated spectrum")
+      save_spectrum(outfile,wavelength,flux)
+
 
 
 
