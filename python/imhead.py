@@ -12,9 +12,9 @@ else:
    files = os.listdir(dir)
 
 print \
-    "#   File          nx x ny         Object       t_exp    Instrument Filter  "
+    "#   File           nx x ny         Object       t_exp    Instrument Filter  "
 print \
-    "#--------------  ---------  ----------------- --------- ---------- --------"
+    "#---------------  ---------  ----------------- --------- ---------- ---------"
 
 for f in files:
 
@@ -164,6 +164,6 @@ for f in files:
 
    # Print out final info
    fonly = fname.split('/')[-1]
-   print "%-15s  %4dx%-4d  %-17s %-9s %-10s %s" % \
+   print "%-16s  %4dx%-4d  %-17s %-9s %-10s %s" % \
           (fonly,n1,n2,obj,texp,inst,filt)
 
