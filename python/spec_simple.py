@@ -20,19 +20,19 @@ Stand-alone functions:
 
 import sys, os
 import glob
-from math import sqrt,pi
+from math import sqrt, pi
 try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
 import numpy as np
 import scipy as sp
-from scipy import optimize,interpolate,ndimage
+from scipy import optimize, interpolate, ndimage
 import matplotlib.pyplot as plt
 import imfuncs as imf
 import ccdredux as ccd
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def clear_all():
    """
@@ -43,7 +43,7 @@ def clear_all():
       plt.figure(i)
       plt.clf()
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 class Spec1d():
    """
@@ -159,7 +159,7 @@ class Spec1d():
       """ Read in the list that may be used for marking spectral lines """
       self.load_linelist()
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def read_from_file(self, informat, verbose=True):
       if verbose:
@@ -170,7 +170,7 @@ class Spec1d():
       """ Read in the input spectrum """
       if informat=='fits':
          hdu = pf.open(self.infile)
-         #print hdu[1].data
+         # print hdu[1].data
          if self.logwav:
             self.wav  = 10.**(hdu[1].data)
          else:
@@ -184,7 +184,7 @@ class Spec1d():
          del hdu
       elif informat=='fitstab':
          hdu = pf.open(self.infile)
-         #hdu.info()
+         # hdu.info()
          tdat = hdu[1].data
          self.wav  = tdat.field(0)
          self.flux = tdat.field(1)
@@ -233,7 +233,7 @@ class Spec1d():
              ((self.wav[-1]-self.wav[0])/(self.wav.size-1))
          print ""
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def plot(self, xlabel='Wavelength (Angstroms)', ylabel='Relative Flux', 
             title='default', docolor=True, color='b', linestyle='', label=None,
@@ -271,9 +271,9 @@ class Spec1d():
          plabel = label
       else:
          plabel = 'Flux'
-      plt.plot(self.wav,flux,color,linestyle=ls,label=plabel)
+      plt.plot(self.wav, flux, color, linestyle=ls, label=plabel)
       plt.tick_params(labelsize=fontsize)
-      plt.xlabel(xlabel,fontsize=fontsize)
+      plt.xlabel(xlabel, fontsize=fontsize)
 
       """ Plot the RMS spectrum if the variance spectrum exists """
       if var is not None:
@@ -286,26 +286,26 @@ class Spec1d():
          else:
             rlinestyle = 'steps%s' % rmsls
          if docolor:
-            plt.plot(self.wav,rms,rmscolor,linestyle=rlinestyle,label='RMS')
+            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, label='RMS')
          else:
-            plt.plot(self.wav,rms,rmscolor,linestyle=rlinestyle,label='RMS',lw=2)
+            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, label='RMS', lw=2)
 
       """ More plot labels """
-      plt.ylabel(ylabel,fontsize=fontsize)
+      plt.ylabel(ylabel, fontsize=fontsize)
       if(title):
          plt.title(title)
       if(self.wav[0] > self.wav[-1]):
-         plt.xlim([self.wav[-1],self.wav[0]])
+         plt.xlim([self.wav[-1], self.wav[0]])
       else:
-         plt.xlim([self.wav[0],self.wav[-1]])
-      #print self.wav[0],self.wav[-1]
+         plt.xlim([self.wav[0], self.wav[-1]])
+      # print self.wav[0], self.wav[-1]
 
       """ Plot the atmospheric transmission if requested """
       if add_atm_trans:
          plot_atm_trans(self.wav, atmfwhm, self.flux, scale=atmscale, 
                         offset=atmoffset, linestyle=atmls)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def plot_sky(self, color='g', linestyle='-', xlabel='default', 
                 title='default', verbose=True):
@@ -341,7 +341,7 @@ class Spec1d():
          xlab = xlabel
 
       """ Plot the spectrum """
-      plt.plot(self.wav,skyflux,ls=ls,color=color)
+      plt.plot(self.wav, skyflux, ls=ls, color=color)
       if title=='default':
          plttitle = 'Sky Spectrum'
       else:
@@ -351,11 +351,11 @@ class Spec1d():
       plt.xlabel(xlab)
       plt.ylabel('Relative flux')
       if(self.wav[0] > self.wav[-1]):
-         plt.xlim([self.wav[-1],self.wav[0]])
+         plt.xlim([self.wav[-1], self.wav[0]])
       else:
-         plt.xlim([self.wav[0],self.wav[-1]])
+         plt.xlim([self.wav[0], self.wav[-1]])
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def smooth_boxcar(self, filtwidth, doplot=True, outfile=None, 
                      color='b', title='default', 
@@ -378,26 +378,26 @@ class Spec1d():
 
       """ Smooth the spectrum and store results in smoflux and smovar """
       yin = wht * self.flux
-      smowht = ndimage.filters.uniform_filter(wht,filtwidth)
-      self.smoflux = ndimage.filters.uniform_filter(yin,filtwidth)
+      smowht = ndimage.filters.uniform_filter(wht, filtwidth)
+      self.smoflux = ndimage.filters.uniform_filter(yin, filtwidth)
       self.smoflux /= smowht
       if self.var is not None:
          self.smovar = 1.0 / (filtwidth * smowht)
 
       """ Plot the smoothed spectrum if desired """
       if doplot:
-         self.plot(usesmooth=True,title=title,xlabel=xlabel,color=color)
+         self.plot(usesmooth=True, title=title, xlabel=xlabel, color=color)
 
       """ Save the output file if desired """
-      #if(outfile):
-      #   print "Saving smoothed spectrum to %s" % outfile
-      #   if varwt:
-      #      save_spectrum(outfile,wavelength,outflux,outvar)
-      #   else:
-      #      save_spectrum(outfile,wavelength,outflux)
-      #   print ""
+      # if(outfile):
+      #    print "Saving smoothed spectrum to %s" % outfile
+      #    if varwt:
+      #       save_spectrum(outfile, wavelength, outflux, outvar)
+      #    else:
+      #       save_spectrum(outfile, wavelength, outflux)
+      #    print ""
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
    def apply_wavecal_linear(self, lambda0, dlambda, outfile=None, 
                             outformat='text', doplot=True):
@@ -432,54 +432,54 @@ class Spec1d():
 
       """ Save the wavelength-calibrated spectrum if desired """
       if outfile is not None:
-         self.save(outfile,outformat=outformat)
+         self.save(outfile, outformat=outformat)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def load_linelist(self):
 
-      linefmt = [('name','S10'),('wavelength',float),('label','S10'),\
-                    ('dxlab',float),('type',int),('plot',bool)]
+      linefmt = [('name','S10'), ('wavelength', float), ('label','S10'),\
+                    ('dxlab', float), ('type', int), ('plot', bool)]
       self.lineinfo = np.array([
-            ("Ly-alpha",  1216.,    r"Ly $\alpha$",0.0,4,True),
-            ("C IV",      1549.,    "C IV",        0.0,4,True),
-            ("C III]",    1909.,    "C III]",      0.0,4,True),
-            ("Mg II",     2800.,    "Mg II",       0.0,3,True),
-            ("[O II]",    3726.03,  "[O II]",      0.0,4,True),
-            ("[O II]",    3728.82,  "[O II]",      0.0,4,False),
-            ("CN bandhd", 3883,     "CN",          0.0,0,True),
-            ("CaII K",    3933.667, "CaII K",      0.0,0,True),
-            ("CaII H",    3968.472, "CaII H",      0.0,0,True),
-            ("H-delta",   4101,     r"H$\delta$",  0.0,1,True),
-            ("G-band",    4305,     "G-band",      0.0,0,True),
-            ("H-gamma",   4340,     r"H$\gamma$",  0.0,1,True),
-            ("Fe4383",    4383,     "Fe4383",      0.0,0,True),
-            ("Ca4455",    4455,     "Ca4455",      0.0,0,True),
-            ("Fe4531",    4531,     "Fe4531",      0.0,0,True),
-            ("H-beta",    4861,     r"H$\beta$",   0.0,3,True),
-            ("[O III]",   4962.,    "[O III]",     0.0,4,False),
-            ("[O III]",   5007.,    "[O III]",     0.0,4,True),
-            ("Mg I (b)",  5176,     "Mg b",        0.0,0,True),
-            ("[N I]",     5199.,    "[N I]",       0.0,2,True),
-            ("HeI",       5876.,    "He I",        0.0,2,True),
-            ("Na I (D)",  5893,     "Na D",        0.0,0,True),
-            ("[O I]",     6300.,    "[O I]",       0.0,2,True),
-            ("[N II]",    6548.,    "[N II]",      0.0,2,False),
-            ("H-alpha",   6562.8,   r"H$\alpha$",  0.0,3,True),
-            ("[N II]",    6583.5,   "[N II]",      0.0,2,False),
-            ("[S II]",    6716.4,   "[S II]",      0.0,2,False),
-            ("[S II]",    6730.8,   "[S II]",      0.0,2,True),
-            ("Ca triplet",8498.03,  "CaII",        0.0,0,True),
-            ("Ca triplet",8542.09,  "CaII",        0.0,0,True),
-            ("Ca triplet",8662.14,  "CaII",        0.0,0,True),
-            ("[S III]",   9069,     "[S III]",     0.0,2,True),
-            ("[S III]",   9532,     "[S III]",     0.0,2,True),
-            ("Pa-gamma", 10900.,    r"Pa $\gamma$",0.0,4,True),
-            ("Pa-beta",  12800.,    r"Pa $\beta$", 0.0,4,True),
-            ("Pa-alpha", 18700.,    r"Pa $\alpha$",0.0,4,True)\
-            ],dtype=linefmt)
+            ("Ly-alpha",  1216.,    r"Ly $\alpha$", 0.0, 4, True),
+            ("C IV",      1549.,    "C IV",         0.0, 4, True),
+            ("C III]",    1909.,    "C III]",       0.0, 4, True),
+            ("Mg II",     2800.,    "Mg II",        0.0, 3, True),
+            ("[O II]",    3726.03,  "[O II]",       0.0, 4, True),
+            ("[O II]",    3728.82,  "[O II]",       0.0, 4, False),
+            ("CN bandhd", 3883,     "CN",           0.0, 0, True),
+            ("CaII K",    3933.667, "CaII K",       0.0, 0, True),
+            ("CaII H",    3968.472, "CaII H",       0.0, 0, True),
+            ("H-delta",   4101,     r"H$\delta$",   0.0, 1, True),
+            ("G-band",    4305,     "G-band",       0.0, 0, True),
+            ("H-gamma",   4340,     r"H$\gamma$",   0.0, 1, True),
+            ("Fe4383",    4383,     "Fe4383",       0.0, 0, True),
+            ("Ca4455",    4455,     "Ca4455",       0.0, 0, True),
+            ("Fe4531",    4531,     "Fe4531",       0.0, 0, True),
+            ("H-beta",    4861,     r"H$\beta$",    0.0, 3, True),
+            ("[O III]",   4962.,    "[O III]",      0.0, 4, False),
+            ("[O III]",   5007.,    "[O III]",      0.0, 4, True),
+            ("Mg I (b)",  5176,     "Mg b",         0.0, 0, True),
+            ("[N I]",     5199.,    "[N I]",        0.0, 2, True),
+            ("HeI",       5876.,    "He I",         0.0, 2, True),
+            ("Na I (D)",  5893,     "Na D",         0.0, 0, True),
+            ("[O I]",     6300.,    "[O I]",        0.0, 2, True),
+            ("[N II]",    6548.,    "[N II]",       0.0, 2, False),
+            ("H-alpha",   6562.8,   r"H$\alpha$",   0.0, 3, True),
+            ("[N II]",    6583.5,   "[N II]",       0.0, 2, False),
+            ("[S II]",    6716.4,   "[S II]",       0.0, 2, False),
+            ("[S II]",    6730.8,   "[S II]",       0.0, 2, True),
+            ("Ca triplet",8498.03,  "CaII",         0.0, 0, True),
+            ("Ca triplet",8542.09,  "CaII",         0.0, 0, True),
+            ("Ca triplet",8662.14,  "CaII",         0.0, 0, True),
+            ("[S III]",   9069,     "[S III]",      0.0, 2, True),
+            ("[S III]",   9532,     "[S III]",      0.0, 2, True),
+            ("Pa-gamma", 10900.,    r"Pa $\gamma$", 0.0, 4, True),
+            ("Pa-beta",  12800.,    r"Pa $\beta$",  0.0, 4, True),
+            ("Pa-alpha", 18700.,    r"Pa $\alpha$", 0.0, 4, True)\
+            ], dtype=linefmt)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def mark_speclines(self, linetype, z, usesmooth=False, marktype='tick', 
                       labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
@@ -516,7 +516,7 @@ class Spec1d():
          return
 
       """ Set the display limits """
-      lammin,lammax = self.wav.min(),self.wav.max()
+      lammin, lammax = self.wav.min(), self.wav.max()
       if plt.xlim()[0] > lammin: lammin = plt.xlim()[0]
       if plt.xlim()[1] < lammax: lammax = plt.xlim()[1]
       dlam = self.wav[1] - self.wav[0]
@@ -525,15 +525,15 @@ class Spec1d():
       else:
          ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
       fluxdiff = ff.max() - ff.min()
-      x0,x1 = plt.xlim()
-      y0,y1 = plt.ylim()
+      x0, x1 = plt.xlim()
+      y0, y1 = plt.ylim()
       xdiff = x1 - x0
       ydiff = y1 - y0
       dlocwin = labww / 2.
 
       """ Select lines within current display range """
       zlines = (z+1.0) * self.lineinfo['wavelength']
-      zmask = np.logical_and(zlines>lammin,zlines<lammax)
+      zmask = np.logical_and(zlines>lammin, zlines<lammax)
       tmptype = self.lineinfo['type']
       if linetype == 'em':
          tmask = tmptype > 0
@@ -550,7 +550,7 @@ class Spec1d():
       for i in range(len(tmplines)):
          line = tmplines[i]
          print "%-9s   %8.2f     %8.2f" % \
-             (line['name'],line['wavelength'],zlines[i])
+             (line['name'], line['wavelength'], zlines[i])
 
       """ Set the length of the ticks """
       ticklen = tickfrac * ydiff
@@ -589,18 +589,18 @@ class Spec1d():
             tickstart = specflux[i] + pm*tickfac*ticklen
             tickend = tickstart + pm*ticklen
             labstart  = tickstart + pm*1.5*ticklen
-            plt.plot([xarr[i],xarr[i]],[tickstart,tickend],'k')
+            plt.plot([xarr[i], xarr[i]],[tickstart, tickend],'k')
             if info['plot']:
-               plt.text(xarr[i]+info['dxlab'],labstart,info['label'],
-                        rotation='vertical',ha='center',va=labva,
-                        color=labcolor,fontsize=labfs)
+               plt.text(xarr[i]+info['dxlab'], labstart, info['label'],
+                        rotation='vertical', ha='center',va=labva,
+                        color=labcolor, fontsize=labfs)
          else:
-            plt.axvline(xarr[i],color='k',ls='--')
-            #if namepos=='bottom':
-            #   labstart = 
-         #elif tmpfmin[i] > plt.ylim()[0]:
-         #   plt.axvline(xarr[i],linestyle='--',color='k',lw=1)
-         #   #print i['label'],tickstart,labstart,ticklen,tmpfmin
+            plt.axvline(xarr[i], color='k', ls='--')
+            # if namepos=='bottom':
+            #    labstart = 
+         # elif tmpfmin[i] > plt.ylim()[0]:
+         #    plt.axvline(xarr[i], linestyle='--', color='k', lw=1)
+         #    # print i['label'], tickstart, labstart, ticklen, tmpfmin
 
       """ Label the plot with the redshift, if requested """
       if showz:
@@ -612,11 +612,11 @@ class Spec1d():
             labx = x0 + 0.05*xdiff
             laby = y0 + 0.95*ydiff
             ha = 'left'
-         print labx,laby
-         plt.text(labx,laby,'z = %5.3f'%z,ha=ha,va='center',color=labcolor,
+         print labx, laby
+         plt.text(labx, laby,'z = %5.3f'%z, ha=ha,va='center', color=labcolor,
                   fontsize=labfs+4)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def save(self, outfile, outformat='text', verbose=True):
       """
@@ -634,19 +634,19 @@ class Spec1d():
          hdu  = pf.HDUList()
          phdu = pf.PrimaryHDU()
          hdr = phdu.header
-         #hdr['object'] = pref
+         # hdr['object'] = pref
          hdu.append(phdu)
-         outwv   = pf.ImageHDU(self.wav,name='wavelength')
-         outflux = pf.ImageHDU(self.flux,name='flux')
+         outwv   = pf.ImageHDU(self.wav, name='wavelength')
+         outflux = pf.ImageHDU(self.flux, name='flux')
          hdu.append(outwv)
          hdu.append(outflux)
          if self.var is not None:
-            outvar  = pf.ImageHDU(self.var,name='variance')
+            outvar  = pf.ImageHDU(self.var, name='variance')
             hdu.append(outvar)
          if self.sky is not None:
-            outsky  = pf.ImageHDU(self.sky,name='sky')
+            outsky  = pf.ImageHDU(self.sky, name='sky')
             hdu.append(outsky)
-         hdu.writeto(outfile,clobber=True)
+         hdu.writeto(outfile, clobber=True)
 
       elif outformat=='text':
          if self.var is not None:
@@ -664,21 +664,21 @@ class Spec1d():
          outdata[:,0] = self.wav
          outdata[:,1] = self.flux
          print ""
-         np.savetxt(outfile,outdata,fmt=fmtstring)
+         np.savetxt(outfile, outdata, fmt=fmtstring)
          del outdata
 
       if verbose:
-         print "Saved spectrum to file %s in format %s" % (outfile,outformat)
+         print "Saved spectrum to file %s in format %s" % (outfile, outformat)
 
 
-   #-----------------------------------------------------------------------
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
-#===========================================================================
+# ===========================================================================
 #
 # Start of Spec2d class
 #
-#===========================================================================
+# ===========================================================================
 
 class Spec2d(imf.Image):
    """
@@ -715,8 +715,8 @@ class Spec2d(imf.Image):
                      it is more efficient to first read the HDU list from the
                      input file (external to this class) and then pass that
                      HDU list and a desired HDU (set by the hext parameter, see
-                     below) to Spec2d instead.  For example, the Esi2d class
-                     does this.
+                     below) to Spec2d instead.  
+                     For example, the Esi2d class does this.
 
       Optional inputs:
          hext      - The header-data unit (HDU) that contains the 2-dimensional
@@ -771,7 +771,7 @@ class Spec2d(imf.Image):
       if test.rfind('hdu') > 0:
          self.hdu = inspec
       else:
-         imf.Image.__init__(self,inspec,verbose=verbose)
+         imf.Image.__init__(self, inspec,verbose=verbose)
 
       """ Read in the external variance file if there is one """
       if extvar is not None:
@@ -803,9 +803,9 @@ class Spec2d(imf.Image):
       
       """ Put the data in the appropriate container """
       if transpose:
-         self.data = (self.hdu[hext].data[ymin:ymax,xmin:xmax]).transpose()
+         self.data = (self.hdu[hext].data[ymin:ymax, xmin:xmax]).transpose()
       else:
-         self.data = self.hdu[hext].data[ymin:ymax,xmin:xmax]
+         self.data = self.hdu[hext].data[ymin:ymax, xmin:xmax]
 
       """ 
       Do the same thing for the external variance file, if there is one 
@@ -815,9 +815,9 @@ class Spec2d(imf.Image):
       if self.extvar is not None:
          if transpose:
             self.vardata = \
-                (self.extvar[hext].data[ymin:ymax,xmin:xmax]).transpose()
+                (self.extvar[hext].data[ymin:ymax, xmin:xmax]).transpose()
          else:
-            self.vardata = self.extvar[hext].data[ymin:ymax,xmin:xmax]
+            self.vardata = self.extvar[hext].data[ymin:ymax, xmin:xmax]
 
       """ Set other variables and report results """
       self.xmin = xmin
@@ -832,14 +832,14 @@ class Spec2d(imf.Image):
             print 'Read in 2-dimensional spectrum from HDU=%d' % hext
          else:
             print 'Read in 2-dimensional spectrum from %s (HDU=%d)' % \
-                (self.infile,hext)
+                (self.infile, hext)
          if trimmed:
             print 'The input dataset was trimmed'
-            print ' xrange: %d:%d.  yrange: %d:%d' % (xmin,xmax,ymin,ymax)
+            print ' xrange: %d:%d.  yrange: %d:%d' % (xmin, xmax, ymin, ymax)
          if transpose:
             print 'The input dataset was transposed'
          print 'Final data dimensions (x y): %d x %d' % \
-             (self.data.shape[1],self.data.shape[0])
+             (self.data.shape[1], self.data.shape[0])
       self.get_dispaxis(verbose)
 
       """ 
@@ -848,7 +848,7 @@ class Spec2d(imf.Image):
       if fixnans:
          self.fix_nans(verbose=True)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def get_dispaxis(self, verbose=True):
       """
@@ -865,7 +865,7 @@ class Spec2d(imf.Image):
          print 'Number of pixels along dispersion axis: %d' % self.npix
          print ''
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_dispaxis(self, dispaxis):
       """
@@ -907,7 +907,7 @@ class Spec2d(imf.Image):
          print ''
          return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def get_wavelength(self, hext=None, verbose=False):
       """
@@ -926,14 +926,14 @@ class Spec2d(imf.Image):
          dim = 2
       else:
          dim = 1
-      cdkey = 'cd%d_%d' % (dim,dim)
+      cdkey = 'cd%d_%d' % (dim, dim)
       crpix = 'crpix%d' % dim
       crval = 'crval%d' % dim
       if hext is not None:
          hdr = self.hdu[hext].header
       else:
          hdr = self.hdr
-      #print cdkey,crpix,crval
+      # print cdkey, crpix, crval
       self.has_cdmatx = True
       try:
          dw = hdr[cdkey]
@@ -958,7 +958,7 @@ class Spec2d(imf.Image):
       if verbose:
          print self.wavelength
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def fix_nans(self, verbose=False):
       """
@@ -985,7 +985,7 @@ class Spec2d(imf.Image):
          """
          self.data[nanmask] = self.sky2d[nanmask]
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def display_spec(self, doskysub=True):
       """
@@ -1010,7 +1010,7 @@ class Spec2d(imf.Image):
          pltnum_main = 411
 
          """ Get rid of the space between the subplots"""
-         #plt.figure(1)
+         # plt.figure(1)
          plt.subplots_adjust(hspace=0.001)
 
       else:
@@ -1023,10 +1023,10 @@ class Spec2d(imf.Image):
 
       """ Plot the substracted sky spectrum if desired """
       if doskysub:
-         ax2 = plt.subplot(412,sharex=ax1,sharey=ax1)
-         plt.imshow(self.skysub,origin='bottom',cmap='YlOrBr_r')
+         ax2 = plt.subplot(412, sharex=ax1, sharey=ax1)
+         plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
 
-         ax3 = plt.subplot(212,sharex=ax1)
+         ax3 = plt.subplot(212, sharex=ax1)
          print self.sky1d.wav
          print self.sky1d.flux
          self.sky1d.plot(title=None)
@@ -1039,11 +1039,11 @@ class Spec2d(imf.Image):
       if self.npix > sfac * self.nspat:
          xmin = int(self.npix / 2. - (sfac/2.) * self.nspat)
          xmax = int(self.npix / 2. + (sfac/2.) * self.nspat)
-         plt.xlim(xmin,xmax)
-      #plt.ylim(0,self.nspat)
+         plt.xlim(xmin, xmax)
+      # plt.ylim(0, self.nspat)
 
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def subtract_sky_2d(self, outfile=None, outsky=None):
       """
@@ -1070,8 +1070,8 @@ class Spec2d(imf.Image):
          return
       else:
          pix = np.arange(self.npix)
-         tmp1d = np.median(self.data,axis=spaceaxis)
-         self.sky1d = Spec1d(wav=pix,flux=tmp1d)
+         tmp1d = np.median(self.data, axis=spaceaxis)
+         self.sky1d = Spec1d(wav=pix, flux=tmp1d)
 
       """ Turn the 1-dimension sky spectrum into a 2-dimensional form """
       self.sky2d = np.tile(self.sky1d.flux,(self.data.shape[spaceaxis],1))
@@ -1079,9 +1079,9 @@ class Spec2d(imf.Image):
       """ Subtract the sky from the data """
       self.skysub = self.data - self.sky2d
 
-      ### NOT DONE YET (needs possible saving of sky spectra) ###
+      # !! NOT DONE YET (needs possible saving of sky spectra) !! #
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def spatial_profile(self, pixrange=None, showplot=True, do_subplot=False,
                        title='Spatial Profile', fit=None, normalize=False):
@@ -1098,8 +1098,8 @@ class Spec2d(imf.Image):
             if self.specaxis == 0:
                tmpdat = self.data[pixrange[0]:pixrange[1],:]
             else:
-               tmpdat = self.data[:,pixrange[0]:pixrange[1]]
-         #print pixrange
+               tmpdat = self.data[:, pixrange[0]:pixrange[1]]
+         # print pixrange
       else:
          tmpdat = self.data.copy()
          
@@ -1108,7 +1108,7 @@ class Spec2d(imf.Image):
       if self.data.ndim < 2:
          self.cdat = tmpdat
       else:
-         self.cdat = np.median(tmpdat,axis=self.specaxis)
+         self.cdat = np.median(tmpdat, axis=self.specaxis)
       if normalize:
          cmax = self.cdat.max()
          self.cdat /= cmax
@@ -1119,10 +1119,10 @@ class Spec2d(imf.Image):
       Plot the compressed spectrum, showing the best-fit Gaussian if requested
       """
       if(showplot):
-         plt.plot(self.x,self.cdat,linestyle='steps')
+         plt.plot(self.x, self.cdat, linestyle='steps')
          plt.xlabel('Spatial direction (0-indexed)')
          if fit is not None:
-            xmod = np.arange(1,self.cdat.shape[0]+1,0.1)
+            xmod = np.arange(1, self.cdat.shape[0]+1,0.1)
             p = np.atleast_1d(fit) # Make sure parameters are in a numpy array
             ngauss = int((p.size-1)/3)
             if p.size - (ngauss*3+1) != 0:
@@ -1132,14 +1132,14 @@ class Spec2d(imf.Image):
                p[0] /= cmax
                for j in range(ngauss):
                   p[j*3+3] /= cmax
-            ymod = make_gauss(xmod,p)
-            plt.plot(xmod,ymod)
-            plt.axvline(fit[1]+self.apmin,color='k')
-            plt.axvline(fit[1]+self.apmax,color='k')
+            ymod = make_gauss(xmod, p)
+            plt.plot(xmod, ymod)
+            plt.axvline(fit[1]+self.apmin, color='k')
+            plt.axvline(fit[1]+self.apmax, color='k')
          if title is not None:
             plt.title(title)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def locate_trace(self, pixrange=None, init=None, fix=None, 
                     showplot=True, do_subplot=False, ngauss=1,
@@ -1154,7 +1154,7 @@ class Spec2d(imf.Image):
       """
 
       """ Start by compressing the data, but don't show it yet """
-      self.spatial_profile(pixrange,showplot=False)
+      self.spatial_profile(pixrange, showplot=False)
 
       """ 
       Set up the container for the initial guesses for the parameter values
@@ -1165,7 +1165,7 @@ class Spec2d(imf.Image):
       """
       Put default choices, which may be overridden, into p_init
       """
-      p_init[0] = np.median(self.data,axis=None)
+      p_init[0] = np.median(self.data, axis=None)
       for i in range(ngauss):
          """ 
          In this loop the parameters are set as follows:
@@ -1193,7 +1193,7 @@ class Spec2d(imf.Image):
             print ''
             print 'ERROR: locate_trace -- init parameter must have length %d' \
                 % nparam
-            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss,ngauss)
+            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss, ngauss)
             print ''
             return np.nan
          for j in range(nparam):
@@ -1205,7 +1205,7 @@ class Spec2d(imf.Image):
       The default value (fix=None) means that all of the parameters are varied
        in the fitting process
       """
-      fixstr = np.zeros(nparam,dtype='S3')
+      fixstr = np.zeros(nparam, dtype='S3')
       if fix is None:
          fixvec = np.zeros(nparam)
       else:
@@ -1214,7 +1214,7 @@ class Spec2d(imf.Image):
             print ''
             print 'ERROR: locate_trace -- fix parameter must have length %d' \
                 % nparam
-            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss,ngauss)
+            print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss, ngauss)
             print ''
             return np.nan
          fixstr[fixvec==1] = 'Yes'
@@ -1224,8 +1224,8 @@ class Spec2d(imf.Image):
       """ Fit a Gaussian plus a background to the compressed spectrum """
       mf=100000
       p = p_init[fitmask]
-      p_fit,ier = optimize.leastsq(fit_gauss,p,
-                                      (self.x,self.cdat,p_init,fitind),
+      p_fit, ier = optimize.leastsq(fit_gauss, p,
+                                      (self.x, self.cdat, p_init, fitind),
                                       maxfev=mf)
       """ 
       Create the full parameter list for the fit by combining the fitted
@@ -1243,7 +1243,7 @@ class Spec2d(imf.Image):
          print 'Parameter        Init Value  fixed? Final Value'
          print '--------------   ----------  ------ -----------'
          print "background       %9.3f    %3s    %9.3f"     \
-             % (p_init[0],fixstr[0],p_out[0])
+             % (p_init[0], fixstr[0], p_out[0])
          for i in range(ngauss):
             ind = 3*i + 1
             j=i+1
@@ -1252,11 +1252,11 @@ class Spec2d(imf.Image):
             else:
                mustr = 'offset_%d' % j
             print "%-9s        %9.3f    %3s    %9.3f" \
-                % (mustr,p_init[ind],fixstr[ind],p_out[ind])
+                % (mustr, p_init[ind], fixstr[ind], p_out[ind])
             print "sigma_%d          %9.3f    %3s    %9.3f" \
-                % (j,p_init[ind+1],fixstr[ind+1],p_out[ind+1])
+                % (j, p_init[ind+1], fixstr[ind+1], p_out[ind+1])
             print "amp_%d            %9.3f    %3s    %9.3f" \
-                % (j,p_init[ind+2],fixstr[ind+2],p_out[ind+2])
+                % (j, p_init[ind+2], fixstr[ind+2], p_out[ind+2])
          print ""
 
       """ Now plot the spatial profile, showing the best fit """
@@ -1266,7 +1266,7 @@ class Spec2d(imf.Image):
          else:
             plt.figure(1)
             plt.clf()
-         self.spatial_profile(pixrange,showplot,do_subplot,fit=p_out)
+         self.spatial_profile(pixrange, showplot, do_subplot, fit=p_out)
 
       """ 
       Return the relevant parameters of the fit 
@@ -1277,7 +1277,7 @@ class Spec2d(imf.Image):
       """
       return p_out
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def fit_poly_to_trace(self, x, data, fitorder, data0, fitrange=None,
                          doplot=True, markformat='bo', 
@@ -1288,9 +1288,9 @@ class Spec2d(imf.Image):
       if fitrange is None:
          tmpfitdat = data
       else:
-         fitmask = np.logical_and(x>=fitrange[0],x<fitrange[1])
+         fitmask = np.logical_and(x>=fitrange[0], x<fitrange[1])
          tmpfitdat = data[fitmask]
-      dmu,dsig = ccd.sigma_clip(tmpfitdat,3.0)
+      dmu, dsig = ccd.sigma_clip(tmpfitdat,3.0)
       goodmask = np.absolute(data - dmu)<3.0*dsig
       badmask  = np.absolute(data - dmu)>=3.0*dsig
       dgood    = data[goodmask]
@@ -1304,7 +1304,7 @@ class Spec2d(imf.Image):
          xpoly = xgood
          dpoly = dgood
       else:
-         fitmask = np.logical_and(xgood>=fitrange[0],xgood<fitrange[1])
+         fitmask = np.logical_and(xgood>=fitrange[0], xgood<fitrange[1])
          xpoly  = xgood[fitmask]
          dpoly  = dgood[fitmask]
 
@@ -1312,7 +1312,7 @@ class Spec2d(imf.Image):
          polyorder = 0
       else:
          polyorder = fitorder
-      dpoly = np.polyfit(xpoly,dpoly,polyorder)
+      dpoly = np.polyfit(xpoly, dpoly, polyorder)
 
       if fitorder == -1:
          dpoly[0] = data0
@@ -1327,39 +1327,39 @@ class Spec2d(imf.Image):
       ymin = dmu - 4.5*dsig
       ymax = dmu + 4.5*dsig
       if doplot:
-         plt.plot(x,data,markformat)
+         plt.plot(x, data, markformat)
          plt.xlabel("Pixel (dispersion direction)")
          plt.ylabel(ylabel)
          plt.title(title)
 
          """ Show the value from the compressed spatial profile """
-         plt.axhline(data0,color='k',linestyle='--')
+         plt.axhline(data0, color='k', linestyle='--')
 
          """ Mark the bad points that were not included in the fit """
-         plt.plot(xbad,dbad,"rx",markersize=10,markeredgewidth=2)
+         plt.plot(xbad, dbad,"rx", markersize=10, markeredgewidth=2)
 
          """ Show the fitted function """
-         plt.plot(fitx,fity,"r")
+         plt.plot(fitx, fity,"r")
 
          """
          Show the range of points included in the fit, if fitrange was set
          """
          if fitrange is not None:
-            plt.axvline(fitrange[0],color='k',linestyle=':')
-            plt.axvline(fitrange[1],color='k',linestyle=':')
+            plt.axvline(fitrange[0], color='k', linestyle=':')
+            plt.axvline(fitrange[1], color='k', linestyle=':')
             xtmp = 0.5 * (fitrange[1] + fitrange[0])
             xerr = xtmp - fitrange[0]
             ytmp = fity.min() - 0.2 * fity.min()
-            plt.errorbar(xtmp,ytmp,xerr=xerr,ecolor="g",capsize=10)
-         plt.xlim(0,self.npix)
+            plt.errorbar(xtmp, ytmp, xerr=xerr, ecolor="g", capsize=10)
+         plt.xlim(0, self.npix)
          plt.ylim(ymin, ymax)
 
       """ Return the parameters produced by the fit and the fitted function """
       print dpoly
-      return dpoly,fity
+      return dpoly, fity
 
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def trace_spectrum(self, ngauss=1, stepsize=25, muorder=3, sigorder=4, 
                       fitrange=None, doplot=True, do_subplot=False, 
@@ -1404,10 +1404,10 @@ class Spec2d(imf.Image):
        the centroid and width of the object spectrum as it is traced down 
        the chip
       """
-      xstep = np.arange(0,self.npix-stepsize,stepsize)
+      xstep = np.arange(0, self.npix-stepsize, stepsize)
 
       """ Set up containers for mu and sigma along the trace """
-      mustep  = np.zeros((xstep.size,ngauss))
+      mustep  = np.zeros((xstep.size, ngauss))
       sigstep = mustep.copy()
       nsteps  = np.arange(xstep.shape[0])
 
@@ -1421,11 +1421,11 @@ class Spec2d(imf.Image):
              nsteps.shape[0]
          print "   of the 2D spectrum..."
          for i in nsteps:
-            pixrange = [xstep[i],xstep[i]+stepsize]
-            p = self.locate_trace(pixrange=pixrange,showplot=False,verbose=False)
+            pixrange = [xstep[i], xstep[i]+stepsize]
+            p = self.locate_trace(pixrange=pixrange, showplot=False,verbose=False)
             for j in range(ngauss):
-               mustep[i,j]  = p[j*3+1]
-               sigstep[i,j] = p[j*3+2]
+               mustep[i, j]  = p[j*3+1]
+               sigstep[i, j] = p[j*3+2]
          print "   Done"
 
       """ Fit a polynomial to the location of the trace """
@@ -1438,9 +1438,9 @@ class Spec2d(imf.Image):
                plt.clf()
          print "Fitting a polynomial of order %d to the location of the trace" \
              % muorder
-         self.mupoly,self.mu = \
-             self.fit_poly_to_trace(xstep,mustep[:,0],muorder,self.p0[1],
-                                    fitrange,doplot=doplot)
+         self.mupoly, self.mu = \
+             self.fit_poly_to_trace(xstep, mustep[:,0], muorder, self.p0[1],
+                                    fitrange, doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
       if fitsig:
@@ -1452,17 +1452,18 @@ class Spec2d(imf.Image):
                plt.clf()
          print "Fitting a polynomial of order %d to the width of the trace" \
              % sigorder
-         self.sigpoly,self.sig = \
-             self.fit_poly_to_trace(xstep,sigstep[:,0],sigorder,self.p0[2],
-                                    fitrange,markformat='go',
+         self.sigpoly, self.sig = \
+             self.fit_poly_to_trace(xstep, sigstep[:,0], sigorder, self.p0[2],
+                                    fitrange, markformat='go',
                                     title='Width of Peak',
                                     ylabel='Width of trace (Gaussian sigma)',
                                     doplot=doplot)
       
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def find_and_trace(self, ngauss=1, stepsize=25, muorder=3, sigorder=4, 
-                      fitrange=None, doplot=True, do_subplot=True, verbose=True):
+                      fitrange=None, doplot=True, do_subplot=True, 
+                      verbose=True):
 
       """
       The first step in the spectroscopy reduction process.
@@ -1491,14 +1492,14 @@ class Spec2d(imf.Image):
          sigorder
       """
 
-      self.p0 = self.locate_trace(showplot=doplot,do_subplot=do_subplot,
-                                  ngauss=ngauss,pixrange=fitrange,
+      self.p0 = self.locate_trace(showplot=doplot, do_subplot=do_subplot,
+                                  ngauss=ngauss, pixrange=fitrange,
                                   verbose=verbose)
 
-      self.trace_spectrum(ngauss,stepsize,muorder,sigorder,fitrange,doplot,
+      self.trace_spectrum(ngauss, stepsize, muorder, sigorder, fitrange, doplot,
                           do_subplot,verbose=verbose)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def extract_old(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0):
       """
@@ -1535,15 +1536,15 @@ class Spec2d(imf.Image):
          if self.specaxis == 0:
             tmpdata = self.data[i,:]
          else:
-            tmpdata = self.data[:,i]
+            tmpdata = self.data[:, i]
          if (sky == None):
             skyval = None
          else:
             skyval = sky[i]
       
-         amp[i],var[i],skyspec[i] = \
-             extract_wtsum_col(tmpdata,self.mu[i],apmin,apmax,sig=self.sig[i],
-                               gain=gain,rdnoise=rdnoise,sky=skyval,
+         amp[i],var[i], skyspec[i] = \
+             extract_wtsum_col(tmpdata, self.mu[i], apmin, apmax, sig=self.sig[i],
+                               gain=gain, rdnoise=rdnoise, sky=skyval,
                                weight=weight)
       print "   Done"
 
@@ -1553,11 +1554,11 @@ class Spec2d(imf.Image):
       """ Create a Spec1d container for the extracted spectrum """
       if sky is not None:
          skyspec = sky
-      self.spec1d = Spec1d(wav=self.wavelength,flux=amp,var=var,sky=skyspec)
+      self.spec1d = Spec1d(wav=self.wavelength, flux=amp,var=var, sky=skyspec)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
-   def extract_new(self, gain=1.0, rdnoise=0.0):
+   def extract_horne(self, gain=1.0, rdnoise=0.0):
       """
 
       STILL TO DO:
@@ -1616,7 +1617,7 @@ class Spec2d(imf.Image):
       """
       x1d = np.arange(self.npix)
       y1d = np.arange(self.nspat)
-      x,y = np.meshgrid(x1d,y1d)
+      x, y = np.meshgrid(x1d, y1d)
       y = y.astype(float)
 
       """
@@ -1632,14 +1633,14 @@ class Spec2d(imf.Image):
 
       Code below is just for gaussian weighting.
       """
-      self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix,self.nspat)).T
-      self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix, self.nspat)).T
+      self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix, self.nspat)).T
       ydiff = 1.0*y - self.mu2d
       P = (1./(self.sig2d * sqrt(2.*pi))) * np.exp(-0.5 * (ydiff/self.sig2d)**2)
 
       """ Make sure the profile is normalized in the spatial direction """
       Pnorm = (P.sum(axis=self.spaceaxis))
-      Pnorm = Pnorm.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      Pnorm = Pnorm.repeat(self.nspat).reshape((self.npix, self.nspat)).T
       self.profile = P / Pnorm
 
       """
@@ -1664,7 +1665,7 @@ class Spec2d(imf.Image):
       """ Check for NaNs """
       nansci  = np.isnan(self.data)
       nanvar  = np.isnan(varspec)
-      nanmask = np.logical_or(np.isnan(self.data),np.isnan(varspec))
+      nanmask = np.logical_or(np.isnan(self.data), np.isnan(varspec))
       nnans = nansci.sum()
       nnanv = nanvar.sum()
       nnan = nanmask.sum()
@@ -1675,8 +1676,8 @@ class Spec2d(imf.Image):
       """
       tmp = self.data.copy()
       tmp[apmask] = np.nan
-      bkgd = np.nanmedian(tmp,axis=self.spaceaxis)
-      bkgd2d = bkgd.repeat(self.nspat).reshape((self.npix,self.nspat)).T
+      bkgd = np.nanmedian(tmp, axis=self.spaceaxis)
+      bkgd2d = bkgd.repeat(self.nspat).reshape((self.npix, self.nspat)).T
       del tmp
 
       """ 
@@ -1723,12 +1724,12 @@ class Spec2d(imf.Image):
       """
       Save the result as a Spec1d instance
       """
-      #print '*** Number of nans: %d %d %d ***' % (nnans,nnanv,nnan)
+      # print '*** Number of nans: %d %d %d ***' % (nnans, nnanv, nnan)
       print ''
-      self.spec1d = Spec1d(wav=self.wavelength,flux=flux,var=var,sky=bkgd)
+      self.spec1d = Spec1d(wav=self.wavelength, flux=flux,var=var, sky=bkgd)
       self.apmask = apmask
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def extract_spectrum(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
                         doplot=True, do_subplot=True, outfile=None,
@@ -1743,8 +1744,7 @@ class Spec2d(imf.Image):
       """
 
       """ Extract the spectrum """
-      #self.extract_old(weight,sky,gain,rdnoise)
-      self.extract_new(gain,rdnoise)
+      self.extract_horne(gain, rdnoise)
 
       """ Plot the extracted spectrum if desired """
       if doplot:
@@ -1759,13 +1759,13 @@ class Spec2d(imf.Image):
             xlab = 'Wavelength'
          else:
             xlab = 'Pixel number along the %s axis' % self.dispaxis
-         self.spec1d.plot(xlabel=xlab,title='Extracted spectrum')
+         self.spec1d.plot(xlabel=xlab, title='Extracted spectrum')
 
       """ Save the extracted spectrum to a file if requested """
       if outfile is not None:
-         self.spec1d.save(outfile,outformat=outformat)
+         self.spec1d.save(outfile, outformat=outformat)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
 
 #===========================================================================
@@ -1786,7 +1786,7 @@ class Spec2d(imf.Image):
 #
 #===========================================================================
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def load_2d_spectrum(filename, hdu=0):
    """
@@ -1794,13 +1794,13 @@ def load_2d_spectrum(filename, hdu=0):
 
    NOTE: This has now been replaced by the Spec2d class.
    """
-   data = Spec2d(filename,hext=hdu)
+   data = Spec2d(filename, hext=hdu)
    print ''
    print 'Loaded a 2-dimensional spectrum from %s' % filename
-   print 'Data dimensions (x y): %dx%d' % (data.shape[1],data.shape[0])
+   print 'Data dimensions (x y): %dx%d' % (data.shape[1], data.shape[0])
    return data
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
    """
@@ -1827,11 +1827,11 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
       print "ERROR: zap_cosmic_rays needs a 2 dimensional data set"
       return
    else:
-      sky1d = np.median(data,axis=spaceaxis)
+      sky1d = np.median(data, axis=spaceaxis)
    sky = np.zeros(data.shape)
    for i in range(data.shape[spaceaxis]):
       if spaceaxis == 1:
-         sky[:,i] = sky1d
+         sky[:, i] = sky1d
       else:
          sky[i,:] = sky1d
 
@@ -1842,10 +1842,10 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
    Divide the result by the square root of the sky to get a rms image
    """
    ssrms = skysub / np.sqrt(sky)
-   m,s = ccd.sigma_clip(ssrms)
+   m, s = ccd.sigma_clip(ssrms)
    
    """ Now subtract a median-filtered version of the spectrum """
-   tmpsub = ssrms - filters.median_filter(ssrms,boxsize)
+   tmpsub = ssrms - filters.median_filter(ssrms, boxsize)
 
    """ 
    Make a bad pixel mask that contains pixels in tmpsub with values > sigmax*s
@@ -1854,9 +1854,9 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
    tmpsub[mask] = m
 
    """ Replace the bad pixels in skysub with a median-filtered value """
-   m2,s2 = ccd.sigma_clip(skysub)
+   m2, s2 = ccd.sigma_clip(skysub)
    skysub[mask] = m2
-   ssfilt = filters.median_filter(skysub,boxsize)
+   ssfilt = filters.median_filter(skysub, boxsize)
    skysub[mask] = ssfilt[mask]
 
    """ Add the sky back in and save the final result """
@@ -1865,11 +1865,11 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
    print ' Wrote szapped data to %s' % outfile
 
    """ Clean up """
-   del sky,skysub,ssrms,tmpsub,szapped
+   del sky, skysub, ssrms, tmpsub, szapped
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def find_blank_columns(data,comp_axis=0,output_dims=1,findblank=False):
+def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
    """
    Takes 2-dimensional data and outputs indices of columns not entirely
    composed of zeros. If output_dims is 1, only the indices of the columns
@@ -1883,12 +1883,12 @@ def find_blank_columns(data,comp_axis=0,output_dims=1,findblank=False):
       fbc_tmp = np.zeros(np.shape(data)[1-comp_axis])
       if comp_axis == 0:
          gprelim = np.where(data[int(np.shape(data)[comp_axis]/2),:] == 0)[0]
-         for ifbc in range(0,len(gprelim)):
-            if len(data[data[:,gprelim[ifbc]] != 0]) == 0:
+         for ifbc in range(0, len(gprelim)):
+            if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
                fbc_tmp[gprelim[ifbc]] = 1
       else:
-         gprelim = np.where(data[:,int(np.shape(data)[comp_axis]/2)] == 0)[0]
-         for ifbc in range(0,len(gprelim)):
+         gprelim = np.where(data[:, int(np.shape(data)[comp_axis]/2)] == 0)[0]
+         for ifbc in range(0, len(gprelim)):
             if len(data[data[gprelim[ifbc],:] != 0]) == 0:
                fbc_tmp[gprelim[ifbc]] = 1
       if findblank: fbc_tmp = 1-fbc_tmp
@@ -1897,22 +1897,23 @@ def find_blank_columns(data,comp_axis=0,output_dims=1,findblank=False):
       fbc_tmp = np.zeros(np.shape(data))
       if comp_axis == 0:
          gprelim = np.where(data[int(np.shape(data)[comp_axis]/2),:] == 0)[0]
-         for ifbc in range(0,len(gprelim)):
-            if len(data[data[:,gprelim[ifbc]] != 0]) == 0:
-               fbc_tmp[:,gprelim[ifbc]] = 1
+         for ifbc in range(0, len(gprelim)):
+            if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
+               fbc_tmp[:, gprelim[ifbc]] = 1
       else:
-         gprelim = np.where(data[:,int(np.shape(data)[comp_axis]/2)] == 0)[0]
-         for ifbc in range(0,len(gprelim)):
+         gprelim = np.where(data[:, int(np.shape(data)[comp_axis]/2)] == 0)[0]
+         for ifbc in range(0, len(gprelim)):
             if len(data[data[gprelim[ifbc],:] != 0]) == 0:
                fbc_tmp[gprelim[ifbc],:] = 1
-      if findblank: fbc_tmp = 1-fbc_tmp
+      if findblank: 
+         fbc_tmp = 1-fbc_tmp
       gfbc = np.where(fbc_tmp == 0)
    else:
       sys.exit("output_dims parameter for find_blank_columns must be either 1 or 2. Value was: " + str(output_dims))
    return gfbc
 
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def read_spectrum(filename, informat='text', varspec=True, verbose=True):
    """
@@ -1973,7 +1974,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
 
    return wavelength, flux, var
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
                       bscale=10., xlim=[3000.,9500.], title='default', 
@@ -2007,8 +2008,8 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
    """
 
    """ Read in the spectra, including the scaling for the blue side """
-   wb,fb,vb = read_spectrum(bluefile)
-   wr,fr,vr = read_spectrum(redfile)
+   wb, fb,vb = read_spectrum(bluefile)
+   wr, fr,vr = read_spectrum(redfile)
    fb *= bscale
    if vb is not None:
       vb *= bscale
@@ -2033,41 +2034,41 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
       wtr = 1./tmpvr
       tmpb = wtb * fb
       tmpr = wtr * fr
-      smb = unif_filt(tmpb,smooth_width)
-      smb /= unif_filt(wtb,smooth_width)
-      smr = unif_filt(tmpr,smooth_width)
-      smr /= unif_filt(wtr,smooth_width)
+      smb = unif_filt(tmpb, smooth_width)
+      smb /= unif_filt(wtb, smooth_width)
+      smr = unif_filt(tmpr, smooth_width)
+      smr /= unif_filt(wtr, smooth_width)
       if vb is None:
          smvb = None
       else:
-         smvb = 1.0 / (smooth_width * unif_filt(wtb,smooth_width))
+         smvb = 1.0 / (smooth_width * unif_filt(wtb, smooth_width))
       if vr is None:
          smvr = None
       else:
-         smvr = 1.0 / (smooth_width * unif_filt(wtr,smooth_width))
+         smvr = 1.0 / (smooth_width * unif_filt(wtr, smooth_width))
       
 
    """ Plot the spectra """
-   plot_spectrum_array(wb,smb,smvb,rmscolor='k')
-   plot_spectrum_array(wr,smr,smvr,speccolor='r',rmscolor='k')
-   plt.xlim(xlim[0],xlim[1])
+   plot_spectrum_array(wb, smb, smvb, rmscolor='k')
+   plot_spectrum_array(wr, smr, smvr, speccolor='r', rmscolor='k')
+   plt.xlim(xlim[0], xlim[1])
 
    """ Mark the lines if the redshift is given """
    if z is not None:
       is_z_shown = False
-      w = np.concatenate((wb,wr))
-      f = np.concatenate((smb,smr))
+      w = np.concatenate((wb, wr))
+      f = np.concatenate((smb, smr))
       if mark_em:
-         mark_spec_emission(z,w,f)
+         mark_spec_emission(z, w, f)
          is_z_shown = True
       if mark_abs:
          if is_z_shown:
-            mark_spec_absorption(z,w,f,showz=False)
+            mark_spec_absorption(z, w, f, showz=False)
          else:
-            mark_spec_absorption(z,w,f)
+            mark_spec_absorption(z, w, f)
 
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
    """
@@ -2092,11 +2093,11 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
       print "ERROR: subtract_sky needs a 2 dimensional data set"
       return
    else:
-      sky1d = np.median(data,axis=spaceaxis)
+      sky1d = np.median(data, axis=spaceaxis)
    sky = np.zeros(data.shape)
    for i in range(data.shape[spaceaxis]):
       if spaceaxis == 1:
-         sky[:,i] = sky1d
+         sky[:, i] = sky1d
       else:
          sky[i,:] = sky1d
 
@@ -2107,7 +2108,7 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
          xlab = 'Row'
       else:
          xlab = 'Column'
-      plot_spectrum_array(x,sky1d,xlabel=xlab,ylabel='Median Counts',
+      plot_spectrum_array(x, sky1d, xlabel=xlab, ylabel='Median Counts',
                           title='Median sky spectrum')
 
    """ Subtract the sky  """
@@ -2116,18 +2117,18 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
    """ Save the sky-subtracted spectrum and the median sky """
    pf.PrimaryHDU(skysub).writeto(outfile)
    print ' Wrote sky-subtracted data to %s' % outfile
-   save_spectrum(outskyspec,x,sky1d)
+   save_spectrum(outskyspec, x, sky1d)
    print ' Wrote median sky spectrum to %s' % outskyspec
    print ''
 
    """ Clean up """
-   del sky,sky1d,skysub
+   del sky, sky1d, skysub
 
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-#def make_gauss(x,mu,sigma,amp,bkgd):
-def make_gauss(x,p):
+#def make_gauss(x, mu, sigma, amp, bkgd):
+def make_gauss(x, p):
    """
    Creates a model comprised of one or more Gaussian profiles plus a
     (for now) constant background.  
@@ -2174,9 +2175,9 @@ def make_gauss(x,p):
 
    return ymod
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def fit_gauss(p,x,y,p_init,fitind):
+def fit_gauss(p, x, y, p_init, fitind):
    """
    Compares the data to the model.  The model consists of at least one gaussian 
     plus a constant background and is created by a call to make_gauss.
@@ -2216,14 +2217,14 @@ def fit_gauss(p,x,y,p_init,fitind):
    """
    Compute the difference between model and real values
    """
-   ymod = make_gauss(x,pfull)
+   ymod = make_gauss(x, pfull)
    diff = y - ymod
 
    return diff
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def fit_gpb_fixmusig(p,x,y,mu,sigma):
+def fit_gpb_fixmusig(p, x, y, mu, sigma):
    """
    Compares the data to the model.  The model is a gaussian plus a 
     constant background.  In the fit, mu and sigma are held fixed.
@@ -2235,20 +2236,20 @@ def fit_gpb_fixmusig(p,x,y,mu,sigma):
    """ 
    Put parameters into the form that is expected by make_gauss
    """
-   ptmp = np.array([p[0],mu,sigma,p[1]])
+   ptmp = np.array([p[0], mu, sigma, p[1]])
 
    """
    Compute the difference between model and real values
    """
 
-   ymod = make_gauss(x,ptmp)
+   ymod = make_gauss(x, ptmp)
    diff = y - ymod
 
    return diff
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def fit_gpb_fixmu(p,x,y,mu):
+def fit_gpb_fixmu(p, x, y, mu):
    """
    Compares the data to the model.  The model is a gaussian plus a 
     constant background.  In the fit, mu is held fixed.
@@ -2264,19 +2265,19 @@ def fit_gpb_fixmu(p,x,y,mu):
    sigma = p[2]
    if len(p) > 3:
       nps = (len(p)-1)/2
-      for inpsf in range(1,nps):
-         amp,sigma = np.append(amp,p[2*inpsf+1]),np.append(sigma,p[2*inpsf+2])
+      for inpsf in range(1, nps):
+         amp, sigma = np.append(amp, p[2*inpsf+1]), np.append(sigma, p[2*inpsf+2])
 
    """
    Compute the difference between model and real values
    """
    if np.shape(amp) != (): mu = np.ones(len(bkgd))*mu
-   ymod = make_gauss(x,mu,sigma,amp,bkgd)
+   ymod = make_gauss(x, mu, sigma, amp, bkgd)
    diff = y - ymod
 
    return diff
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_spatial_profile(infile, dispaxis="x"):
    """
@@ -2300,7 +2301,7 @@ def plot_spatial_profile(infile, dispaxis="x"):
    else:
       specaxis = 1
       spatlabel = "y"
-   #print "specaxis = %d" % specaxis
+   # print "specaxis = %d" % specaxis
 
    """ Compress the data along the dispersion axis and find the max value """
    if data.ndim < 2:
@@ -2309,19 +2310,19 @@ def plot_spatial_profile(infile, dispaxis="x"):
       del data
       return
    else:
-      cdat = np.median(data,axis=specaxis)
-   x = np.arange(1,cdat.shape[0]+1)
+      cdat = np.median(data, axis=specaxis)
+   x = np.arange(1, cdat.shape[0]+1)
 
    """ Plot the spatial profile """
-   plt.plot(x,cdat)
+   plt.plot(x, cdat)
    plt.xlabel("Pixel in the %s direction" % spatlabel)
    plt.ylabel("Median counts")
    plt.title("Spatial profile for %s" % infile)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
-              showplot=True,do_subplot=False,verbose=True,apmin=-4.,apmax=4.):
+def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False,
+              showplot=True, do_subplot=False,verbose=True, apmin=-4., apmax=4.):
    """
     Compresses a 2d spectrum along the dispersion axis so that
      the trace of the spectrum can be automatically located by fitting
@@ -2336,15 +2337,15 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
       specaxis = 0
    else:
       specaxis = 1
-   #print "specaxis = %d" % specaxis
+   # print "specaxis = %d" % specaxis
 
    """ Compress the data along the dispersion axis and find the max value """
    if data.ndim < 2:
       cdat = data.copy()
    else:
-      cdat = np.median(data,axis=specaxis)
+      cdat = np.median(data, axis=specaxis)
       cdat.shape
-   x = np.arange(1,cdat.shape[0]+1)
+   x = np.arange(1, cdat.shape[0]+1)
 
    # Set initial guesses
 
@@ -2370,13 +2371,13 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
          sig0 = 3.0
       fixsignote = " "
    amp0  = cdat.max()
-   bkgd0 = np.median(data,axis=None)
+   bkgd0 = np.median(data, axis=None)
    if(verbose):
       print ""
       print "Initial guesses for Gaussian plus background fit"
       print "------------------------------------------------"
-      print " mu         = %7.2f%s"   % (mu0,fixmunote)
-      print " sigma      =   %5.2f%s" % (sig0,fixsignote)
+      print " mu         = %7.2f%s"   % (mu0, fixmunote)
+      print " sigma      =   %5.2f%s" % (sig0, fixsignote)
       print " amplitude  = %f"        % amp0
       print " background = %f"        % bkgd0
       print "Parameters marked with a ** are held fixed during the fit"
@@ -2385,22 +2386,22 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
    # Fit a Gaussian plus a background to the compressed spectrum
    mf=100000
    if fixmu and fixsig:
-      p = [bkgd0,amp0]
-      pt,ier = optimize.leastsq(fit_gpb_fixmusig,p,(x,cdat,mu0,sig0),maxfev=mf)
-      p_out = [pt[0],mu0,sig0,pt[1]]
-   #p_out,ier = optimize.leastsq(fit_gpb_fixmu,p,(x,cdat,mu0),maxfev=mf)
-   #p_out,ier = optimize.leastsq(fit_gpb_fixsig,p,(x,cdat,sig0),maxfev=mf)
+      p = [bkgd0, amp0]
+      pt, ier = optimize.leastsq(fit_gpb_fixmusig, p,(x, cdat, mu0, sig0), maxfev=mf)
+      p_out = [pt[0], mu0, sig0, pt[1]]
+   #p_out, ier = optimize.leastsq(fit_gpb_fixmu, p,(x, cdat, mu0), maxfev=mf)
+   #p_out, ier = optimize.leastsq(fit_gpb_fixsig, p,(x, cdat, sig0), maxfev=mf)
    else:
-      p = [bkgd0,mu0,sig0,amp0]
-      p_out,ier = optimize.leastsq(fit_gauss,p,(x,cdat),maxfev=mf)
+      p = [bkgd0, mu0, sig0, amp0]
+      p_out, ier = optimize.leastsq(fit_gauss, p,(x, cdat), maxfev=mf)
 
 
    # Give results
    if(verbose):
       print "Fitted values for Gaussian plus background fit"
       print "----------------------------------------------"
-      print " mu         = %7.2f%s"   % (p_out[1],fixmunote)
-      print " sigma      =   %5.2f%s" % (p_out[2],fixsignote)
+      print " mu         = %7.2f%s"   % (p_out[1], fixmunote)
+      print " sigma      =   %5.2f%s" % (p_out[2], fixsignote)
       print " amplitude  = %f"        % p_out[3]
       print " background = %f"        % p_out[0]
       print "Parameters marked with a ** are held fixed during the fit"
@@ -2413,21 +2414,21 @@ def find_peak(data,dispaxis="x",mu0=None,sig0=None,fixmu=False,fixsig=False,
       else:
          plt.figure(1)
          plt.clf()
-      plt.plot(x,cdat,linestyle='steps')
-      xmod = np.arange(1,cdat.shape[0]+1,0.1)
-      ymod = make_gauss(xmod,p_out[1],p_out[2],p_out[3],p_out[0])
-      plt.plot(xmod,ymod)
-      plt.axvline(p_out[1]+apmin,color='k')
-      plt.axvline(p_out[1]+apmax,color='k')
+      plt.plot(x, cdat, linestyle='steps')
+      xmod = np.arange(1, cdat.shape[0]+1,0.1)
+      ymod = make_gauss(xmod, p_out[1], p_out[2], p_out[3], p_out[0])
+      plt.plot(xmod, ymod)
+      plt.axvline(p_out[1]+apmin, color='k')
+      plt.axvline(p_out[1]+apmax, color='k')
       plt.xlabel('Pixel number in the spatial direction')
       plt.title('Compressed Spatial Plot')
 
    return p_out
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
-                      gain=1.0,rdnoise=0.0,sky=None):
+def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
+                      gain=1.0, rdnoise=0.0, sky=None):
    """
    Extracts the spectrum from one row/column in the wavelength direction
    via a weighted sum.  The choices for the weighting are:
@@ -2459,18 +2460,18 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
    ydiff = y - mu
    apmask = (ydiff>apmin-1) & (ydiff<apmax)
    bkgdmask = np.logical_not(apmask)
-   #print bkgdmask.sum(), apmask.sum()
+   # print bkgdmask.sum(), apmask.sum()
 
    """ Estimate the background """
-   bkgd = np.median(spatialdat[bkgdmask],axis=None)
-   #print "Background level is %7.2f" % bkgd
+   bkgd = np.median(spatialdat[bkgdmask], axis=None)
+   # print "Background level is %7.2f" % bkgd
 
    """ Make the weight array """
    if(weight == 'uniform'):
       gweight = np.zeros(y.size)
       gweight[apmask] = 1.0
    else:
-      gweight = make_gauss(y,mu,sig,1.0,0.0)
+      gweight = make_gauss(y, mu, sig,1.0,0.0)
 
    """ Do the weighted sum """
    wtsum = ((spatialdat - bkgd)*gweight)[apmask].sum() / gweight[apmask].sum()
@@ -2485,22 +2486,22 @@ def extract_wtsum_col(spatialdat,mu,apmin,apmax,weight='gauss',sig=1.0,
 
    return wtsum, var, bkgd
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def find_trace(data,dispaxis="x",apmin=-4.,apmax=4.,doplot=True,
+def find_trace(data, dispaxis="x", apmin=-4., apmax=4., doplot=True,
                do_subplot=False):
    """
    First step in the reduction process.  
    Runs find_peak on the full 2d spectrum in order to set the initial 
     guess for trace_spectrum.
    """
-   p = find_peak(data,dispaxis=dispaxis,apmin=apmin,apmax=apmax,
-                 showplot=doplot,do_subplot=do_subplot)
+   p = find_peak(data, dispaxis=dispaxis, apmin=apmin, apmax=apmax,
+                 showplot=doplot, do_subplot=do_subplot)
    mu0  = p[1]
    sig0 = p[2]
-   return mu0,sig0
+   return mu0, sig0
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
                       doplot=True, markformat='bo', ylabel='Centroid of Trace',
@@ -2510,9 +2511,9 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    if fitrange is None:
       tmpfitdat = data
    else:
-      fitmask = np.logical_and(x>=fitrange[0],x<fitrange[1])
+      fitmask = np.logical_and(x>=fitrange[0], x<fitrange[1])
       tmpfitdat = data[fitmask]
-   dmu,dsig = ccd.sigma_clip(tmpfitdat,3.0)
+   dmu, dsig = ccd.sigma_clip(tmpfitdat,3.0)
    goodmask = np.absolute(data - dmu)<3.0*dsig
    badmask  = np.absolute(data - dmu)>=3.0*dsig
    dgood    = data[goodmask]
@@ -2526,8 +2527,8 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
       xpoly = xgood
       dpoly = dgood
    else:
-      fitmask = np.logical_and(xgood>=fitrange[0],xgood<fitrange[1])
-      #print fitmask
+      fitmask = np.logical_and(xgood>=fitrange[0], xgood<fitrange[1])
+      # print fitmask
       xpoly  = xgood[fitmask]
       dpoly  = dgood[fitmask]
 
@@ -2535,7 +2536,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
       polyorder = 0
    else:
       polyorder = fitorder
-   dpoly = np.polyfit(xpoly,dpoly,polyorder)
+   dpoly = np.polyfit(xpoly, dpoly, polyorder)
 
    if fitorder == -1:
       dpoly[0] = data0
@@ -2545,34 +2546,34 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    ymin = dmu - 4.5*dsig
    ymax = dmu + 4.5*dsig
    if doplot:
-      plt.plot(x,data,markformat)
-      #plt.plot(xstep,mu,marker='o',mec='b',mfc='w',markersize=8,linestyle='')
+      plt.plot(x, data, markformat)
+      #plt.plot(xstep, mu, marker='o', mec='b', mfc='w', markersize=8, linestyle='')
       plt.xlabel("Pixel number in the dispersion direction")
       plt.ylabel(ylabel)
       plt.title(title)
 
       # Show the value from the compressed spatial profile
-      plt.axhline(data0,color='k',linestyle='--')
+      plt.axhline(data0, color='k', linestyle='--')
 
       # Mark the bad points that were not included in the fit
-      plt.plot(xbad,dbad,"rx",markersize=10,markeredgewidth=2)
+      plt.plot(xbad, dbad,"rx", markersize=10, markeredgewidth=2)
 
       # Show the fitted function
-      fitx = np.arange(0,x_max,0.1)
+      fitx = np.arange(0, x_max,0.1)
       fity = 0.0 * fitx
       for i in range(dpoly.size):
          fity += dpoly[i] * fitx**(dpoly.size - 1 - i)
-      plt.plot(fitx,fity,"r")
+      plt.plot(fitx, fity,"r")
 
       # Show the range of points included in the fit, if fitrange was set
       if fitrange is not None:
-         plt.axvline(fitrange[0],color='k',linestyle=':')
-         plt.axvline(fitrange[1],color='k',linestyle=':')
+         plt.axvline(fitrange[0], color='k', linestyle=':')
+         plt.axvline(fitrange[1], color='k', linestyle=':')
          xtmp = 0.5 * (fitrange[1] + fitrange[0])
          xerr = xtmp - fitrange[0]
          ytmp = fity.min() - 0.2 * fity.min()
-         plt.errorbar(xtmp,ytmp,xerr=xerr,ecolor="g",capsize=10)
-      plt.xlim(0,x_max)
+         plt.errorbar(xtmp, ytmp, xerr=xerr, ecolor="g", capsize=10)
+      plt.xlim(0, x_max)
       plt.ylim(ymin, ymax)
 
    # Return the parameters produced by the fit
@@ -2580,10 +2581,10 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    return dpoly
 
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
-   sigorder=4,fitrange=None,doplot=True,do_subplot=False):
+def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
+   sigorder=4, fitrange=None, doplot=True, do_subplot=False):
    """
    Second step in the reduction process.
    Fits a gaussian plus background to portions of the spectrum separated
@@ -2602,7 +2603,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
    # Define the slices through the 2D spectrum that will be used to find
    #  the centroid and width of the object spectrum as it is traced down 
    #  the chip
-   xstep = np.arange(0,xlength-stepsize,stepsize)
+   xstep = np.arange(0, xlength-stepsize, stepsize)
 
    # Set up containers for mu and sigma along the trace
    mu = 0.0 * xstep
@@ -2620,8 +2621,8 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
       if(specaxis == 0):
          tmpdata = data[xstep[i]:xstep[i]+stepsize,:]
       else:
-         tmpdata = data[:,xstep[i]:xstep[i]+stepsize]
-      ptmp = find_peak(tmpdata,dispaxis=dispaxis,showplot=False,verbose=False)
+         tmpdata = data[:, xstep[i]:xstep[i]+stepsize]
+      ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False,verbose=False)
       mu[i]    = ptmp[1]
       sigma[i] = ptmp[2]
    print "   Done"
@@ -2635,7 +2636,7 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
          plt.clf()
    print "Fitting a polynomial of order %d to the location of the trace" \
        % muorder
-   mupoly = fit_poly_to_trace(xstep,mu,muorder,mu0,xlength,fitrange,
+   mupoly = fit_poly_to_trace(xstep, mu, muorder, mu0, xlength, fitrange,
                               doplot=doplot)
 
    # Fit a polynomial to the width of the trace
@@ -2645,15 +2646,15 @@ def trace_spectrum(data,mu0,sig0,dispaxis="x",stepsize=25,muorder=3,
       plt.figure(3)
       plt.clf()
    print "Fitting a polynomial of order %d to the width of the trace" % sigorder
-   sigpoly = fit_poly_to_trace(xstep,sigma,sigorder,sig0,xlength,fitrange,
-                               markformat='go',title='Width of Peak',
+   sigpoly = fit_poly_to_trace(xstep, sigma, sigorder, sig0, xlength, fitrange,
+                               markformat='go', title='Width of Peak',
                                ylabel='Width of trace (Gaussian sigma)',
                                doplot=doplot)
 
    # Return the fitted parameters
-   return mupoly,sigpoly
+   return mupoly, sigpoly
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def resample_spec(w, spec, owave=None):
    """
@@ -2666,16 +2667,16 @@ def resample_spec(w, spec, owave=None):
    if owave is None:
       w0 = w[0]
       w1 = w[-1]
-      owave = np.linspace(w0,w1,w.size)
+      owave = np.linspace(w0, w1, w.size)
 
-   specmod = interpolate.splrep(w,spec)
-   outspec = interpolate.splev(owave,specmod)
+   specmod = interpolate.splrep(w, spec)
+   outspec = interpolate.splev(owave, specmod)
 
-   return owave,outspec
+   return owave, outspec
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def combine_spectra(txt_files,outfile):
+def combine_spectra(txt_files, outfile):
    """
    Given the input spectra, stored as text files (e.g., "vega*txt"), reads in 
    the files and does an inverse-variance weighted combination of the counts 
@@ -2694,7 +2695,7 @@ def combine_spectra(txt_files,outfile):
    print ""
    for f in file_list:
       print "Reading data from file %s" % f 
-      wi,fi,vi = np.loadtxt(f,unpack=True,usecols=(0,1,2))
+      wi, fi,vi = np.loadtxt(f, unpack=True, usecols=(0,1,2))
       wt = 1.0 / vi
       wt[vi==0] = 0.
       wtflux += wt * fi
@@ -2711,13 +2712,13 @@ def combine_spectra(txt_files,outfile):
    outvar  = 1.0 / wtsum
 
    """ Plot the combined spectrum """
-   plot_spectrum_array(wavelength,outspec,outvar,xlabel="Pixels",
+   plot_spectrum_array(wavelength, outspec, outvar, xlabel="Pixels",
                        title="Combined spectrum")
 
    print "Saving the combined spectrum"
-   save_spectrum(outfile,wavelength,outspec,outvar)
+   save_spectrum(outfile, wavelength, outspec, outvar)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
    """
@@ -2756,7 +2757,7 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
       modfile = '%sData/nirspec_skymodel.fits' % moddir
    else:
       modfile = '%sData/uves_skymodel.fits' % moddir
-   modspec = Spec1d(modfile,informat='fitstab')
+   modspec = Spec1d(modfile, informat='fitstab')
    if modspec is None:
       return None
    skymodel = (modspec.wav, modspec.flux, 3)
@@ -2766,30 +2767,30 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
    The call to splev does a spline interpolation of the sky model onto the 
     points defined by the "wave" array
    """
-   wave = np.arange(wstart,wend,0.2)
-   tmpskymod = interpolate.splev(wave,skymodel)
-   tmpskymod = ndimage.gaussian_filter(tmpskymod,smoothKernel)
+   wave = np.arange(wstart, wend,0.2)
+   tmpskymod = interpolate.splev(wave, skymodel)
+   tmpskymod = ndimage.gaussian_filter(tmpskymod, smoothKernel)
 
    # Create a B-spline representation of the smoothed curve for use in
    #  the wavecal optimization
-   model = interpolate.splrep(wave,tmpskymod)
+   model = interpolate.splrep(wave, tmpskymod)
 
    # Finally use the initial guess for the dispersion and evaluate the
    #  model sky at those points, using the B-spline model
-   skyflux = interpolate.splev(wavelength,model)
+   skyflux = interpolate.splev(wavelength, model)
 
    """ Create a Spec1d instance containing the sky model """
-   skymod = Spec1d(wav=wavelength,flux=skyflux)
+   skymod = Spec1d(wav=wavelength, flux=skyflux)
 
    """ Plot the output model if requested """
    if doplot:
       skymod.plot(title='Model Sky Spectrum')
 
    # Clean up and return
-   del skymodel,tmpskymod,wave
+   del skymodel, tmpskymod, wave
    return skymod
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    """
@@ -2810,7 +2811,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    if informat=='fits':
       hdulist = pf.open(infile)
       varspec = hdulist[1].data.copy()
-      skyobs  = np.sqrt(np.median(varspec,axis=0))
+      skyobs  = np.sqrt(np.median(varspec, axis=0))
       skylab  = "RMS Spectrum"
       hdr = hdulist[0].header
       crval1  = hdr['crval1']
@@ -2826,7 +2827,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
       skylab  = "Observed Sky"
    else:
       try:
-         waveobs,varspec = np.loadtxt(infile,unpack=True,usecols=(0,2))
+         waveobs,varspec = np.loadtxt(infile, unpack=True, usecols=(0,2))
          skyobs = np.sqrt(varspec)
       except:
          print ""
@@ -2837,7 +2838,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
 
    """ Create the sky spectrum, with the appropriate smoothing """
    print ""
-   skymod = make_sky_model(waveobs,modsmoothkernel)
+   skymod = make_sky_model(waveobs, modsmoothkernel)
 
    """ 
    Scale the sky spectrum to roughly be 75% of the amplitude of the observed
@@ -2853,16 +2854,16 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    wrange = waveobs.max() - waveobs.min()
    xmin = waveobs.min() - 0.05*wrange
    xmax = waveobs.max() + 0.05*wrange
-   plt.plot(waveobs,skyobs,'k',ls='steps', label=skylab)
-   skymod.plot(color='r',label='Model sky')
+   plt.plot(waveobs, skyobs,'k', ls='steps', label=skylab)
+   skymod.plot(color='r', label='Model sky')
    plt.legend()
-   plt.xlim(xmin,xmax)
+   plt.xlim(xmin, xmax)
 
    del waveobs
    del skyobs
    del skymod
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def planck_spec(wavelength, T=1.0e4, waveunit='Angstrom'):
    """
@@ -2896,9 +2897,9 @@ def planck_spec(wavelength, T=1.0e4, waveunit='Angstrom'):
 
    return B_lam
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
+def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    """
    Calculates the response function for an IR spectral setup using observations
    of a standard star.  The assumption is that the standard is a hot
@@ -2928,7 +2929,7 @@ def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
    """
 
    # Read the input spectrum
-   wave,fluxobs,var = read_spectrum(infile)
+   wave, fluxobs,var = read_spectrum(infile)
    rms = np.sqrt(var)
 
    # Generate the thermal spectrum and normalize it
@@ -2939,7 +2940,7 @@ def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
    #  spectrum should only be absorption lines.  Therefore, run a maximum
    #  filter
 
-   flux = ndimage.filters.maximum_filter(fluxobs,filtwidth)
+   flux = ndimage.filters.maximum_filter(fluxobs, filtwidth)
 
    # Calculate the observed response function
    respobs = B_lam / flux
@@ -2947,20 +2948,20 @@ def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
    # Show some plots
    plt.figure(1)
    plt.clf()
-   plt.plot(wave,fluxobs)
-   plt.plot(wave,B_lam)
-   plt.plot(wave,flux)
-   plt.plot(wave,rms)
+   plt.plot(wave, fluxobs)
+   plt.plot(wave, b_lam)
+   plt.plot(wave, flux)
+   plt.plot(wave, rms)
    plt.figure(2)
    plt.clf()
-   plt.plot(wave,respobs)
+   plt.plot(wave, respobs)
 
    # Define the spectral range to be included in the fit
    if fitrange is not None:
-      mask = np.zeros(respobs.size,dtype=np.bool)
+      mask = np.zeros(respobs.size, dtype=np.bool)
       fitr = np.atleast_2d(np.asarray(fitrange))
       for i in range(fitr.shape[0]):
-         wmask = np.logical_and(wave>fitr[i,0],wave<fitr[i,1])
+         wmask = np.logical_and(wave>fitr[i,0], wave<fitr[i,1])
          mask[wmask] = True
       wavegood = wave[mask]
       respgood = respobs[mask]
@@ -2969,7 +2970,7 @@ def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
       respgood = respobs
 
    # Fit a polynomial to the observed response function
-   fpoly = np.polyfit(wavegood,respgood,order)
+   fpoly = np.polyfit(wavegood, respgood, order)
    print ""
    print "Fit a polynomial of order %d to curve in Figure 2." % order
    print "Resulting coefficients:"
@@ -2981,20 +2982,20 @@ def response_ir(infile,outfile,order=6,fitrange=None,filtwidth=9):
    resp = p(wave)
 
    # Add the smooth response to the plot and show corrected curve
-   plt.plot(wave,resp,'r')
+   plt.plot(wave, resp,'r')
    fc = fluxobs * resp
    plt.figure(3)
    plt.clf()
-   plt.plot(wave,fc)
-   plt.plot(wave,B_lam)
+   plt.plot(wave, fc)
+   plt.plot(wave, b_lam)
 
    # Write smooth response to output file
    out = np.zeros((wave.size,2))
    out[:,0] = wave
    out[:,1] = resp
-   np.savetxt(outfile,out,'%8.3f  %.18e')
+   np.savetxt(outfile, out,'%8.3f  %.18e')
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def response_correct(infile, respfile, outfile):
    """
@@ -3010,14 +3011,14 @@ def response_correct(infile, respfile, outfile):
 
    # Read input files
    try:
-      w,f,v = np.loadtxt(infile,unpack=True)
+      w, f,v = np.loadtxt(infile, unpack=True)
    except:
       print ""
       print "ERROR: response_correct.  Unable to read input spectrum %s" \
           % infile
       return
    try:
-      wr,resp = np.loadtxt(respfile,unpack=True)
+      wr, resp = np.loadtxt(respfile, unpack=True)
    except:
       print ""
       print "ERROR: response_correct.  Unable to read response spectrum %s" \
@@ -3027,11 +3028,11 @@ def response_correct(infile, respfile, outfile):
    # Apply the response correction and save the spectrum
    f *= resp
    v *= resp**2
-   save_spectrum(outfile,w,f,v)
+   save_spectrum(outfile, w, f,v)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
+def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    """
    Normalizes a spectrum by fitting to the continuum and then dividing the
     input spectrum by the fit.
@@ -3054,7 +3055,7 @@ def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
    """
 
    # Read the input spectrum
-   wave,fluxobs,var = read_spectrum(infile)
+   wave, fluxobs,var = read_spectrum(infile)
    rms = np.sqrt(var)
 
    # Try to minimize outliers due to both emission and absorption
@@ -3063,21 +3064,21 @@ def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
 
    wt = 1.0 / var
    yin = wt * fluxobs
-   flux = ndimage.filters.uniform_filter(yin,filtwidth)
-   flux /= ndimage.filters.uniform_filter(wt,filtwidth)
+   flux = ndimage.filters.uniform_filter(yin, filtwidth)
+   flux /= ndimage.filters.uniform_filter(wt, filtwidth)
 
    # Show some plots
    plt.figure(1)
    plt.clf()
-   plt.plot(wave,fluxobs)
-   plt.plot(wave,flux,'r')
+   plt.plot(wave, fluxobs)
+   plt.plot(wave, flux,'r')
 
    # Define the spectral range to be included in the fit
    if fitrange is not None:
-      mask = np.zeros(flux.size,dtype=np.bool)
+      mask = np.zeros(flux.size, dtype=np.bool)
       fitr = np.atleast_2d(np.asarray(fitrange))
       for i in range(fitr.shape[0]):
-         wmask = np.logical_and(wave>fitr[i,0],wave<fitr[i,1])
+         wmask = np.logical_and(wave>fitr[i,0], wave<fitr[i,1])
          mask[wmask] = True
       wavegood = wave[mask]
       fluxgood = flux[mask]
@@ -3086,7 +3087,7 @@ def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
       fluxgood = flux
 
    # Fit a polynomial to the observed response function
-   fpoly = np.polyfit(wavegood,fluxgood,order)
+   fpoly = np.polyfit(wavegood, fluxgood, order)
    print ""
    print "Fit a polynomial of order %d to the red curve in Figure 1." % order
    print "Resulting coefficients:"
@@ -3098,17 +3099,17 @@ def normalize(infile,outfile,order=6,fitrange=None,filtwidth=11):
    cfit = p(wave)
 
    # Add the smooth response to the plot and show corrected curve
-   plt.plot(wave,cfit,'k')
+   plt.plot(wave, cfit,'k')
    fc = fluxobs / cfit
    vc = var / cfit**2
    plt.figure(2)
    plt.clf()
-   plt.plot(wave,fc)
+   plt.plot(wave, fc)
 
    # Write normalized spectrum to output file
-   save_spectrum(outfile,wave,fc,vc)
+   save_spectrum(outfile, wave, fc,vc)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    """
@@ -3135,7 +3136,7 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
       infile = '%s/Data/atm_trans_maunakea.fits' \
           % __file__.split('spec_simple')[0]
    print "Loading atmospheric data from %s" % infile
-   atm0 = Spec1d(infile,informat='fitstab')
+   atm0 = Spec1d(infile, informat='fitstab')
    atm0.wav *= 1.0e4
 
    """ Only use the relevant part of the atmospheric transmission spectrum"""
@@ -3145,10 +3146,10 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    del atm0
    
    """ Smooth the spectrum """
-   trans = ndimage.gaussian_filter(trans,fwhm)
+   trans = ndimage.gaussian_filter(trans, fwhm)
    
    """ Resample the smoothed spectrum """
-   watm,trans = resample_spec(watm,trans,w)
+   watm, trans = resample_spec(watm, trans, w)
    
    """ If an input spectrum has been given, then rescale the trans spectrum """
    if flux is not None:
@@ -3160,11 +3161,11 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    trans += offset
 
    """ Save as a Spec1d instance and return """
-   atm = Spec1d(wav=watm,flux=trans)
-   del watm,trans
+   atm = Spec1d(wav=watm, flux=trans)
+   del watm, trans
    return atm
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
                    color='g', linestyle='-', return_atm=False,
@@ -3176,17 +3177,17 @@ def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
    """
 
    """ Get the atmospheric spectrum that matches the input wavelength array """
-   atm = atm_trans(w,flux=flux,scale=scale,offset=offset,modfile=modfile)
+   atm = atm_trans(w, flux=flux, scale=scale, offset=offset, modfile=modfile)
 
    """ Plot the results """
-   atm.plot(color=color,linestyle=linestyle,title=title)
+   atm.plot(color=color, linestyle=linestyle, title=title)
 
    if return_atm:
       return atm
    else:
       del atm
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    """
@@ -3199,7 +3200,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    Create the transmission and night-sky emission line spectra over the 
    requested wavelength range
    """
-   wsky   = np.arange(wmin,wmax)
+   wsky   = np.arange(wmin, wmax)
    atm    = atm_trans(wsky)
    skymod = make_sky_model(wsky)
    skymod.flux /= skymod.flux.max()
@@ -3216,18 +3217,18 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 
    """ Plot the atmospheric transmission spectrum """
    ax1 = plt.subplot(211)
-   atm.plot(color='g',title='Near IR Sky')
+   atm.plot(color='g', title='Near IR Sky')
    if z is not None:
-      print atm.mark_speclines('strongem',z,marktype='line',showz=False)
-   plt.xlim(xmin,xmax)
+      print atm.mark_speclines('strongem', z, marktype='line', showz=False)
+   plt.xlim(xmin, xmax)
    plt.ylim(-0.15,1.1)
 
    """ Plot the night-sky emission lines """
-   ax2 = plt.subplot(212,sharex=ax1)
+   ax2 = plt.subplot(212, sharex=ax1)
    skymod.plot(title=None)
    if z is not None:
-      print atm.mark_speclines('strongem',z,marktype='line')
-   plt.xlim(xmin,xmax)
+      print atm.mark_speclines('strongem', z, marktype='line')
+   plt.xlim(xmin, xmax)
    dy = 0.05 * skymod.flux.max()
    plt.ylim(-dy,(skymod.flux.max()+dy))
 
@@ -3235,9 +3236,9 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    Plot the locations of bright emission features at the requested redshift
    """
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
+def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax,var=None,
                   showsub=False):
    """
    Given vectors of flux and wavelength, interactively calculates the integrated
@@ -3254,23 +3255,23 @@ def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
    tmpflux = flux[mask].copy()
    if(var):
       tmpvar = var[mask].copy()
-      plot_spectrum_array(tmplamb,tmpflux,tmpvar)
+      plot_spectrum_array(tmplamb, tmpflux, tmpvar)
    else:
-      plot_spectrum_array(tmplamb,tmpflux)
+      plot_spectrum_array(tmplamb, tmpflux)
 
    """ Find a linear fit to the background regions """
    bkgdmask = ((tmplamb>bluemin) & (tmplamb<bluemax)) | \
        ((tmplamb>redmin) & (tmplamb<redmax))
    bkgdwave = tmplamb[bkgdmask].copy()
    bkgdflux = tmpflux[bkgdmask].copy()
-   bkgdpoly = np.polyfit(bkgdwave,bkgdflux,1)
+   bkgdpoly = np.polyfit(bkgdwave, bkgdflux,1)
    continuum = tmplamb*bkgdpoly[0] + bkgdpoly[1]
-   plt.plot(tmplamb,continuum,'r')
-   plt.axvline(bluemin,color='k')
-   plt.axvline(bluemax,color='k')
-   plt.axvline(redmin,color='k')
-   plt.axvline(redmax,color='k')
-   plt.xlim(tmplamb[0],tmplamb[tmplamb.size - 1])
+   plt.plot(tmplamb, continuum,'r')
+   plt.axvline(bluemin, color='k')
+   plt.axvline(bluemax, color='k')
+   plt.axvline(redmin, color='k')
+   plt.axvline(redmax, color='k')
+   plt.xlim(tmplamb[0], tmplamb[tmplamb.size - 1])
 
    """ Calculate the subtracted spectrum, and plot it if desired """
    subflux = tmpflux - continuum
@@ -3278,8 +3279,8 @@ def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
    if(showsub):
       plt.figure()
       plt.clf()
-      plt.plot(tmplamb,subflux)
-      plt.xlim(tmplamb[0],tmplamb[tmplamb.size - 1])
+      plt.plot(tmplamb, subflux)
+      plt.xlim(tmplamb[0], tmplamb[tmplamb.size - 1])
 
    """ Numerically integrate the flux/counts in the line region """
    linemask = np.logical_not(bkgdmask)
@@ -3299,7 +3300,7 @@ def calc_lineflux(wavelength,flux,bluemin,bluemax,redmin,redmax,var=None,
 #
 #===========================================================================
 
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
                    muorder=3, sigorder=4, fitrange=None, doplot=True,
@@ -3324,16 +3325,16 @@ def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
    function and the the trace_spectrum function.
    """
 
-   mu0,sig0 = find_trace(data,dispaxis,apmin,apmax,doplot,do_subplot)
+   mu0, sig0 = find_trace(data, dispaxis, apmin, apmax, doplot, do_subplot)
 
-   pos,width = trace_spectrum(data,mu0,sig0,dispaxis,stepsize,muorder,
-                              sigorder,fitrange,doplot,do_subplot)
+   pos, width = trace_spectrum(data, mu0, sig0, dispaxis, stepsize, muorder,
+                              sigorder, fitrange, doplot, do_subplot)
 
-   return pos,width
+   return pos, width
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
+def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
                      weight='gauss', sky=None, gain=1.0, rdnoise=0.0, 
                      doplot=True, do_subplot=False, outfile=None):
    """
@@ -3375,17 +3376,17 @@ def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
    print ""
    print "Extracting the spectrum..."
    for i in pix:
-      #print pix[i], mu[i], sig[i]
+      # print pix[i], mu[i], sig[i]
       if specaxis == 0:
          tmpdata = data[i,:]
       else:
-         tmpdata = data[:,i]
+         tmpdata = data[:, i]
       if (sky == None):
          skyval = None
       else:
          skyval = sky[i]
-      amp[i],var[i] = extract_wtsum_col(tmpdata,mu[i],apmin,apmax,sig=sig[i],
-                                        gain=gain,rdnoise=rdnoise,sky=skyval,
+      amp[i],var[i] = extract_wtsum_col(tmpdata, mu[i], apmin, apmax, sig=sig[i],
+                                        gain=gain, rdnoise=rdnoise, sky=skyval,
                                         weight=weight)
    print "   Done"
 
@@ -3398,17 +3399,17 @@ def extract_spectrum(data,mupoly,sigpoly,dispaxis="x",apmin=-4.,apmax=4.,
       else:
          plt.figure(4)
          plt.clf()
-      plot_spectrum_array(pix,amp,title='Extracted spectrum (pixels)',
+      plot_spectrum_array(pix, amp, title='Extracted spectrum (pixels)',
                           xlabel='Pixel number in the dispersion direction')
 
    # Save the extracted spectrum
    if outfile is not None:
-      save_spectrum(outfile,pix,amp,var)
+      save_spectrum(outfile, pix, amp,var)
 
    # Return the extracted spectrum
    return amp,var
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_sky(infile):
    """
@@ -3420,13 +3421,13 @@ def plot_sky(infile):
    """
 
    data = pf.getdata(infile)
-   sky = np.median(data,axis=0)
+   sky = np.median(data, axis=0)
    pix = np.arange(sky.size)
-   plot_spectrum_array(pix,sky,xlabel='Pixels',title='Sky Spectrum')
+   plot_spectrum_array(pix, sky, xlabel='Pixels', title='Sky Spectrum')
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def save_spectrum(filename,x,flux,var=None):
+def save_spectrum(filename, x, flux,var=None):
    """
    Saves a spectrum as a text file
    """
@@ -3442,10 +3443,10 @@ def save_spectrum(filename,x,flux,var=None):
    outdata[:,1] = flux
    print ""
    print "Saving spectrum to file %s" % filename
-   np.savetxt(filename,outdata,fmt=fmtstring)
+   np.savetxt(filename, outdata, fmt=fmtstring)
    del outdata
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
                         ylabel="Relative Flux", title='Extracted Spectrum', 
@@ -3461,9 +3462,9 @@ def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
       speccolor = 'k'
       rmscolor  = 'k'
    plt.axhline(color='k')
-   plt.plot(x,flux,speccolor,linestyle='steps',label='Flux')
+   plt.plot(x, flux, speccolor, linestyle='steps', label='Flux')
    plt.tick_params(labelsize=fontsize)
-   plt.xlabel(xlabel,fontsize=fontsize)
+   plt.xlabel(xlabel, fontsize=fontsize)
    if var is not None:
       rms = np.sqrt(var)+rmsoffset
       if rmsls is None:
@@ -3474,18 +3475,18 @@ def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
       else:
          rlinestyle = 'steps%s' % rmsls
       if docolor:
-         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS')
+         plt.plot(x, rms, rmscolor, linestyle=rlinestyle, label='RMS')
       else:
-         plt.plot(x,rms,rmscolor,linestyle=rlinestyle,label='RMS',lw=2)
-   plt.ylabel(ylabel,fontsize=fontsize)
+         plt.plot(x, rms, rmscolor, linestyle=rlinestyle, label='RMS', lw=2)
+   plt.ylabel(ylabel, fontsize=fontsize)
    if(title):
       plt.title(title)
    if(x[0] > x[-1]):
-      plt.xlim([x[-1],x[0]])
+      plt.xlim([x[-1], x[0]])
    else:
-      plt.xlim([x[0],x[-1]])
+      plt.xlim([x[0], x[-1]])
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_spectrum(filename, varspec=True, informat="text", 
                   xlabel="Wavelength (Angstroms)", ylabel="Relative Flux",
@@ -3511,20 +3512,20 @@ def plot_spectrum(filename, varspec=True, informat="text",
    """
 
    """ Read in the spectrum, using the appropriate input format """
-   wavelength,flux,var = read_spectrum(filename, informat, varspec, verbose)
+   wavelength, flux,var = read_spectrum(filename, informat, varspec, verbose)
 
    """ Plot the spectrum """
    if title == 'default':
       title = 'Spectrum for %s' % filename
    if varspec:
-      plot_spectrum_array(wavelength,flux,var=var,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,speccolor=speccolor,
-                          rmscolor=rmscolor,rmsoffset=rmsoffset,
-                          rmsls=rmsls,fontsize=fontsize)
+      plot_spectrum_array(wavelength, flux,var=var, xlabel=xlabel, ylabel=ylabel,
+                          title=title, docolor=docolor, speccolor=speccolor,
+                          rmscolor=rmscolor, rmsoffset=rmsoffset,
+                          rmsls=rmsls, fontsize=fontsize)
    else:
-      plot_spectrum_array(wavelength,flux,xlabel=xlabel,ylabel=ylabel,
-                          title=title,docolor=docolor,speccolor=speccolor,
-                          rmscolor=rmscolor,rmsoffset=rmsoffset,
+      plot_spectrum_array(wavelength, flux, xlabel=xlabel, ylabel=ylabel,
+                          title=title, docolor=docolor, speccolor=speccolor,
+                          rmscolor=rmscolor, rmsoffset=rmsoffset,
                           fontsize=fontsize)
 
    """ Plot the atmospheric transmission if requested """
@@ -3537,7 +3538,7 @@ def plot_spectrum(filename, varspec=True, informat="text",
    if(varspec):
       del var
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
    """
@@ -3565,27 +3566,27 @@ def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
 
    """ Smooth spectrum """
    yin = wt * influx
-   outflux = ndimage.filters.uniform_filter(yin,filtwidth)
-   outflux /= ndimage.filters.uniform_filter(wt,filtwidth)
+   outflux = ndimage.filters.uniform_filter(yin, filtwidth)
+   outflux /= ndimage.filters.uniform_filter(wt, filtwidth)
    if varwt:
-      outvar = 1.0 / (filtwidth * ndimage.filters.uniform_filter(wt,filtwidth))
+      outvar = 1.0 / (filtwidth * ndimage.filters.uniform_filter(wt, filtwidth))
 
    """ Plot the smoothed spectrum """
    if varwt:
-      plot_spectrum_array(wavelength,outflux,outvar,title=None)
+      plot_spectrum_array(wavelength, outflux, outvar, title=None)
    else:
-      plot_spectrum_array(wavelength,outflux,title=None)
+      plot_spectrum_array(wavelength, outflux, title=None)
 
    """ Save the output file if desired """
    if(outfile):
       print "Saving smoothed spectrum to %s" % outfile
       if varwt:
-         save_spectrum(outfile,wavelength,outflux,outvar)
+         save_spectrum(outfile, wavelength, outflux, outvar)
       else:
-         save_spectrum(outfile,wavelength,outflux)
+         save_spectrum(outfile, wavelength, outflux)
       print ""
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
    """
@@ -3595,275 +3596,275 @@ def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
    """
 
    """ Read the input file """
-   x,flux,var = read_spectrum(infile,varspec=varspec)
+   x, flux,var = read_spectrum(infile,varspec=varspec)
 
    """ Convert x from pixels to wavelength units """
    wavelength = lambda0 + dlambda * x
 
    """ Plot and save the results """
    if varspec == True:
-      plot_spectrum_array(wavelength,flux,var=var,
+      plot_spectrum_array(wavelength, flux,var=var,
                           title="Wavelength-calibrated spectrum")
-      save_spectrum(outfile,wavelength,flux,var)
+      save_spectrum(outfile, wavelength, flux,var)
    else:
-      plot_spectrum_array(wavelength,flux,title="Wavelength-calibrated spectrum")
-      save_spectrum(outfile,wavelength,flux)
+      plot_spectrum_array(wavelength, flux, 
+                          title="Wavelength-calibrated spectrum")
+      save_spectrum(outfile, wavelength, flux)
 
 
 
 
-#===========================================================================
+# ===========================================================================
 #
 # Rumbaugh code that may or may not get discarded at a later time
 # (has now been commented out but not yet actually discarded)
 #
-#===========================================================================
+# ===========================================================================
 
-##-----------------------------------------------------------------------
-#
-#def plot_multiple_peaks(cdat,tp,theight,apmin=-4.,apmax=4.,maxpeaks=2,fig=4,clearfig=True,plot_fits=True,apertures=None):
-#   plt.figure(fig)
-#   if clearfig: plt.clf()
-#   plt.plot(np.arange(1,theight+1),cdat,linestyle='steps',color='black')
-#   xmod = np.arange(1,theight+1,0.1)
-#   tcolors = np.array(['red','cyan','magenta','green','blue','yellow'])
-#   for ipg in range(0,maxpeaks):
-#      ymod = make_gauss(xmod,tp[ipg][1],tp[ipg][2],tp[ipg][3],tp[0][0])
-#      if plot_fits: plt.plot(xmod,ymod,color=tcolors[ipg])
-#      if apertures == None:
-#         plt.axvline(tp[ipg][1]+apmin,color=tcolors[ipg])
-#         plt.axvline(tp[ipg][1]+apmax,color=tcolors[ipg])
-#      else:
-#         plt.axvline(tp[ipg][1]+apertures[ipg],color=tcolors[ipg])
-#         plt.axvline(tp[ipg][1]-apertures[ipg],color=tcolors[ipg])
-#      if tp[ipg][3]*1.05 > 2*np.max(cdat):
-#         plt.text(tp[ipg][1],1.8*np.max(cdat),str(ipg+1),color=tcolors[ipg])
-#      elif ((tp[ipg][3]*1.05 < 2*np.min(cdat)) & (tp[ipg][3]*1.05 < -2*np.max(cdat))):
-#         plt.text(tp[ipg][1],np.min([1.8*np.min(cdat),-1.8*np.max(cdat)]),str(ipg+1),color=tcolors[ipg])
-#      else:
-#         plt.text(tp[ipg][1],tp[ipg][3]*1.05,str(ipg+1),color=tcolors[ipg])
-#   if plt.ylim()[1] > 2*np.max(cdat):
-#      plt.ylim(plt.ylim()[0],2*np.max(cdat))
-#   if ((plt.ylim()[0] < 2*np.min(cdat)) & (plt.ylim()[0] < -2*np.max(cdat))):
-#      plt.ylim(np.min([2*np.min(cdat),-2*np.max(cdat)]),plt.ylim()[1])
-#   plt.xlabel('Pixel number in the spatial direction')
-#   plt.title('Compressed Spatial Plot with Potential Peaks')
-#
-##-----------------------------------------------------------------------
-#
-#def find_multiple_peaks(data,dispaxis="x",apmin=-4.,apmax=4.,maxpeaks=2,output_plot=None,output_plot_dir=None,check_aps=False):
-#   tdata = data.copy()
-#   gfbc = find_blank_columns(tdata)
-#   if dispaxis == 'x':
-#      data[:,gfbc]
-#   tp = np.zeros((maxpeaks,4,))
-#   p_prelim = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-#   tp[0] = p_prelim
-#   for ifmp in range(1,maxpeaks):
-#      if dispaxis == 'x':
-#         theight = np.shape(tdata[:,gfbc])[0]
-#         tlength = np.shape(tdata[:,gfbc])[1]
-#         if ifmp == 1: x = np.arange(1,theight+1)
-#         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
-#         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
-#         p_prelim = find_peak(tdata[gx,:],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-#         tp[ifmp] = p_prelim
-#         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
-#         gxprev = gx.copy()
-#      else:
-#         tlength = np.shape(tdata[gfbc,:])[0]
-#         theight = np.shape(tdata[gfbc,:])[1]
-#         if ifmp == 1: x = np.arange(1,theight+1)
-#         gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
-#         if ifmp != 1: gx = np.intersect1d(gx,gxprev)
-#         p_prelim = find_peak(tdata[:,gxprev],dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,nofit=True)
-#         tp[ifmp] = p_prelim
-#         tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
-#         gxprev = gx.copy()
-#   tp = find_peak(tdata,dispaxis=dispaxis,apmin=apmin,apmax=apmax,showplot=False,do_subplot=False,mu0=tp[:,1])
-#   tp[0] = np.ones(len(tp[1]))*tp[0]
-#   tp = np.transpose(tp)
-#   if dispaxis == 'x':
-#      cdat = np.median(data[:,gfbc],axis=1)
-#   else:
-#      cdat = np.median(data[gfbc,:],axis=0)
-#   plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-#   print 'Plotting %i highest peaks found\n'%maxpeaks
-#   tflag,fitmp,fixmu = False,False,False
-#   while not tflag:
-#      inp_fitmp = raw_input('Reduce secondary peaks? (y/n)\n')
-#      if ((inp_fitmp == 'y') | (inp_fitmp == 'Y')):
-#         tflag,fitmp = True,True
-#      elif ((inp_fitmp == 'n') | (inp_fitmp == 'N')):
-#         tflag = True
-#      elif inp_fitmp == 'fixmu':
-#         tflag,fixmu = True,True
-#      else:
-#         print 'Invalid input\n'
-#   fitpeaks = np.zeros(maxpeaks,dtype='bool')
-#   fitpeaks[0] = True
-#   bounds_arr = np.array([0,np.min(np.shape(data))])
-#   if fitmp:
-#      tflag = False
-#      while not tflag:
-#         inp_chp1 = raw_input("Is peak 1 okay? (y/n)\n")
-#         if ((inp_chp1 == 'y') | (inp_chp1 == 'Y')):
-#            tflag = True
-#         elif((inp_chp1 == 'n') | (inp_chp1 == 'N')):
-#            mflag = False
-#            while not mflag:
-#               inp_newp = raw_input("Current mu for peak 1 is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(tp[0][1]))
-#               if ((inp_newp == 'y') | (inp_newp == 'Y')):
-#                  mflag,tflag = True,True
-#               else:
-#                  try:
-#                     tp[0][1] = float(inp_newp)
-#                     plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-#                  except ValueError:
-#                     print 'Invalid input\n'
-#         else:
-#            print 'Invalid input\n'
-#      for iwp in range(1,maxpeaks):
-#         tflag = False
-#         while not tflag:
-#            inp_whichp = raw_input("Reduce peak %i? (y/n/manual) Enter 'manual' to manually set peak position\n"%(iwp+1))
-#            if ((inp_whichp == 'y') | (inp_whichp == 'Y')):
-#               tflag,fitpeaks[iwp] = True,True
-#            elif((inp_whichp == 'n') | (inp_whichp == 'N')):
-#               tflag = True
-#            elif ((inp_whichp == 'manual') | (inp_whichp == 'm')):
-#               mflag = False
-#               while not mflag:
-#                  inp_newp = raw_input("Current mu for peak %i is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(iwp+1,tp[iwp][1]))
-#                  if ((inp_newp == 'y') | (inp_newp == 'Y')):
-#                     mflag = True
-#                     tflag,fitpeaks[iwp] = True,True
-#                  else:
-#                     try:
-#                        tp[iwp][1] = float(inp_newp)
-#                        plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=maxpeaks)
-#                     except ValueError:
-#                        print 'Invalid input\n'
-#            else:
-#               print 'Invalid input\n'
-#      num_peaks = len(fitpeaks[fitpeaks])
-#      mp_out = np.zeros((4,num_peaks))
-#      for impo in range(0,maxpeaks): 
-#         if fitpeaks[impo]: 
-#            inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
-#            mp_out[:,inow-1] = tp[inow-1]
-#      mus_tmp = mp_out[1]
-#      sort_mus = np.sort(mus_tmp)
-#      argsort_mus = np.argsort(mus_tmp)
-#      tbounds_arr = np.zeros(2*num_peaks)
-#      tbounds_arr[2*num_peaks-1] = np.min(np.shape(data))
-#      for il in range(0,num_peaks-1): tbounds_arr[2*il+1:2*il+3] = np.mean(sort_mus[il:il+2])
-#      bounds_arr = np.zeros(2*num_peaks)
-#      aa_mus = np.argsort(argsort_mus)
-#      for il in range(0,num_peaks): bounds_arr[2*il:2*il+2] = tbounds_arr[2*aa_mus[il]:2*aa_mus[il]+2]
-#      plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
-#      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
-#      
-#      tflag = False
-#      inp_aps = raw_input("Are these bounds okay? (y/n)\n")
-#      while not tflag:
-#         if ((inp_aps == 'y') | (inp_aps == 'Y')):
-#            tflag = True
-#         elif ((inp_aps == 'n') | (inp_aps == 'N')):
-#            for ilf in range(0,num_peaks):
-#               tflag2 = False
-#               inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
-#               while not tflag2:
-#                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
-#                     tflag2 = True
-#                  elif ((inp_aps2 == 'n') | (inp_aps2 == 'N')):
-#                     tflag3 = False
-#                     nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-#                     nub = raw_input('Enter new upper bound:\n')
-#                     while not tflag3:
-#                        try: 
-#                           nlb,nub = float(nlb),float(nub)
-#                           if ((nlb < 0) | (nub > np.min(np.shape(data))) | (nub <= nlb)): raise ValueError
-#                           bounds_arr[2*ilf],bounds_arr[2*ilf+1] = nlb,nub
-#                           plot_multiple_peaks(cdat,tp,theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks)
-#                           for ilt in range(0,2*num_peaks): plt.axvline(bounds_arr[ilt],color='k')
-#                           tflag3 = True
-#                           inp_aps2 = raw_input("New bounds for peak %i are: (%.1f,%.1f). Are these okay? (y/n)\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-#                        except ValueError:
-#                           print 'Invalid input. Bounds must be floats between 0 and %.1f.\n'%(np.min(np.shape(data)))
-#                           nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1,bounds_arr[2*ilf],bounds_arr[2*ilf+1]))
-#                           nub = raw_input('Enter new upper bound:\n')
-#                  else:
-#                     print 'Invalid input\n'
-#                     inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
-#            tflag = True
-#         else:
-#            print 'Invalid input\n'
-#            inp_aps = raw_input("Are these bounds okay? (y/n)\n")
-#   try:
-#      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))])).all()
-#   except AttributeError:
-#      bnds_bool = (bounds_arr == np.array([0,np.min(np.shape(data))]))
-#   if ((fitpeaks[0]) & (len(fitpeaks[fitpeaks]) == 1) & bnds_bool): 
-#      fitmp = False
-#      print 'No secondary peaks selected. Reverting to normal analysis.'
-#   num_peaks = len(fitpeaks[fitpeaks])
-#   mp_out = np.zeros((4,num_peaks))
-#   for impo in range(0,maxpeaks): 
-#      if fitpeaks[impo]: 
-#         inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
-#         mp_out[:,inow-1] = tp[inow-1]
-#   aflag,change_aps = False,False
-#   if check_aps:
-#      while not aflag:
-#         inp_aps = raw_input("Change apertures? (y/n)\n")
-#         if ((inp_aps == 'y') | (inp_aps == 'Y')):
-#            aflag,change_aps = True,True
-#         elif ((inp_aps == 'n') | (inp_aps == 'N')):
-#            aflag = True
-#         else:
-#            print 'Invalid input.\n'
-#   apertures = 4.*np.ones(num_peaks)
-#   if change_aps:
-#      for iaps in range(0,num_peaks):
-#         aflag = False
-#         while not aflag:
-#            inp_aps = raw_input("Change apertures for peak %i? (y/n)\n"%(iaps+1))
-#            if ((inp_aps == 'y') | (inp_aps == 'Y')):
-#               aflag2 = False
-#               while not aflag2:
-#                  inp_aps2 = raw_input("Aperture for peak %i is +%.1f,-%.1f. Is this okay? Enter 'y' or new width.\n"%(iaps+1,apertures[iaps],apertures[iaps]))
-#                  if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
-#                     aflag2 = True
-#                  else:
-#                     try:
-#                        if inp_aps > 0: 
-#                           apertures[iaps] = inp_aps2
-#                           plot_multiple_peaks(cdat,tp,theight,apmin=-1*apertures[iaps],apmax=apertures[iaps],maxpeaks=num_peaks,apertures=apertures)
-#                        else:
-#                           print 'Input value must be greater than zero.'
-#                     except:
-#                        print 'Invalid input'
-#               aflag = True
-#            elif ((inp_aps == 'n') | (inp_aps == 'N')):
-#               aflag = True
-#            else:
-#               print 'Invalid input.\n'
-#   if output_plot != None:
-#      outplotname = 'bounds.%s'%output_plot
-#      if output_plot_dir != None: outplotname = '%s/%s'%(output_plot_dir,outplotname)
-#      plot_multiple_peaks(cdat,np.transpose(mp_out),theight,apmin=apmin,apmax=apmax,maxpeaks=num_peaks,plot_fits=False,apertures=apertures)
-#      for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il],color='k')
-#      plt.title('Compressed Spatial Plot with Extraction Regions')
-#      plt.savefig(outplotname)
-#   if check_aps:
-#      if num_peaks == 1:
-#         return False,fixmu,tp[0],bounds_arr,apertures
-#      else:
-#         return fitmp,fixmu,mp_out,bounds_arr,apertures
-#   else:
-#      if num_peaks == 1:
-#         return False,fixmu,tp[0],bounds_arr
-#      else:
-#         return fitmp,fixmu,mp_out,bounds_arr
-
+# # -----------------------------------------------------------------------
+# 
+# def plot_multiple_peaks(cdat, tp, theight, apmin=-4., apmax=4., maxpeaks=2, fig=4, clearfig=True, plot_fits=True, apertures=None):
+#    plt.figure(fig)
+#    if clearfig: plt.clf()
+#    plt.plot(np.arange(1, theight+1), cdat, linestyle='steps', color='black')
+#    xmod = np.arange(1, theight+1,0.1)
+#    tcolors = np.array(['red','cyan','magenta','green','blue','yellow'])
+#    for ipg in range(0, maxpeaks):
+#       ymod = make_gauss(xmod, tp[ipg][1], tp[ipg][2], tp[ipg][3], tp[0][0])
+#       if plot_fits: plt.plot(xmod, ymod, color=tcolors[ipg])
+#       if apertures == None:
+#          plt.axvline(tp[ipg][1]+apmin, color=tcolors[ipg])
+#          plt.axvline(tp[ipg][1]+apmax, color=tcolors[ipg])
+#       else:
+#          plt.axvline(tp[ipg][1]+apertures[ipg], color=tcolors[ipg])
+#          plt.axvline(tp[ipg][1]-apertures[ipg], color=tcolors[ipg])
+#       if tp[ipg][3]*1.05 > 2*np.max(cdat):
+#          plt.text(tp[ipg][1],1.8*np.max(cdat), str(ipg+1), color=tcolors[ipg])
+#       elif ((tp[ipg][3]*1.05 < 2*np.min(cdat)) & (tp[ipg][3]*1.05 < -2*np.max(cdat))):
+#          plt.text(tp[ipg][1], np.min([1.8*np.min(cdat),-1.8*np.max(cdat)]), str(ipg+1), color=tcolors[ipg])
+#       else:
+#          plt.text(tp[ipg][1], tp[ipg][3]*1.05, str(ipg+1), color=tcolors[ipg])
+#    if plt.ylim()[1] > 2*np.max(cdat):
+#       plt.ylim(plt.ylim()[0],2*np.max(cdat))
+#    if ((plt.ylim()[0] < 2*np.min(cdat)) & (plt.ylim()[0] < -2*np.max(cdat))):
+#       plt.ylim(np.min([2*np.min(cdat),-2*np.max(cdat)]), plt.ylim()[1])
+#    plt.xlabel('Pixel number in the spatial direction')
+#    plt.title('Compressed Spatial Plot with Potential Peaks')
+# 
+# # -----------------------------------------------------------------------
+# 
+# def find_multiple_peaks(data, dispaxis="x", apmin=-4., apmax=4., maxpeaks=2, output_plot=None, output_plot_dir=None, check_aps=False):
+#    tdata = data.copy()
+#    gfbc = find_blank_columns(tdata)
+#    if dispaxis == 'x':
+#       data[:, gfbc]
+#    tp = np.zeros((maxpeaks,4,))
+#    p_prelim = find_peak(tdata, dispaxis=dispaxis, apmin=apmin, apmax=apmax, showplot=False, do_subplot=False, nofit=True)
+#    tp[0] = p_prelim
+#    for ifmp in range(1, maxpeaks):
+#       if dispaxis == 'x':
+#          theight = np.shape(tdata[:, gfbc])[0]
+#          tlength = np.shape(tdata[:, gfbc])[1]
+#          if ifmp == 1: x = np.arange(1, theight+1)
+#          gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
+#          if ifmp != 1: gx = np.intersect1d(gx, gxprev)
+#          p_prelim = find_peak(tdata[gx,:], dispaxis=dispaxis, apmin=apmin, apmax=apmax, showplot=False, do_subplot=False, nofit=True)
+#          tp[ifmp] = p_prelim
+#          tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
+#          gxprev = gx.copy()
+#       else:
+#          tlength = np.shape(tdata[gfbc,:])[0]
+#          theight = np.shape(tdata[gfbc,:])[1]
+#          if ifmp == 1: x = np.arange(1, theight+1)
+#          gx = np.where((x < p_prelim[1]+2*apmin) | (x > p_prelim[1]+2*apmax))[0]
+#          if ifmp != 1: gx = np.intersect1d(gx, gxprev)
+#          p_prelim = find_peak(tdata[:, gxprev], dispaxis=dispaxis, apmin=apmin, apmax=apmax, showplot=False, do_subplot=False, nofit=True)
+#          tp[ifmp] = p_prelim
+#          tp[ifmp][1] = x[gx[int(tp[ifmp][1])-1]]
+#          gxprev = gx.copy()
+#    tp = find_peak(tdata, dispaxis=dispaxis, apmin=apmin, apmax=apmax, showplot=False, do_subplot=False, mu0=tp[:,1])
+#    tp[0] = np.ones(len(tp[1]))*tp[0]
+#    tp = np.transpose(tp)
+#    if dispaxis == 'x':
+#       cdat = np.median(data[:, gfbc], axis=1)
+#    else:
+#       cdat = np.median(data[gfbc,:], axis=0)
+#    plot_multiple_peaks(cdat, tp, theight, apmin=apmin, apmax=apmax, maxpeaks=maxpeaks)
+#    print 'Plotting %i highest peaks found\n'%maxpeaks
+#    tflag, fitmp, fixmu = False, False, False
+#    while not tflag:
+#       inp_fitmp = raw_input('Reduce secondary peaks? (y/n)\n')
+#       if ((inp_fitmp == 'y') | (inp_fitmp == 'Y')):
+#          tflag, fitmp = True, True
+#       elif ((inp_fitmp == 'n') | (inp_fitmp == 'N')):
+#          tflag = True
+#       elif inp_fitmp == 'fixmu':
+#          tflag, fixmu = True, True
+#       else:
+#          print 'Invalid input\n'
+#    fitpeaks = np.zeros(maxpeaks, dtype='bool')
+#    fitpeaks[0] = True
+#    bounds_arr = np.array([0, np.min(np.shape(data))])
+#    if fitmp:
+#       tflag = False
+#       while not tflag:
+#          inp_chp1 = raw_input("Is peak 1 okay? (y/n)\n")
+#          if ((inp_chp1 == 'y') | (inp_chp1 == 'Y')):
+#             tflag = True
+#          elif((inp_chp1 == 'n') | (inp_chp1 == 'N')):
+#             mflag = False
+#             while not mflag:
+#                inp_newp = raw_input("Current mu for peak 1 is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(tp[0][1]))
+#                if ((inp_newp == 'y') | (inp_newp == 'Y')):
+#                   mflag, tflag = True, True
+#                else:
+#                   try:
+#                      tp[0][1] = float(inp_newp)
+#                      plot_multiple_peaks(cdat, tp, theight, apmin=apmin, apmax=apmax, maxpeaks=maxpeaks)
+#                   except ValueError:
+#                      print 'Invalid input\n'
+#          else:
+#             print 'Invalid input\n'
+#       for iwp in range(1, maxpeaks):
+#          tflag = False
+#          while not tflag:
+#             inp_whichp = raw_input("Reduce peak %i? (y/n/manual) Enter 'manual' to manually set peak position\n"%(iwp+1))
+#             if ((inp_whichp == 'y') | (inp_whichp == 'Y')):
+#                tflag, fitpeaks[iwp] = True, True
+#             elif((inp_whichp == 'n') | (inp_whichp == 'N')):
+#                tflag = True
+#             elif ((inp_whichp == 'manual') | (inp_whichp == 'm')):
+#                mflag = False
+#                while not mflag:
+#                   inp_newp = raw_input("Current mu for peak %i is %f. Is this acceptable? Enter 'y' or new value for mu.\n"%(iwp+1, tp[iwp][1]))
+#                   if ((inp_newp == 'y') | (inp_newp == 'Y')):
+#                      mflag = True
+#                      tflag, fitpeaks[iwp] = True, True
+#                   else:
+#                      try:
+#                         tp[iwp][1] = float(inp_newp)
+#                         plot_multiple_peaks(cdat, tp, theight, apmin=apmin, apmax=apmax, maxpeaks=maxpeaks)
+#                      except ValueError:
+#                         print 'Invalid input\n'
+#             else:
+#                print 'Invalid input\n'
+#       num_peaks = len(fitpeaks[fitpeaks])
+#       mp_out = np.zeros((4, num_peaks))
+#       for impo in range(0, maxpeaks): 
+#          if fitpeaks[impo]: 
+#             inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
+#             mp_out[:, inow-1] = tp[inow-1]
+#       mus_tmp = mp_out[1]
+#       sort_mus = np.sort(mus_tmp)
+#       argsort_mus = np.argsort(mus_tmp)
+#       tbounds_arr = np.zeros(2*num_peaks)
+#       tbounds_arr[2*num_peaks-1] = np.min(np.shape(data))
+#       for il in range(0, num_peaks-1): tbounds_arr[2*il+1:2*il+3] = np.mean(sort_mus[il:il+2])
+#       bounds_arr = np.zeros(2*num_peaks)
+#       aa_mus = np.argsort(argsort_mus)
+#       for il in range(0, num_peaks): bounds_arr[2*il:2*il+2] = tbounds_arr[2*aa_mus[il]:2*aa_mus[il]+2]
+#       plot_multiple_peaks(cdat, tp, theight, apmin=apmin, apmax=apmax, maxpeaks=num_peaks)
+#       for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il], color='k')
+#       
+#       tflag = False
+#       inp_aps = raw_input("Are these bounds okay? (y/n)\n")
+#       while not tflag:
+#          if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#             tflag = True
+#          elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#             for ilf in range(0, num_peaks):
+#                tflag2 = False
+#                inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
+#                while not tflag2:
+#                   if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
+#                      tflag2 = True
+#                   elif ((inp_aps2 == 'n') | (inp_aps2 == 'N')):
+#                      tflag3 = False
+#                      nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1, bounds_arr[2*ilf], bounds_arr[2*ilf+1]))
+#                      nub = raw_input('Enter new upper bound:\n')
+#                      while not tflag3:
+#                         try: 
+#                            nlb, nub = float(nlb), float(nub)
+#                            if ((nlb < 0) | (nub > np.min(np.shape(data))) | (nub <= nlb)): raise ValueError
+#                            bounds_arr[2*ilf], bounds_arr[2*ilf+1] = nlb, nub
+#                            plot_multiple_peaks(cdat, tp, theight, apmin=apmin, apmax=apmax, maxpeaks=num_peaks)
+#                            for ilt in range(0,2*num_peaks): plt.axvline(bounds_arr[ilt], color='k')
+#                            tflag3 = True
+#                            inp_aps2 = raw_input("New bounds for peak %i are: (%.1f,%.1f). Are these okay? (y/n)\n"%(ilf+1, bounds_arr[2*ilf], bounds_arr[2*ilf+1]))
+#                         except ValueError:
+#                            print 'Invalid input. Bounds must be floats between 0 and %.1f.\n'%(np.min(np.shape(data)))
+#                            nlb = raw_input("Current bounds for peak %i are (%.1f,%.1f). Enter new lower bound:\n"%(ilf+1, bounds_arr[2*ilf], bounds_arr[2*ilf+1]))
+#                            nub = raw_input('Enter new upper bound:\n')
+#                   else:
+#                      print 'Invalid input\n'
+#                      inp_aps2 = raw_input("Are the bounds for peak %i okay? (y/n)\n"%(ilf+1))
+#             tflag = True
+#          else:
+#             print 'Invalid input\n'
+#             inp_aps = raw_input("Are these bounds okay? (y/n)\n")
+#    try:
+#       bnds_bool = (bounds_arr == np.array([0, np.min(np.shape(data))])).all()
+#    except AttributeError:
+#       bnds_bool = (bounds_arr == np.array([0, np.min(np.shape(data))]))
+#    if ((fitpeaks[0]) & (len(fitpeaks[fitpeaks]) == 1) & bnds_bool): 
+#       fitmp = False
+#       print 'No secondary peaks selected. Reverting to normal analysis.'
+#    num_peaks = len(fitpeaks[fitpeaks])
+#    mp_out = np.zeros((4, num_peaks))
+#    for impo in range(0, maxpeaks): 
+#       if fitpeaks[impo]: 
+#          inow = len(fitpeaks[0:impo+1][fitpeaks[0:impo+1]])
+#          mp_out[:, inow-1] = tp[inow-1]
+#    aflag, change_aps = False, False
+#    if check_aps:
+#       while not aflag:
+#          inp_aps = raw_input("Change apertures? (y/n)\n")
+#          if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#             aflag, change_aps = True, True
+#          elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#             aflag = True
+#          else:
+#             print 'Invalid input.\n'
+#    apertures = 4.*np.ones(num_peaks)
+#    if change_aps:
+#       for iaps in range(0, num_peaks):
+#          aflag = False
+#          while not aflag:
+#             inp_aps = raw_input("Change apertures for peak %i? (y/n)\n"%(iaps+1))
+#             if ((inp_aps == 'y') | (inp_aps == 'Y')):
+#                aflag2 = False
+#                while not aflag2:
+#                   inp_aps2 = raw_input("Aperture for peak %i is +%.1f,-%.1f. Is this okay? Enter 'y' or new width.\n"%(iaps+1, apertures[iaps], apertures[iaps]))
+#                   if ((inp_aps2 == 'y') | (inp_aps2 == 'Y')):
+#                      aflag2 = True
+#                   else:
+#                      try:
+#                         if inp_aps > 0: 
+#                            apertures[iaps] = inp_aps2
+#                            plot_multiple_peaks(cdat, tp, theight, apmin=-1*apertures[iaps], apmax=apertures[iaps], maxpeaks=num_peaks, apertures=apertures)
+#                         else:
+#                            print 'Input value must be greater than zero.'
+#                      except:
+#                         print 'Invalid input'
+#                aflag = True
+#             elif ((inp_aps == 'n') | (inp_aps == 'N')):
+#                aflag = True
+#             else:
+#                print 'Invalid input.\n'
+#    if output_plot != None:
+#       outplotname = 'bounds.%s'%output_plot
+#       if output_plot_dir != None: outplotname = '%s/%s'%(output_plot_dir, outplotname)
+#       plot_multiple_peaks(cdat, np.transpose(mp_out), theight, apmin=apmin, apmax=apmax, maxpeaks=num_peaks, plot_fits=False, apertures=apertures)
+#       for il in range(0,2*num_peaks): plt.axvline(bounds_arr[il], color='k')
+#       plt.title('Compressed Spatial Plot with Extraction Regions')
+#       plt.savefig(outplotname)
+#    if check_aps:
+#       if num_peaks == 1:
+#          return False, fixmu, tp[0], bounds_arr, apertures
+#       else:
+#          return fitmp, fixmu, mp_out, bounds_arr, apertures
+#    else:
+#       if num_peaks == 1:
+#          return False, fixmu, tp[0], bounds_arr
+#       else:
+#          return fitmp, fixmu, mp_out, bounds_arr

@@ -52,6 +52,7 @@ import ccdredux as ccd
 
 #-----------------------------------------------------------------------
 
+# class Image(pf.HDUList):#
 class Image:
 
    def __init__(self, infile, mode='copyonwrite', verbose=True):
