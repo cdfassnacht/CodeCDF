@@ -16,8 +16,8 @@ Stand-alone functions
                        NIR data
    imcopy            - copies a portion of a fits file given the corners (in 
                        pixels)
-   poststamp         - copies a portion of a fits file given the center and size
-                       (in pixels)
+   poststamp         - copies a portion of a fits file given the center and 
+                       size (in pixels)
    image_cutout      - copies a portion of a fits file given the center and
                        size (center in RA,Dec)
    make_snr_image    - calculates the rms noise in an image and divides by
@@ -50,7 +50,8 @@ from math import cos as mcos,sin as msin
 import wcs as wcsmwa
 import ccdredux as ccd
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 # class Image(pf.HDUList):#
 class Image:
@@ -79,7 +80,8 @@ class Image:
       except:
          print "  ERROR. Problem in loading file %s" % infile
          print "  Check to make sure filename matches an existing file."
-         print "  If it does, there may be something wrong with the fits header."
+         print "  If it does, there may be something wrong with the fits " \
+             "header."
          print ""
          return
       if verbose:
@@ -116,13 +118,13 @@ class Image:
        - The display min and max values are stored as self.fmin and self.fmax
        - For more information see the set_display_limits method
       """
-      self.found_rms = False    # Have the clipped rms and mean been calculated?
+      self.found_rms = False    # Have clipped rms and mean been calculated?
       self.mean_clip = 0.0      # Value of the clipped mean
       self.rms_clip  = 0.0      # Value of the clipped rms
       self.fmin      = None     # Lower flux limit used in image display
       self.fmax      = None     # Upper flux limit used in image display
       self.fscale    = 'linear' # Flux scaling for display
-      self.statsize  = 2048     # Region size for statistics if image is too big
+      self.statsize  = 2048     # Region size for stats if image is too big
       self.zoomsize  = 31       # Size of postage-stamp zoom
       self.dispunits = 'radec'  # Default display units are arcsec offsets
       self.extval    = None     # Just label the axes by pixels
@@ -142,7 +144,7 @@ class Image:
       self.reset_subim()
       self.reset_imex()
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def reset_subim(self):
       """
@@ -159,7 +161,7 @@ class Image:
       self.subcentx = None
       self.subcenty = None
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def reset_imex(self):
       """
@@ -179,7 +181,7 @@ class Image:
       self.imex_sigyy = None
       self.imex_sigxy = None
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def close(self):
       """
@@ -189,7 +191,7 @@ class Image:
       self.hdu.close()
       return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def sigma_clip(self, nsig=3., mask=None, hext=0, verbose=False):
       """
@@ -207,7 +209,7 @@ class Image:
                     rejected.  Default=3.
          mask    - If some of the input data are known to be bad, they can
                     be flagged before the inputs are computed by including
-                    a mask.  Clearly his mask must be set such that True
+                    a mask.  Clearly this mask must be set such that True
                     indicates good data and False indicates bad data
          hext    - Image HDU containing the data.  The default (hext=0) should
                     work for all single-extension fits files and may 
@@ -273,7 +275,7 @@ class Image:
       self.rms_clip  = sig
       return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def start_interactive(self):
       self.xmark = None
@@ -285,7 +287,7 @@ class Image:
       self.keypress_info()
       return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def keypress_info(self):
       """
@@ -302,7 +304,7 @@ class Image:
       print '   q     Quit and close the window'
       print ''
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def onclick(self, event):
       """
@@ -341,7 +343,7 @@ class Image:
              (self.raclick,self.decclick)
       return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def keypress(self, event):
       """
@@ -404,7 +406,7 @@ class Image:
       self.keypress_info()
       return
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def radec_to_skycoord(self, ra, dec):
       """
@@ -438,7 +440,7 @@ class Image:
       """ Do the conversion """
       self.radec = SkyCoord(ra,dec,unit=(rafmt,decfmt))
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def get_wcs(self, hext=0):
       """
@@ -498,7 +500,7 @@ class Image:
          print 'Warning: no WCS info in header %d' % hext
          self.found_wcs = False
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_pixscale(self):
       """
@@ -509,7 +511,7 @@ class Image:
       self.pixscale = \
           float(raw_input('Enter the pixel scale for the image in arcsec/pix'))
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_wcsextent(self, hext=0, zeropos=None):
       """
@@ -528,10 +530,10 @@ class Image:
          hext    - HDU containing the WCS info.  Default=0
          zeropos - By default, which happens when zeropos=None, the (0,0)
                       point on the output image, as designated by the image
-                      axis labels, will be at the center of the image.  However,
-                      you can shift the (0,0) point to be somewhere else by
-                      setting zeropos.  For example, zeropos=(0.5,0.3) will
-                      shift the origin to the point that would have been
+                      axis labels, will be at the center of the image.  
+                      However,you can shift the (0,0) point to be somewhere 
+                      else by setting zeropos.  For example, zeropos=(0.5,0.3) 
+                      will shift the origin to the point that would have been
                       (0.5,0.3) if the origin were at the center of the image
       """
 
@@ -563,7 +565,7 @@ class Image:
       self.extval  = (extx1,extx2,exty1,exty2)
       self.zeropos = (dx,dy)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def im_moments(self, x0, y0, rmax=10., detect_thresh=3., skytype='global', 
                   hext=0, verbose=False):
@@ -601,7 +603,7 @@ class Image:
       if skytype is None:
          f   = data[pixmask]
       else:
-         if self.found_rms == False:
+         if self.found_rms is False:
             self.sigma_clip(verbose=verbose)
             self.found_rms = True
          print self.mean_clip, self.rms_clip
@@ -632,12 +634,13 @@ class Image:
       print self.imex_mux,self.imex_muy
       print sqrt(self.imex_sigxx),sqrt(self.imex_sigyy),self.imex_sigxy
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def eval_gauss_1d_r_plus_bkgd(self,p,r,y):
       """
       Compares the data to the model in the case of a one-sided gaussian
-       fit to a radial profile, where there is also a constant background level.
+       fit to a radial profile, where there is also a constant background 
+       level.
       In this case, the mean is fixed to be mu=0.
       The parameter values are:
        p[0] = sigma
@@ -660,7 +663,7 @@ class Image:
 
       return diff
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def eval_gauss_1d_r(self,p,r,y):
       """
@@ -673,7 +676,6 @@ class Image:
       """
 
       """ Unpack p """
-      mu    = 0.0
       sigma = p[0]
       amp   = p[1]
 
@@ -686,7 +688,7 @@ class Image:
 
       return diff
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def fit_gauss_1d_r(self, r, flux, bkgd=None):
       """
@@ -705,21 +707,22 @@ class Image:
       """ Set up for the cases with and without a background """
       if bkgd is not None:
          p = [sig0,amp0,bkgd]
-         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r_plus_bkgd,p,(r,flux),
-                                      maxfev=mf)
+         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r_plus_bkgd,p,
+                                      (r,flux),maxfev=mf)
          self.rprof_sig  = p_out[0]
          self.rprof_amp  = p_out[1]
          self.rprof_bkgd = p_out[2]
       else:
          p = [sig0,amp0]
-         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r,p,(r,flux),maxfev=mf)
+         p_out,ier = optimize.leastsq(self.eval_gauss_1d_r,p,(r,flux),
+                                      maxfev=mf)
          self.rprof_sig  = p_out[0]
          self.rprof_amp  = p_out[1]
          self.rprof_bkgd = 0.
 
       self.rprof_mu = 0.
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def circ_profile(self, r, flux, rmax_fit=5., verbose=True):
       """
@@ -764,8 +767,7 @@ class Image:
          print self.fcirc
          print self.rprof_amp, self.rprof_sig
 
-
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def radplot(self, x0, y0, rmax, center=True, imex_rmax=10., maxshift=5., 
                skylevel=0., zp=None, runit='pixel', logr=False, hext=0,
@@ -785,27 +787,28 @@ class Image:
         y0   - y coordinate
         rmax - maximum radius, in pixels, for the plot
       Optional inputs:
-        center    - If True (the default) then there will be a call to im_moments
-                     to re-calculate the center position based on the initial
-                     guess provided by x0 and y0.
+        center    - If True (the default) then there will be a call to 
+                     im_moments to re-calculate the center position based on 
+                     the initial guess provided by x0 and y0.
         imex_rmax - Maximum radius used for computing object moments in the
                      call to im_moments
-        maxshift  - Only used if center is True.  Maximum shift from the original
-                     (x0,y0) guess (in pixels) that is allowed.  
+        maxshift  - Only used if center is True.  Maximum shift from the 
+                     original(x0,y0) guess (in pixels) that is allowed.  
                      If im_moments returns a new central position that is more 
                      than maxshift from the original guess, then that new 
                      solution is rejected and the original guess is used 
                      instead. 
                      Default = 5 pixels
         skylevel  - If the sky has not been subtracted from the data, then
-                     the integrated counts, surface brightness in mag/arcsec**2,
-                     and integrated magnitude will all be wrong.  Set this
-                     parameter to the rough sky level to address these issues.
+                     the integrated counts, surface brightness in 
+                     mag/arcsec**2, and integrated magnitude will all be wrong.
+                     Set this parameter to the rough sky level to address these
+                     issues.
                      The default (skylevel=0) is appropriate if the sky _has_
                      been subtracted.
         zp        - zero point.  If this parameter is set, then the output plot
-                     will be in magnitude units (i.e., surface brightness) rather
-                     than the default flux-like units (ADU, counts, 
+                     will be in magnitude units (i.e., surface brightness) 
+                     rather than the default flux-like units (ADU, counts, 
                      counts/sec, etc.)
         runit     - units for the x-axis of the plot.  The only options are
                      'pixel' (the default) or 'arcsec'
@@ -952,7 +955,7 @@ class Image:
             out[:,1] = rflux
          np.savetxt(outfile,out,fmt='%7.3f %f')
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_contours(self, rms=None, hext=0, verbose=True):
       """
@@ -991,7 +994,9 @@ class Image:
          self.subcenty = None
          self.get_subim(None)
 
-      """ If no rms value has been requested, calculate the rms from the data """
+      """ 
+      If no rms value has been requested, calculate the rms from the data 
+      """
       if rms is None:
          self.sigma_clip()
          rms = self.rms_clip
@@ -1009,7 +1014,7 @@ class Image:
          print self.clevs
       self.clevs *= rms
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def plot_contours(self, color='r', rms=None, hext=0, overlay=True,
                      verbose=True):
@@ -1030,7 +1035,7 @@ class Image:
          plt.contour(self.subim,self.clevs,colors=color,extent=self.extval,
                      origin='lower')
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def get_subim_bounds(self, subimsize, hext=0):
       """
@@ -1078,7 +1083,7 @@ class Image:
          self.subsizex = nx
          self.subsizey = ny
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def make_header(self, radec, pixscale, nx, ny=None, rot=None):
       """
@@ -1123,7 +1128,7 @@ class Image:
       hdr = w.wcs.to_header()
       return hdr
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def def_subim_xy(self, hext=0, verbose=True):
       """
@@ -1181,7 +1186,7 @@ class Image:
          print 'Warning: CRPIX2 header not found in %s' % self.infile
          pass
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def def_subim_radec(self, ra, dec, xsize, ysize=None, outscale=None, 
                        docdmatx=True, hext=0, dext=0, verbose=True):
@@ -1350,7 +1355,7 @@ class Image:
       """ Clean up """
       del data,coords,skycoords,ccdcoords
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def poststamp_xy(self, centx, centy, imsize, outfile, hext=0):
       """
@@ -1387,7 +1392,7 @@ class Image:
       pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
       print "Wrote postage stamp cutout to %s" % outfile
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def poststamp_radec(self, ra, dec, xsize, ysize, scale, outfile, 
                        docdmatx=True, hext=0, dext=0, verbose=True):
@@ -1439,7 +1444,7 @@ class Image:
       pf.PrimaryHDU(self.subim,newhdr).writeto(outfile,clobber=True)
       print "Wrote postage stamp cutout to %s" % outfile
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def imcopy(self, x1, x2, y1, y2, outfile, hext=0):
       """ 
@@ -1493,14 +1498,13 @@ class Image:
       except:
          print "   No CRPIX2 header found"
          crpix2 = np.nan
-      if np.isnan(crpix1)==False:
+      if np.isnan(crpix1) is False:
          inhdr['crpix1'] -= x1
          print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
-      if np.isnan(crpix2)==False:
+      if np.isnan(crpix2) is False:
          inhdr['crpix2'] -= y1
          print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
       
-
       """ Write to output file and clean up """
       outhdu = pf.PrimaryHDU(data=outdat,header=inhdr)
       outhdu.verify('fix')
@@ -1508,7 +1512,7 @@ class Image:
       outhdu.writeto(outfile,clobber=True)
       del outdat
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def mark_fov(self, ra, dec, size, pa=0.0, color='g', lw=1):
       """
@@ -1541,7 +1545,7 @@ class Image:
       information in it.  Check on this before proceeding
       """
 
-      if self.found_wcs==False:
+      if self.found_wcs is False:
          print ''
          print 'ERROR: Requested a FOV plot, but input image (%s)' % self.infile
          print ' does not have WCS information in it.'
@@ -1597,7 +1601,7 @@ class Image:
       plt.xlim(xlim)
       plt.ylim(ylim)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_display_limits(self, fmin=-1., fmax=10., funits='sigma',
                           verbose=False):
@@ -1707,7 +1711,7 @@ class Image:
          print " fmin (mean %s %3d sigma):  %f" % (s1,fabs(fmin),self.fmin)
          print " fmax (mean %s %3d sigma):  %f" % (s2,fabs(fmax),self.fmax)
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_cmap(self, cmap='gaia'):
       """
@@ -1740,8 +1744,7 @@ class Image:
          print ' WARNING - Requested unknown color map.  Using gaia colors'
          self.cmap = plt.cm.YlOrBr_r
 
-
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def set_subim(self, hext=0, subimdef='xy', subimcent=None, subimsize=None, 
                  dispunits='pixels'):
@@ -1796,13 +1799,13 @@ class Image:
           (self.subsizex,self.subsizey)
       print ''
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
                      funits='sigma', fscale='linear', statsize=2048, title=None, 
                      subimdef='xy', subimcent=None, subimsize=None, 
                      dispunits='pixels', zeropos=None, axlabel=True, 
-                     mask = None, show_xyproj=False, verbose=False):
+                     mask=None, show_xyproj=False, verbose=False):
       """
       Sets parameters within the Image class that will be used to actually
        display the image or the requested part of it.
@@ -1840,7 +1843,7 @@ class Image:
       """ Set other display parameters """
       self.title = title
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def display_implot(self, show_xyproj=False, axlabel=True):
       """
@@ -1874,7 +1877,7 @@ class Image:
 
       """ Choose the scaling for the display """
       fdiff = fabs(self.fmax - self.fmin)
-      bitscale = 255. # For 8-bit display
+      # bitscale = 255. # For 8-bit display
       if self.fscale == 'log':
          """
          For the log scaling, some thought needs to go into this.
@@ -1899,9 +1902,9 @@ class Image:
           units are counts/s or e-/s, and should more closely match the display
           behavior that the user wants.
          """
-         #data = self.subim.copy() - self.subim.min() + 1.
-         #vmin = log10(self.fmin - self.subim.min() + 1.)
-         #vmax = log10(self.fmax - self.subim.min() + 1.)
+         # data = self.subim.copy() - self.subim.min() + 1.
+         # vmin = log10(self.fmin - self.subim.min() + 1.)
+         # vmax = log10(self.fmax - self.subim.min() + 1.)
          data = self.subim.copy()  - self.subim.min()
          """ Now rescale from 1-255 in requested range """
          data[data>=0] = (254. * data[data>=0] / fdiff) + 1.
@@ -1917,7 +1920,6 @@ class Image:
          vmin = self.fmin
          vmax = self.fmax
          
-
       """ Display the image data """
       plt.imshow(data,origin='lower',cmap=self.cmap,vmin=vmin,
                  vmax=vmax,interpolation='nearest',extent=self.extval)
@@ -1947,7 +1949,7 @@ class Image:
                                                            self.keypress)
          self.fig2.show()
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def display(self, hext=0, cmap='gaia', 
                fmin=-1., fmax=10., funits='sigma', fscale='linear',
@@ -1996,10 +1998,11 @@ class Image:
 
       #del data
 
-   #-----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
-#-----------------------------------------------------------------------
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
                 makerms=False, rmssuff='_rms', hext=0, dext=0, verbose=True):
@@ -2056,7 +2059,8 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
       whtfits.close()
    
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def open_fits(infile, mode='copyonwrite'):
    """
@@ -2085,7 +2089,8 @@ def open_fits(infile, mode='copyonwrite'):
 
    return hdulist
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def imcopy(infile,x1,x2,y1,y2,outfile):
    """ 
@@ -2138,14 +2143,13 @@ def imcopy(infile,x1,x2,y1,y2,outfile):
    except:
       print "   No CRPIX2 header found"
       crpix2 = np.nan
-   if np.isnan(crpix1)==False:
+   if np.isnan(crpix1) is False:
       inhdr['crpix1'] -= x1
       print "   Updating CRPIX1:  %8.2f --> %8.2f" % (crpix1,inhdr['crpix1'])
-   if np.isnan(crpix2)==False:
+   if np.isnan(crpix2) is False:
       inhdr['crpix2'] -= y1
       print "   Updating CRPIX2:  %8.2f --> %8.2f" % (crpix2,inhdr['crpix2'])
       
-
    """ Write to output file """
    outhdu = pf.PrimaryHDU(data=outdat,header=inhdr)
    outhdu.verify('fix')
@@ -2154,7 +2158,8 @@ def imcopy(infile,x1,x2,y1,y2,outfile):
 
    return
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def poststamp(infile,centx,centy,xsize,ysize,outfile):
    """ 
@@ -2169,7 +2174,8 @@ def poststamp(infile,centx,centy,xsize,ysize,outfile):
 
    return
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def del_history_cards(hdu):
    """
@@ -2178,7 +2184,8 @@ def del_history_cards(hdu):
 
    print "del_history_cards is not yet implemented"
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def make_snr_image(infile, xmin=0, xmax=0, ymin=0, ymax=0, 
                    outfile=None, hext=0):
@@ -2224,7 +2231,8 @@ def make_snr_image(infile, xmin=0, xmax=0, ymin=0, ymax=0,
       del snrim
       return None
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None, 
                      zeropos=None, fmax=10., hext1=0, 
@@ -2341,7 +2349,8 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
       im3.close()
       del im3
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def calc_sky_from_seg(infile,segfile):
    """
@@ -2373,7 +2382,8 @@ def calc_sky_from_seg(infile,segfile):
 
    return
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def display_image(infile, inhdu=0, cmap='gaia', fmin=-1.0, fmax=10.0,
                   funits='sigma'):
@@ -2392,7 +2402,8 @@ def display_image(infile, inhdu=0, cmap='gaia', fmin=-1.0, fmax=10.0,
 
    return image
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def plot_cat(fitsfile, catfile, xcol=0, ycol=1, marksize=20., markcolor='g',
              inhdu=0, cmap='gray', fmin=-1., fmax=10., funits='sigma'):
@@ -2450,7 +2461,8 @@ def plot_cat(fitsfile, catfile, xcol=0, ycol=1, marksize=20., markcolor='g',
    plt.xlim(0,nx-1)
    plt.ylim(0,ny-1)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
    """
@@ -2508,7 +2520,6 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
             crota[i] = 0.0
       if validwcs:
          """ Convert to CD matrix (on hold for now) """
-         junk = 0.0
 
    if not validwcs:
       print ""
@@ -2527,7 +2538,8 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
    """ Make the structure for returning the info """
    
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None, 
                                rakey='ra', deckey='dec', hext=0):
@@ -2648,7 +2660,8 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
    hdu.flush()
    return outhdr
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                           hext=0, rakey='ra', deckey='dec'):
@@ -2711,4 +2724,3 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
    inhdr.update('cd2_1',refinfo[2][1,0])
                
    inhdu.flush()
-
