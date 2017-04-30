@@ -152,10 +152,6 @@ class Image:
       """
 
       self.subim = None
-      self.subx1 = None
-      self.subx2 = None
-      self.suby1 = None
-      self.suby2 = None
       self.subsizex = None
       self.subsizey = None
       self.subcentx = None
@@ -215,7 +211,7 @@ class Image:
                     work for all single-extension fits files and may 
                     work for some multi-extension files.
                     NOTE: hext is ignored if the subim variable is already set
-                    by, e.g., def_subim_xy or def_subim_radec
+                    by, e.g., set_subim_xy or def_subim_radec
          verbose - If False (the default) no information is printed
       """
 
@@ -510,6 +506,51 @@ class Image:
       print ''
       self.pixscale = \
           float(raw_input('Enter the pixel scale for the image in arcsec/pix'))
+
+   # -----------------------------------------------------------------------
+
+   def make_header(self, radec, pixscale, nx, ny=None, rot=None):
+      """
+
+      Makes a header with wcs information.
+
+      Inputs:
+        radec    - The desired (RA, Dec) pair to be put into the CRVAL keywords.
+                   NOTE: This should be in the SkyCoord format defined in
+                    astropy.coordinates.  To convert a "normal" pair of
+                    numbers / sexigesimal strings to SkyCoord format, use the
+                    radec_to_skycoord method in this Image class.
+        pixscale - Desired pixel scale in arcsec/pix
+        nx       - image size along the x-axis --or-- if the image is square
+                    (indicated by ny=None) then this is also the y-axis size
+        ny       - [OPTIONAL] y-axis size, if different from the x-axis size
+                    ny=None means that the two axes have the same size
+        rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
+                   NOT IMPLEMENTED YET
+      """
+
+      """ Create a blank 2d WCS container """
+      w = wcs.WCS(naxis=2)
+
+      """ Get the image size and central pixel """
+      cp1 = nx / 2.
+      if ny is None:
+         cp2 = cp1
+      else:
+         cp2 = ny / 2.
+
+      """ Fill it in with appropriate values and save it """
+      px = pixscale / 3600.
+      w.wcs.crpix = [cp1, cp2]
+      w.wcs.crval = [radec.ra.degree, radec.dec.degree]
+      w.wcs.cdelt = [(-1.*px), px]
+      w.wcs.ctype = ['RA---TAN','DEC--TAN']
+      w.wcs.equinox = 2000.
+      self.subim_wcs = w
+
+      """ Convert to a fits header format """
+      hdr = w.wcs.to_header()
+      return hdr
 
    # -----------------------------------------------------------------------
 
@@ -978,7 +1019,7 @@ class Image:
                     work for all single-extension fits files and may 
                     work for some multi-extension files.
                     NOTE: hext is ignored if the subim variable is already set
-                    by, e.g., def_subim_xy or def_subim_radec
+                    by, e.g., set_subim_xy or def_subim_radec
          verbose - Report contour levels if True (the default)
       """
 
@@ -1037,9 +1078,12 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def get_subim_bounds(self, subimsize, hext=0):
+   def get_subim_bounds(self, xcent, ycent, subimsize, hext=0):
       """
-      Defines a subimage based on a subimage size and center
+      Takes a requested image center (xcent,ycent) and requested image size 
+      (all in pixels) and returns
+      the coordinates of the lower left corner (x1,y1) and the upper right
+      corner (x2,y2).
       """
 
       """ Get the full size of the image """
@@ -1051,10 +1095,10 @@ class Image:
       If the subimage center is not already set, then define it as the
       center of the full data set
       """
-      if self.subcentx is None:
-         self.subcentx = int((nx+1.)/2.)
-      if self.subcenty is None:
-         self.subcenty = int((ny+1.)/2.)
+      if xcent is None:
+         xcent = int((nx+1.)/2.)
+      if ycent is None:
+         ycent = int((ny+1.)/2.)
 
       """ 
       Define limits of subimage 
@@ -1069,68 +1113,25 @@ class Image:
             suby = subxy[0]
          halfx = int(subx/2.0)
          halfy = int(suby/2.0)
-         self.subx1 = self.subcentx - halfx
-         self.subx2 = self.subx1 + subx
-         self.suby1 = self.subcenty - halfy
-         self.suby2 = self.suby1 + suby
+         x1 = int(xcent - halfx)
+         x2 = int(x1 + subx)
+         y1 = int(ycent - halfy)
+         y2 = int(y1 + suby)
          self.subsizex = int(subx)
          self.subsizey = int(suby)
       else:
-         self.subx1 = 0
-         self.subx2 = nx
-         self.suby1 = 0
-         self.suby2 = ny
+         x1 = 0
+         x2 = nx
+         y1 = 0
+         y2 = ny
          self.subsizex = nx
          self.subsizey = ny
 
-   # -----------------------------------------------------------------------
-
-   def make_header(self, radec, pixscale, nx, ny=None, rot=None):
-      """
-
-      Makes a header with wcs information.
-
-      Inputs:
-        radec    - The desired (RA, Dec) pair to be put into the CRVAL keywords.
-                   NOTE: This should be in the SkyCoord format defined in
-                    astropy.coordinates.  To convert a "normal" pair of
-                    numbers / sexigesimal strings to SkyCoord format, use the
-                    radec_to_skycoord method in this Image class.
-        pixscale - Desired pixel scale in arcsec/pix
-        nx       - image size along the x-axis --or-- if the image is square
-                    (indicated by ny=None) then this is also the y-axis size
-        ny       - [OPTIONAL] y-axis size, if different from the x-axis size
-                    ny=None means that the two axes have the same size
-        rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
-                   NOT IMPLEMENTED YET
-      """
-
-      """ Create a blank 2d WCS container """
-      w = wcs.WCS(naxis=2)
-
-      """ Get the image size and central pixel """
-      cp1 = nx / 2.
-      if ny is None:
-         cp2 = cp1
-      else:
-         cp2 = ny / 2.
-
-      """ Fill it in with appropriate values and save it """
-      px = pixscale / 3600.
-      w.wcs.crpix = [cp1, cp2]
-      w.wcs.crval = [radec.ra.degree, radec.dec.degree]
-      w.wcs.cdelt = [(-1.*px), px]
-      w.wcs.ctype = ['RA---TAN','DEC--TAN']
-      w.wcs.equinox = 2000.
-      self.subim_wcs = w
-
-      """ Convert to a fits header format """
-      hdr = w.wcs.to_header()
-      return hdr
+      return x1, y1, x2, y2
 
    # -----------------------------------------------------------------------
 
-   def def_subim_xy(self, hext=0, verbose=True):
+   def set_subim_xy(self, x1, y1, x2, y2, hext=0, verbose=True):
       """
 
       Selects the data in the subimage defined by the bounds x1, x2, y1, y2.
@@ -1150,11 +1151,9 @@ class Image:
       """
       hdr = self.hdu[hext].header
       if  hdr['naxis'] == 4:
-         self.subim = self.hdu[hext].data[0,0,self.suby1:self.suby2,
-                                          self.subx1:self.subx2].copy()
+         self.subim = self.hdu[hext].data[0,0,y1:y2,x1:x2].copy()
       else:
-         self.subim = self.hdu[hext].data[self.suby1:self.suby2,
-                                          self.subx1:self.subx2].copy()
+         self.subim = self.hdu[hext].data[y1:y2,x1:x2].copy()
       self.subim[~np.isfinite(self.subim)] = 0.
       self.subimhdr = self.hdu[hext].header.copy()
 
@@ -1171,17 +1170,18 @@ class Image:
       are present.
       """
       self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
-      self.subimhdr['ORIG_REG'] = 'Region in original image: [%d:%d,%d:%d]' % \
-                    (self.subx1,self.subx2,self.suby1,self.suby2)
+      self.subimhdr['ORIG_REG'] = \
+          'Region in original image [xrange,yrange]: [%d:%d,%d:%d]' % \
+          (x1,x2,y1,y2)
 
       """ Update the headers to reflect the cutout center"""
       try:
-         self.subimhdr['CRPIX1'] -= self.subx1
+         self.subimhdr['CRPIX1'] -= self.x1
       except:
          print 'Warning: CRPIX1 header not found in %s' % self.infile
          pass
       try:
-         self.subimhdr['CRPIX2'] -= self.suby1
+         self.subimhdr['CRPIX2'] -= self.y1
       except:
          print 'Warning: CRPIX2 header not found in %s' % self.infile
          pass
@@ -1357,11 +1357,13 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def poststamp_xy(self, centx, centy, imsize, outfile, hext=0):
+   def poststamp_xy(self, centx, centy, imsize, outfile=None, hext=0):
       """
-      Creates a new fits file that is a cutout of the original image.  For
+      Creates a subimage that is a cutout of the original image.  For
       this method, the image center is defined by its (x,y) coordinate
       rather than (ra,dec).
+      The image is written to an output fits file if the outfile parameter
+      is set.
 
       Inputs:
          centx   - x coordinate of cutout center
@@ -1372,7 +1374,7 @@ class Image:
                      2. A 2-element numpy array
                      3. A 2-element list:  [xsize,ysize] 
                      4. A 2-element tuple: (xsize,ysize)
-         outfile - name of output file
+         outfile - name of optional output file (default=None)
          hext    - HDU containing the image data in the input image (default=0)
       """
 
@@ -1385,12 +1387,13 @@ class Image:
       self.subcenty = centy
 
       """ Make the cutout """
-      self.get_subim_bounds(imsize,hext)
-      self.def_subim_xy(hext)
+      x1, y1, x2, y2, = self.get_subim_bounds(centx, centy, imsize, hext)
+      self.set_subim_xy(x1, y1, x2, y2, hext)
 
-      """ Write to the output file and clean up"""
-      pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
-      print "Wrote postage stamp cutout to %s" % outfile
+      """ Write to the output file if requested """
+      if outfile:
+         pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
+         print "Wrote postage stamp cutout to %s" % outfile
 
    # -----------------------------------------------------------------------
 
@@ -1791,8 +1794,9 @@ class Image:
          else:
             self.subcentx = int(subimcent[0])
             self.subcenty = int(subimcent[1])
-         self.get_subim_bounds(subimsize,hext)
-         self.def_subim_xy(hext)
+         x1, y1, x2, y2 = self.get_subim_bounds(self.subcentx, self.subcenty, 
+                                                subimsize, hext)
+         self.set_subim_xy(x1, y1, x2, y2, hext)
          print "Display image center (x,y): (%d, %d)" % \
              (self.subcentx,self.subcenty)
       print "Displayed image size (x y): %dx%d" % \
