@@ -1824,7 +1824,7 @@ class Image:
    def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
                      funits='sigma', fscale='linear', statsize=2048, title=None, 
                      subimdef='xy', subimcent=None, subimsize=None, 
-                     dispunits='pixels', zeropos=None, axlabel=True, 
+                     dispunits='pixels', zeropos=None, 
                      mask=None, show_xyproj=False, verbose=False):
       """
       Sets parameters within the Image class that will be used to actually
@@ -1865,7 +1865,7 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def display_implot(self, show_xyproj=False, axlabel=True):
+   def display_implot(self, show_xyproj=False, axlabel=True, fontsize=None):
       """
 
       NOTE: DO NOT USE this routine/method unless you know exactly what
@@ -1941,15 +1941,23 @@ class Image:
          vmax = self.fmax
          
       """ Display the image data """
-      plt.imshow(data,origin='lower',cmap=self.cmap,vmin=vmin,
-                 vmax=vmax,interpolation='nearest',extent=self.extval)
+      plt.imshow(data, origin='lower', cmap=self.cmap, vmin=vmin,
+                 vmax=vmax, interpolation='nearest', extent=self.extval)
       if axlabel is True:
          if self.dispunits == 'radec':
-            plt.xlabel(r"$\Delta \alpha$ (arcsec)")
-            plt.ylabel(r"$\Delta \delta$ (arcsec)")
+            if fontsize is not None:
+               plt.xlabel(r"$\Delta \alpha$ (arcsec)", fontsize=fontsize)
+               plt.ylabel(r"$\Delta \delta$ (arcsec)", fontsize=fontsize)
+            else:
+               plt.xlabel(r"$\Delta \alpha$ (arcsec)")
+               plt.ylabel(r"$\Delta \delta$ (arcsec)")
          else:
-            plt.xlabel('x (pix)')
-            plt.ylabel('y (pix)')
+            if fontsize is not None:
+               plt.xlabel('x (pix)', fontsize=fontsize)
+               plt.ylabel('y (pix)', fontsize=fontsize)
+            else:
+               plt.xlabel('x (pix)')
+               plt.ylabel('y (pix)')
       if self.title is not None:
          plt.title(self.title)
 
@@ -1975,8 +1983,8 @@ class Image:
                fmin=-1., fmax=10., funits='sigma', fscale='linear',
                statsize=2048, title=None, 
                subimdef='xy', subimcent=None, subimsize=None, 
-               dispunits='pixels', zeropos=None, axlabel=True, 
-               mask = None, show_xyproj=False, verbose=False):
+               dispunits='pixels', zeropos=None, axlabel=True, fontsize=None,
+               mask=None, show_xyproj=False, verbose=False):
       """
       The main way to display the image data contained in the Image class.
       The default is to display the entire image, but it is possible to display
@@ -2006,15 +2014,15 @@ class Image:
       print "Input file:  %s" % self.infile
 
       """ Set up the parameters that will be needed to display the image """
-      self.display_setup(hext=hext,cmap=cmap,
-                         fmin=fmin,fmax=fmax,funits=funits,fscale=fscale,
-                         statsize=statsize,title=title,subimdef=subimdef,
-                         subimcent=subimcent,subimsize=subimsize, 
-                         dispunits=dispunits,zeropos=zeropos,axlabel=axlabel,
+      self.display_setup(hext=hext, cmap=cmap,
+                         fmin=fmin, fmax=fmax, funits=funits, fscale=fscale,
+                         statsize=statsize, title=title, subimdef=subimdef,
+                         subimcent=subimcent, subimsize=subimsize, 
+                         dispunits=dispunits, zeropos=zeropos, 
                          mask=mask,show_xyproj=show_xyproj,verbose=verbose)
 
       """ Now display the data """
-      self.display_implot(show_xyproj, axlabel)
+      self.display_implot(show_xyproj, axlabel, fontsize)
 
       #del data
 
