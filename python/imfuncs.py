@@ -98,7 +98,7 @@ class Image:
       self.dec = None
       self.pixscale = None
       try:
-         self.get_wcs()
+         self.get_wcs(verbose=verbose)
       except:
          print 'Could not load WCS info for %s' % self.infile
          self.found_wcs = False
@@ -152,10 +152,10 @@ class Image:
       """
 
       self.subim = None
-      self.subsizex = None
-      self.subsizey = None
       self.subcentx = None
       self.subcenty = None
+      self.subsizex = None
+      self.subsizey = None
 
    # -----------------------------------------------------------------------
 
@@ -438,7 +438,7 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def get_wcs(self, hext=0):
+   def get_wcs(self, hext=0, verbose=True):
       """
       Reads in WCS information from the header and stores it in 
       new wcsinfo (see below) and pixscale variables.
@@ -455,7 +455,8 @@ class Image:
       try:
          self.wcsinfo = wcs.WCS(hdr)
       except:
-         print 'get_wcs: No WCS information in file header'
+         if verbose:
+            print 'get_wcs: No WCS information in file header'
          self.found_wcs = False
          return
 
@@ -465,7 +466,8 @@ class Image:
       """
 
       if self.wcsinfo.wcs.ctype[0][0:2] != 'RA':
-         print 'get_wcs: No valid WCS information in file header'
+         if verbose:
+            print 'get_wcs: No valid WCS information in file header'
          self.found_wcs = False
          return
 
@@ -1031,9 +1033,7 @@ class Image:
       data to be the full image.
       """
       if self.subim is None:
-         self.subcentx = None
-         self.subcenty = None
-         self.get_subim(None)
+         self.set_subim()
 
       """ 
       If no rms value has been requested, calculate the rms from the data 
@@ -1078,12 +1078,27 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def get_subim_bounds(self, xcent, ycent, subimsize, hext=0):
+   def get_subim_bounds(self, centpos, imsize, hext=0):
       """
       Takes a requested image center (xcent,ycent) and requested image size 
       (all in pixels) and returns
       the coordinates of the lower left corner (x1,y1) and the upper right
       corner (x2,y2).
+
+      Inputs:
+         centpos - (x,y) coordinates of cutout center, in pixels
+                   centpos can take any of the following formats:
+                     1. A 2-element numpy array
+                     2. A 2-element list:  [xsize,ysize] 
+                     3. A 2-element tuple: (xsize,ysize)
+                   **. A final option is centpos=None.  In that case, the 
+                   center of the cutout is just the center of the full image
+         imsize  - size of cutout (postage stamp) image, in pixels
+                   imsize can take any of the following formats:
+                     1. A single number (which will produce a square image)
+                     2. A 2-element numpy array
+                     3. A 2-element list:  [xsize,ysize] 
+                     4. A 2-element tuple: (xsize,ysize)
       """
 
       """ Get the full size of the image """
@@ -1095,19 +1110,27 @@ class Image:
       If the subimage center is not already set, then define it as the
       center of the full data set
       """
-      if xcent is None:
+      if centpos is None:
          xcent = int((nx+1.)/2.)
-      if ycent is None:
          ycent = int((ny+1.)/2.)
+      else:
+         if centpos[0] is None:
+            xcent = int((nx+1.)/2.)
+         else:
+            xcent = centpos[0]
+         if centpos[1] is None:
+            ycent = int((ny+1.)/2.)
+         else:
+            ycent = centpos[1]
 
       """ 
       Define limits of subimage 
       For now does not deal with regions partially outside the input file
       """
-      if subimsize is not None:
-         subxy = np.atleast_1d(subimsize) # Converts subimsize to a numpy array
+      if imsize is not None:
+         subxy = np.atleast_1d(imsize) # Converts subimsize to a numpy array
          subx = subxy[0]
-         if subxy.size>1:
+         if subxy.size > 1:
             suby = subxy[1]
          else:
             suby = subxy[0]
@@ -1156,6 +1179,8 @@ class Image:
          self.subim = self.hdu[hext].data[y1:y2,x1:x2].copy()
       self.subim[~np.isfinite(self.subim)] = 0.
       self.subimhdr = self.hdu[hext].header.copy()
+      self.subcentx = 0.5 * (x1 + x2)
+      self.subcenty = 0.5 * (y1 + y2)
 
       """ Print out useful information """
       if verbose:
@@ -1175,15 +1200,18 @@ class Image:
           (x1,x2,y1,y2)
 
       """ Update the headers to reflect the cutout center"""
+      print
       try:
          self.subimhdr['CRPIX1'] -= self.x1
       except:
-         print 'Warning: CRPIX1 header not found in %s' % self.infile
+         if verbose:
+            print 'CRPIX1 header not found in %s' % self.infile
          pass
       try:
          self.subimhdr['CRPIX2'] -= self.y1
       except:
-         print 'Warning: CRPIX2 header not found in %s' % self.infile
+         if verbose:
+            print 'CRPIX2 header not found in %s' % self.infile
          pass
 
    # -----------------------------------------------------------------------
@@ -1217,7 +1245,7 @@ class Image:
       """
 
       """
-      The following assignments gets used whether a subimage has been requested
+      The following assignments get used whether a subimage has been requested
       or not
       """
       self.subimhdr = self.hdu[hext].header.copy()
@@ -1357,7 +1385,7 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def poststamp_xy(self, centx, centy, imsize, outfile=None, hext=0):
+   def poststamp_xy(self, centpos, imsize, outfile=None, hext=0, verbose=True):
       """
       Creates a subimage that is a cutout of the original image.  For
       this method, the image center is defined by its (x,y) coordinate
@@ -1366,8 +1394,13 @@ class Image:
       is set.
 
       Inputs:
-         centx   - x coordinate of cutout center
-         centy   - y coordinate of cutout center
+         centpos - (x,y) coordinates of cutout center, in pixels
+                   centpos can take any of the following formats:
+                     1. A 2-element numpy array
+                     2. A 2-element list:  [xsize,ysize] 
+                     3. A 2-element tuple: (xsize,ysize)
+                   **. A final option is centpos=None.  In that case, the 
+                   center of the cutout is just the center of the full image
          imsize  - size of cutout (postage stamp) image, in pixels
                    imsize can take any of the following formats:
                      1. A single number (which will produce a square image)
@@ -1378,20 +1411,15 @@ class Image:
          hext    - HDU containing the image data in the input image (default=0)
       """
 
-      print ""
-      print "Input file:  %s" % self.infile
-      print "Output file: %s" % outfile
-
-      """ Read in relevant data """
-      self.subcentx = centx
-      self.subcenty = centy
-
       """ Make the cutout """
-      x1, y1, x2, y2, = self.get_subim_bounds(centx, centy, imsize, hext)
-      self.set_subim_xy(x1, y1, x2, y2, hext)
+      x1, y1, x2, y2, = self.get_subim_bounds(centpos, imsize, hext)
+      self.set_subim_xy(x1, y1, x2, y2, hext, verbose=verbose)
 
       """ Write to the output file if requested """
       if outfile:
+         print ''
+         print 'Input file:  %s' % self.infile
+         print 'fOutput file: %s' % outfile
          pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
          print "Wrote postage stamp cutout to %s" % outfile
 
@@ -1788,19 +1816,7 @@ class Image:
          """
          If not requesting a (RA,Dec) cutout, the code is simpler
          """
-         if subimcent is None:
-            self.subcentx = None
-            self.subcenty = None
-         else:
-            self.subcentx = int(subimcent[0])
-            self.subcenty = int(subimcent[1])
-         x1, y1, x2, y2 = self.get_subim_bounds(self.subcentx, self.subcenty, 
-                                                subimsize, hext)
-         self.set_subim_xy(x1, y1, x2, y2, hext)
-         print "Display image center (x,y): (%d, %d)" % \
-             (self.subcentx,self.subcenty)
-      print "Displayed image size (x y): %dx%d" % \
-          (self.subsizex,self.subsizey)
+         self.poststamp_xy(subimcent, subimsize, hext=hext)
       print ''
 
    # -----------------------------------------------------------------------
@@ -1881,7 +1897,7 @@ class Image:
 
       """ Choose the scaling for the display """
       fdiff = fabs(self.fmax - self.fmin)
-      # bitscale = 255. # For 8-bit display
+      bitscale = 255. # For 8-bit display
       if self.fscale == 'log':
          """
          For the log scaling, some thought needs to go into this.
@@ -1911,9 +1927,9 @@ class Image:
          # vmax = log10(self.fmax - self.subim.min() + 1.)
          data = self.subim.copy()  - self.subim.min()
          """ Now rescale from 1-255 in requested range """
-         data[data>=0] = (254. * data[data>=0] / fdiff) + 1.
+         data[data>=0] = ((bitscale - 1) * data[data>=0] / fdiff) + 1.
          vmin = 0
-         vmax = log10(255.)
+         vmax = log10(bitscale)
          data[data<=0.] = 1.
          data = np.log10(data)
          print 'Using log scaling: vmin = %f, vmax = %f' % (vmin,vmax)
@@ -2005,6 +2021,51 @@ class Image:
    # -----------------------------------------------------------------------
 
 # -----------------------------------------------------------------------
+# Stand-alone functions below this point
+# -----------------------------------------------------------------------
+
+
+def get_rms(infile, xcent, ycent, xsize, ysize=None, hext=0, outfile=None,
+            verbose=True):
+   """
+
+   Gets the rms in the requested region of the input file.  The region is
+   defined by its central pixel location (xcent, ycent) and its size in
+   pixels (xsize and, optionally, ysize).  If ysize is not given, then the
+   region is assumed to be square, with the length of a side given by xsize.
+
+   The rms value that is returned is the "clipped rms" for the region, i.e.,
+   the rms after an iterative sigma clipping algorithm has been run on the
+   data in the region.
+
+   Required Inputs:
+      infile - name of the input fits file
+      xcent  - x coordinate of the pixel that defines the center of the region
+      ycent  - y coordinate of the pixel that defines the center of the region
+      xsize  - width of the region or, if ysize is not given, length of a side
+               of a square region.
+
+   Optional Inputs:
+      ysize   - height of the region.  If not given, then the region is square
+      hext    - the HDU containing the data.  The default (hext=0) should work
+                for most data files.
+      outfile - output file to store the data [NOT YET IMPLEMENTED]
+      verbose - set to False to surpress output
+   """
+
+   im = Image(infile, verbose=verbose)
+   if ysize is not None:
+      im.poststamp_xy((xcent, ycent), (xsize, ysize), hext=hext, 
+                      verbose=verbose)
+   else:
+      im.poststamp_xy((xcent, ycent),xsize, hext=hext, verbose=verbose)
+   im.sigma_clip()
+   rms = im.rms_clip
+   if verbose:
+      print '%s: RMS in requested region is %f' % (infile, rms)
+   del im
+   return rms
+
 # -----------------------------------------------------------------------
 
 
@@ -2062,7 +2123,6 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
    if whtsuff is not None:
       whtfits.close()
    
-
 # -----------------------------------------------------------------------
 
 
@@ -2172,7 +2232,7 @@ def poststamp(infile,centx,centy,xsize,ysize,outfile):
    """
 
    im = Image(infile)
-   im.poststamp_xy(centx,centy,(xsize,ysize),outfile)
+   im.poststamp_xy((centx, centy), (xsize, ysize), outfile=outfile)
    im.close()
    del im
 
