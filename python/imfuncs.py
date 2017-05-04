@@ -2070,6 +2070,7 @@ def get_rms(infile, xcent, ycent, xsize, ysize=None, hext=0, outfile=None,
    im.sigma_clip()
    rms = im.rms_clip
    if verbose:
+      print ''
       print '%s: RMS in requested region is %f' % (infile, rms)
    del im
    return rms
