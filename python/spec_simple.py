@@ -75,6 +75,12 @@ class Spec1d():
                     NOTE. The table is assumed to be in Extension 1 and the
                     table is assumed to have wavelength in field 0 and flux in
                     field 1
+              fitsflux:  A file with a single 1-dimensional HDU that contains
+                    the flux portion of the spectrum.  The associated 
+                    wavelength array is described by the CRPIX1, CRVAL1, and 
+                    CDELT1 (or CD1_1) keywords in the fits header.  This is 
+                    the format, for example, for the template stellar spectra 
+                    in the Indo-US set.
               mwa:  A multi-extension fits file with wavelength info in
                     the fits header
                     Extension 1 is the extracted spectrum (flux)
@@ -96,7 +102,8 @@ class Spec1d():
          infile     - Name of the input file.  If infile is None, then the
                        spectrum must be provided via the wavelength and flux
                        vectors.
-         informat   - format of input file ('fits', 'fitstab', 'mwa', or 'text').
+         informat   - format of input file ('fits', 'fitstab', 'fitsflux', 
+                       'mwa', or 'text').
                        Default = 'text'
          wav        - 1-dimensional array containing "wavelength" information,
                        either as actual wavelength or in pixels
@@ -192,13 +199,24 @@ class Spec1d():
             self.var = tdat.field(3)
             self.varspec = True
          del hdu
+      elif informat=='fitsflux':
+         hdu = pf.open(self.infile)
+         self.flux = hdu[0].data.copy()
+         self.varspec = False
+         self.wav = np.arange(self.flux.size)
+         hdr1 = hdu[0].header
+         if self.logwav:
+            self.wav = 10.**(hdr1['crval1'] + self.wav * hdr1['cd1_1'])
+         else:
+            self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
+         del hdu
       elif informat=='mwa':
          hdu = pf.open(self.infile)
          self.flux = hdu[1].data.copy()
          self.var  = hdu[3].data.copy()
          self.varspec = True
          self.wav = np.arange(self.flux.size)
-         hdr1 = hdulist[1].header
+         hdr1 = hdu[1].header
          if self.logwav:
             self.wav = hdr1['crval1'] + 10.**(self.wav*hdr1['cd1_1'])
          else:
@@ -225,12 +243,19 @@ class Spec1d():
       else:
          mask = (np.isnan(self.flux))
       self.flux[mask] = 0
+      disp0 = self.wav[1] - self.wav[0]
+      dispave = (self.wav[-1] - self.wav[0]) / (self.wav.size - 1)
       if verbose:
          print " Spectrum Start: %8.2f" % self.wav[0]
          print " Spectrum End:   %8.2f" % self.wav[-1]
-         print " Dispersion (1st pixel): %6.2f" % (self.wav[1]-self.wav[0])
-         print " Dispersion (average):   %6.2f" % \
-             ((self.wav[-1]-self.wav[0])/(self.wav.size-1))
+         if disp0 < 0.01:
+            print " Dispersion (1st pixel): %g" % disp0
+         else:
+            print " Dispersion (1st pixel): %6.2f" % disp0
+         if dispave < 0.01:
+            print " Dispersion (average):   %g" % dispave
+         else:
+            print " Dispersion (average):   %6.2f" % dispave
          print ""
 
    # -----------------------------------------------------------------------
@@ -286,9 +311,11 @@ class Spec1d():
          else:
             rlinestyle = 'steps%s' % rmsls
          if docolor:
-            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, label='RMS')
+            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, 
+                     label='RMS')
          else:
-            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, label='RMS', lw=2)
+            plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle, 
+                     label='RMS', lw=2)
 
       """ More plot labels """
       plt.ylabel(ylabel, fontsize=fontsize)
@@ -462,7 +489,8 @@ class Spec1d():
             ("Mg I (b)",  5176,     "Mg b",         0.0, 0, True),
             ("[N I]",     5199.,    "[N I]",        0.0, 2, True),
             ("HeI",       5876.,    "He I",         0.0, 2, True),
-            ("Na I (D)",  5893,     "Na D",         0.0, 0, True),
+            ("Na I (D)",  5889.95,  "    ",         0.0, 0, True),
+            ("Na I (D)",  5895.92,  "Na D ",        0.0, 0, True),
             ("[O I]",     6300.,    "[O I]",        0.0, 2, True),
             ("[N II]",    6548.,    "[N II]",       0.0, 2, False),
             ("H-alpha",   6562.8,   r"H$\alpha$",   0.0, 3, True),
@@ -484,7 +512,7 @@ class Spec1d():
    def mark_speclines(self, linetype, z, usesmooth=False, marktype='tick', 
                       labww=20., labfs=12, tickfrac=0.05, tickfac=0.75,
                       showz=True, labloc='default', labcolor='k',
-                      namepos='top'):
+                      namepos='top', markatm=True):
       """
       A generic routine for marking spectral lines in the plotted spectrum.
       The required linetype parameter can be either 'abs' or 'em' and will 
@@ -517,23 +545,24 @@ class Spec1d():
 
       """ Set the display limits """
       lammin, lammax = self.wav.min(), self.wav.max()
-      if plt.xlim()[0] > lammin: lammin = plt.xlim()[0]
-      if plt.xlim()[1] < lammax: lammax = plt.xlim()[1]
-      dlam = self.wav[1] - self.wav[0]
-      if usesmooth:
-         ff = self.smoflux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
-      else:
-         ff = self.flux[(self.wav>=plt.xlim()[0]) & (self.wav<=plt.xlim()[1])]
-      fluxdiff = ff.max() - ff.min()
+      # dlam = self.wav[1] - self.wav[0]
       x0, x1 = plt.xlim()
       y0, y1 = plt.ylim()
+      if x0 > lammin: lammin = x0
+      if x1 < lammax: lammax = x1
+      wmask = (self.wav >= x0) & (self.wav <= x1)
+      if usesmooth:
+         ff = self.smoflux[wmask]
+      else:
+         ff = self.flux[wmask]
+      fluxdiff = ff.max() - ff.min()
       xdiff = x1 - x0
       ydiff = y1 - y0
       dlocwin = labww / 2.
 
       """ Select lines within current display range """
-      zlines = (z+1.0) * self.lineinfo['wavelength']
-      zmask = np.logical_and(zlines>lammin, zlines<lammax)
+      zlines = (z + 1.0) * self.lineinfo['wavelength']
+      zmask = np.logical_and(zlines > lammin, zlines < lammax)
       tmptype = self.lineinfo['type']
       if linetype == 'em':
          tmask = tmptype > 0
@@ -543,7 +572,7 @@ class Spec1d():
          tmask = (tmptype < 2) | (tmptype == 3)
       mask = zmask & tmask
       tmplines = self.lineinfo[mask]
-      zlines = (z+1.0) * tmplines['wavelength']
+      zlines = (z + 1.0) * tmplines['wavelength']
       print ''
       print 'Line      lambda_rest  lambda_obs'
       print '--------  -----------  -----------'
@@ -572,8 +601,8 @@ class Spec1d():
       xarr = np.zeros(len(tmplines))
       specflux = np.zeros(len(tmplines))
       for i in range(len(tmplines)):
-         xarr[i] = tmplines['wavelength'][i]*(z+1.0)
-         tmpmask = np.fabs(self.wav-xarr[i])<dlocwin
+         xarr[i] = tmplines['wavelength'][i] * (z + 1.0)
+         tmpmask = np.fabs(self.wav-xarr[i]) < dlocwin
          if linetype == 'em':
             specflux[i] = flux[tmpmask].max()
          else:
@@ -586,12 +615,12 @@ class Spec1d():
       for i in range(len(tmplines)):
          info = tmplines[i]
          if marktype == 'tick':
-            tickstart = specflux[i] + pm*tickfac*ticklen
-            tickend = tickstart + pm*ticklen
-            labstart  = tickstart + pm*1.5*ticklen
-            plt.plot([xarr[i], xarr[i]],[tickstart, tickend],'k')
+            tickstart = specflux[i] + pm * tickfac*ticklen
+            tickend = tickstart + pm * ticklen
+            labstart  = tickstart + pm * 1.5*ticklen
+            plt.plot([xarr[i], xarr[i]], [tickstart, tickend], 'k')
             if info['plot']:
-               plt.text(xarr[i]+info['dxlab'], labstart, info['label'],
+               plt.text(xarr[i] + info['dxlab'], labstart, info['label'],
                         rotation='vertical', ha='center',va=labva,
                         color=labcolor, fontsize=labfs)
          else:
@@ -605,16 +634,16 @@ class Spec1d():
       """ Label the plot with the redshift, if requested """
       if showz:
          if labloc=='topright':
-            labx = x0 + 0.95*xdiff
-            laby = y0 + 0.95*ydiff
+            labx = x0 + 0.95 * xdiff
+            laby = y0 + 0.95 * ydiff
             ha = 'right'
          else:
-            labx = x0 + 0.05*xdiff
-            laby = y0 + 0.95*ydiff
+            labx = x0 + 0.05 * xdiff
+            laby = y0 + 0.95 * ydiff
             ha = 'left'
-         print labx, laby
-         plt.text(labx, laby,'z = %5.3f'%z, ha=ha,va='center', color=labcolor,
-                  fontsize=labfs+4)
+         # print labx, laby
+         plt.text(labx, laby, 'z = %5.3f'%z, ha=ha, va='center', 
+                  color=labcolor, fontsize=labfs+4)
 
    # -----------------------------------------------------------------------
 
