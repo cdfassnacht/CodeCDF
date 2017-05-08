@@ -179,6 +179,8 @@ def divide_images(a,b,output,preserve_header=0):
       hdu = pf.PrimaryHDU(hdua.data/hdub.data)
    hdu.writeto(output,output_verify='ignore')
 
+#-----------------------------------------------------------------------
+
 def subtract_images(a,b,output,hexta=0,hextb=0):
    print("Subtracting images: '%s' - '%s' = '%s'" % (a,b,output))
    try:
@@ -191,6 +193,8 @@ def subtract_images(a,b,output,hexta=0,hextb=0):
       hdub = pf.open(b,ignore_missing_end=True)[hextb]
    hdu = pf.PrimaryHDU(hdua.data - hdub.data)
    hdu.writeto(output,output_verify='ignore',clobber=True)
+
+#-----------------------------------------------------------------------
 
 def add_images(a,b,output,preserve_header=0):
    print("Adding images: '%s' + '%s' = '%s'" % (a,b,output))
@@ -233,7 +237,8 @@ def read_calfile(filename, file_description):
 def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
                    biasfile=None,gain=-1.0,normalize=False,zeromedian=False,
                    NaNmask=False,hdu0only=False):
-   """ Given a list of input file names, this function will:
+   """ 
+   Given a list of input file names, this function will:
       1. Subtract a bias frame (if the optional biasfile parameter is set)
       2. Multiply by the gain, required to be in e-/ADU (if the optional
          gain parameter is set)
@@ -1605,6 +1610,270 @@ def split_imext(infits, next, outroot=None):
 
    """ Close """
    hdu.close()
+
+# -----------------------------------------------------------------------
+
+
+def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
+   """
+   Reads the wcs information from a fits file and returns that information.
+
+   NOT YET FUNCTIONAL
+   """
+
+   validwcs = False
+
+   try:
+      hdulist = open_fits(fitsfile)
+   except:
+      return
+   hdr = hdulist[inhdu].header
+
+   """ Get the CTYPE, CRPIX, CRVAL pairs first """
+   ctype = []
+   crpix = np.zeros(hdr['naxis'])
+   crval = np.zeros(hdr['naxis'])
+   for i in range(hdr['naxis']):
+      typecard = 'ctype%d' % (i+1)
+      pixcard = 'crpix%d' % (i+1)
+      valcard = 'crval%d' % (i+1)
+      ctype.append(hdr[typecard])
+      crpix[i] = hdr[pixcard]
+      crval[i] = hdr[valcard]
+
+   """ Search for CD matrix """
+   cdmatx = np.zeros((hdr['naxis'],hdr['naxis']))
+   validwcs = True
+   for i in range(hdr['naxis']):
+      for j in range(hdr['naxis']):
+         cdcard = 'cd%d_%d' % (i+1,j+1)
+         try:
+            cdmatx[i,j] = hdr[cdcard]
+         except:
+            validwcs = False
+
+   """ Search for CDELT and CROT headers """
+   if not validwcs:
+      validwcs = True
+      cdelt = np.zeros(hdr['naxis'])
+      crota = np.zeros(hdr['naxis'])
+      for i in range(hdr['naxis']):
+         deltcard = 'cdelt%d' % (i+1)
+         rotcard = 'crota%d' % (i+1)
+         try:
+            cdelt[i] = hdr[deltcard]
+         except:
+            validwcs = False
+         try:
+            crota[i] = hdr[rotcard]
+         except:
+            crota[i] = 0.0
+      if validwcs:
+         """ Convert to CD matrix (on hold for now) """
+
+   if not validwcs:
+      print ""
+      print "ERROR: read_wcsinfo.  No valid pixel scale header cards found"
+      print ""
+      return
+
+   """ Print out the results, if desired """
+   if(verbose and validwcs):
+      print ""
+      print "WCS information for %s" % fitsfile
+      print "----------------------------------------------------------"
+      for i in range(hdr['naxis']):
+         print "%8s  %9.3f %13.9f " % (ctype[i],crpix[i],crval[i])
+
+   """ Make the structure for returning the info """
+   
+
+# -----------------------------------------------------------------------
+
+
+def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None, 
+                               rakey='ra', deckey='dec', hext=0):
+   """
+   Many fits files produced by cameras on ground-based telescopes
+   do not come with full WCS header cards.  However, most do store the
+   (rough) telescope pointing information in the RA and DEC header cards.
+   This function uses those and the input pixel scale to create a fake
+   output header.
+   This function takes an input fits file and creates a temporary header
+   that contains the rough WCS information in a more useful format.
+   It writes the new WCS information into the input file, and also
+   returns the new header in case it is needed for other files
+
+   Inputs:
+      infile    -  input fits file
+      pixscale  -  desired pixel scale in arcsec/pix for the output header 
+                   (should be the expected pixel scale for the camera)
+      rotatekey -  [OPTIONAL] if the image was taken with a rotation, that can
+                   be incorporated into the output header.  In that case,
+                   rotatekey needs to be set to the keyword for the header
+                   card that contains the rotation value (these card keywords
+                   are very non-standardized).
+      rakey     -  [OPTIONAL] header keyword for RA of pointing, if different
+                   from the default value of 'RA'
+      deckey    -  [OPTIONAL] header keyword for Dec of pointing, if different
+                   from the default value of 'Dec'
+      hext    -  [OPTIONAL] HDU number to use.  Default=0 (i.e., the primary
+                   HDU)
+   """
+
+   print ""
+   """ Open the input fits file """
+   try:
+      hdu = pf.open(infile,mode='update')
+   except:
+      print 'ERROR: Could not open %s' % infile
+      print ''
+      exit()
+   print 'Opened input fits file: %s' % infile
+   try:
+      inhdr = hdu[hext].header
+   except:
+      print ''
+      print 'ERROR: Could not open header for HDU %d in %s' % (infile,hext)
+      print ''
+      hdu.close()
+      exit()
+   print ''
+   hdr_error = False
+
+   """ Read in the RA and Dec pointing values """
+   try:
+      ra_tel = inhdr[rakey]
+   except:
+      print "RA designated by keyword %s was not found in header" % rakey
+      print ""
+      hdr_error = True
+   try:
+      dec_tel = inhdr[deckey]
+   except:
+      print "Dec designated by keyword %s was not found in header" % deckey
+      print ""
+      hdr_error = True
+
+   """ Get size of image """
+   try:
+      xsize = inhdr['naxis1']
+   except:
+      print "Problem reading x-axis size"
+      print ""
+      hdr_error = True
+   try:
+      ysize = inhdr['naxis2']
+   except:
+      print "Problem reading y-axis size"
+      print ""
+      hdr_error = True
+
+   """ Exit if any problems before this point """
+   if hdr_error:
+      print ''
+      print 'ERROR: Not continuing'
+      print ''
+      hdu.close()
+      exit()
+
+   """ Create the temporary output header """
+   try:
+      outhdr = wcsmwa.make_header(ra_tel,dec_tel,xsize,ysize,pixscale)
+   except:
+      print "ERROR. Could not create output header"
+      print ""
+      hdu.close()
+      exit()
+
+   """ Rotate if requested """
+   if rotatekey is not None:
+      try:
+         rot = inhdr[rotatekey]
+      except:
+         print "ERROR. Could not read rotation from header with keyword %s" %\
+             rotatekey
+         print ""
+         return
+      print "Rotating header by %7.2f degrees" % rot
+      rothdr = wcsmwa.rotate_header(outhdr,rot)
+      outhdr = rothdr.copy()
+
+   print "Created header from telescope pointing info."
+   print outhdr
+   print 'Updating fits file header'
+   wcskeys = ['ctype1','ctype2','crval1','crval2','crpix1','crpix2',
+              'cd1_1','cd2_2']
+   for k in wcskeys:
+      inhdr[k] = outhdr[k]
+               
+   hdu.flush()
+   return outhdr
+
+# -----------------------------------------------------------------------
+
+
+def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
+                          hext=0, rakey='ra', deckey='dec'):
+   """
+   Creates a full WCS header from the telescope pointing information in
+   the reffile, and then copies the WCS information into the infiles.
+
+   Inputs:
+      reffile   -  reference file containing the telescope pointing info in
+                   its RA and DEC fits headers.
+      infile    -  input file to which WCS information will be copied
+      pixscale  -  desired pixel scale for the output header (should be the
+                   expected pixel scale for the camera)
+      rotatekey -  [OPTIONAL] if the reffile image was taken with a rotation, 
+                   that can be incorporated into the output header.  In that 
+                   case, rotatekey needs to be set to the keyword for the header
+                   card that contains the rotation value (these card keywords
+                   are very non-standardized).
+      hext    -  HDU number to use.  Default=0 (i.e., the primary HDU)
+      rakey     -  [OPTIONAL] header keyword for RA of pointing, if different
+                   from the default value of 'RA'
+      deckey    -  [OPTIONAL] header keyword for Dec of pointing, if different
+                   from the default value of 'Dec'
+   """
+
+   print ""
+
+   """ Open the files """
+   try:
+      refhdu = open_fits(reffile)
+   except:
+      print "ERROR.  Could not read reference file %s" % reffile
+      return
+   refhdr = refhdu[hext].header
+
+   try:
+      inhdu = open_fits(infile,mode='update')
+   except:
+      return
+   inhdr = inhdu[hext].header
+
+   """ Make the temporary header with full WCS info from reffile """
+   try:
+      refwcs = make_wcs_from_tel_pointing(refhdr,pixscale,rotatekey,
+                                          rakey,deckey)
+   except:
+      print "Could not create WCS header from %s" % reffile
+   refinfo = wcsmwa.parse_header(refwcs)
+
+   """ Copy the information into the input file """
+   inhdr.update('ctype1',refwcs['ctype1'])
+   inhdr.update('crpix1',refwcs['crpix1'])
+   inhdr.update('crval1',refwcs['crval1'])
+   inhdr.update('ctype2',refwcs['ctype2'])
+   inhdr.update('crpix2',refwcs['crpix2'])
+   inhdr.update('crval2',refwcs['crval2'])
+   inhdr.update('cd1_1',refinfo[2][0,0])
+   inhdr.update('cd2_2',refinfo[2][1,1])
+   inhdr.update('cd1_2',refinfo[2][0,1])
+   inhdr.update('cd2_1',refinfo[2][1,0])
+               
+   inhdu.flush()
 
 #-----------------------------------------------------------------------
 
