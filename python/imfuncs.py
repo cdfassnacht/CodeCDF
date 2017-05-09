@@ -31,15 +31,15 @@ Stand-alone functions
                        positions of the catalog objects.
 """
 
-import astropy
 try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
-if astropy.__version__[:3] == '0.3':
+try:
+   from astropy.coordinates import SkyCoord
+except ImportError:
    from astropy.coordinates import ICRS as SkyCoord
 else:
-   from astropy.coordinates import SkyCoord
 from astropy import wcs
 from astropy import units as u
 import numpy as np
@@ -47,7 +47,6 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from math import log,log10,sqrt,pi,fabs
 from math import cos as mcos,sin as msin
-import wcs as wcsmwa
 import ccdredux as ccd
 
 # -----------------------------------------------------------------------
