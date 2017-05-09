@@ -39,7 +39,6 @@ try:
    from astropy.coordinates import SkyCoord
 except ImportError:
    from astropy.coordinates import ICRS as SkyCoord
-else:
 from astropy import wcs
 from astropy import units as u
 import numpy as np
