@@ -58,7 +58,7 @@ print '    File               RMS'
 print '--------------- ---------------'
 for i in range(len(intab)):
     trow = intab[i]
-    f = '%s/%s' % (trow['Folder'], trow['Filename'])
+    f = '%s/%s.fits' % (trow['Folder'], trow['Filename'])
     rms[i] = imf.get_rms(f, trow['xcent'], trow['ycent'], trow['xsize'],
                          trow['ysize'], verbose=False)
     print '%-13s %f'
