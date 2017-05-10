@@ -26,7 +26,8 @@ Stand-alone functions
    overlay_contours  - plots a greyscale image and overlays contours from a
                        second image
    calc_sky_from_seg - calculates sky level using SExtractor segmentation map
-   display_image     - displays an image
+   quick_display     - displays an image with most of the display parameters
+                       set to their default values
    plot_cat          - given a fits image and a object catalog, marks the
                        positions of the catalog objects.
 """
@@ -187,7 +188,8 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def sigma_clip(self, nsig=3., mask=None, hext=0, verbose=False):
+   def sigma_clip(self, nsig=3., statsec=None, mask=None, hext=0, 
+                  verbose=False):
       """
       Runs a sigma-clipping on image data.  The code iterates over
       the following steps until it has converged:
@@ -198,9 +200,22 @@ class Image:
       Once convergence has been reached, the final clipped mean and clipped
       rms are stored in the mean_clip and rms_clip variables
 
+      NOTE: The region used for determining these image statistics is set
+      by the following decision path:
+       - if statsec is not None, use statsec
+       - else, if the subim has been set, use the subim
+       - else, use the entire image
+      for the second and third options, an optional mask can be used to 
+      exclude known bad pixels from the calculation.
+
       Optional inputs:
          nsig    - Number of sigma from the mean beyond which points are
                     rejected.  Default=3.
+         statsec - Region of the input image to be used to determine the
+                   image statistics.  If this is None (the default value)
+                   then the image statistics will be determined from:
+                     - the subimage, if it has been set
+                     - else, the entire image.
          mask    - If some of the input data are known to be bad, they can
                     be flagged before the inputs are computed by including
                     a mask.  Clearly this mask must be set such that True
@@ -1089,14 +1104,15 @@ class Image:
                      1. A 2-element numpy array
                      2. A 2-element list:  [xsize,ysize] 
                      3. A 2-element tuple: (xsize,ysize)
-                   **. A final option is centpos=None.  In that case, the 
-                   center of the cutout is just the center of the full image
+                     4. centpos=None.  In this case, the center of the cutout
+                        is just the center of the full image
          imsize  - size of cutout (postage stamp) image, in pixels
                    imsize can take any of the following formats:
                      1. A single number (which will produce a square image)
                      2. A 2-element numpy array
                      3. A 2-element list:  [xsize,ysize] 
                      4. A 2-element tuple: (xsize,ysize)
+                     5. imsize=None.  In this case, the full image is used
       """
 
       """ Get the full size of the image """
@@ -1198,7 +1214,6 @@ class Image:
           (x1,x2,y1,y2)
 
       """ Update the headers to reflect the cutout center"""
-      print
       try:
          self.subimhdr['CRPIX1'] -= self.x1
       except:
@@ -1397,14 +1412,15 @@ class Image:
                      1. A 2-element numpy array
                      2. A 2-element list:  [xsize,ysize] 
                      3. A 2-element tuple: (xsize,ysize)
-                   **. A final option is centpos=None.  In that case, the 
-                   center of the cutout is just the center of the full image
+                     4.  centpos=None.  In this case, the center of the cutout
+                         is just the center of the full image
          imsize  - size of cutout (postage stamp) image, in pixels
                    imsize can take any of the following formats:
                      1. A single number (which will produce a square image)
                      2. A 2-element numpy array
                      3. A 2-element list:  [xsize,ysize] 
                      4. A 2-element tuple: (xsize,ysize)
+                     5. imsize=None.  In this case, the full image is used
          outfile - name of optional output file (default=None)
          hext    - HDU containing the image data in the input image (default=0)
       """
@@ -1417,7 +1433,7 @@ class Image:
       if outfile:
          print ''
          print 'Input file:  %s' % self.infile
-         print 'fOutput file: %s' % outfile
+         print 'Output file: %s' % outfile
          pf.PrimaryHDU(self.subim,self.subimhdr).writeto(outfile,clobber=True)
          print "Wrote postage stamp cutout to %s" % outfile
 
@@ -2232,7 +2248,7 @@ def imcopy(infile,x1,x2,y1,y2,outfile):
 # ---------------------------------------------------------------------------
 
 
-def poststamp(infile,centx,centy,xsize,ysize,outfile):
+def poststamp(infile, centx, centy, xsize, ysize, outfile):
    """ 
    Description: Given a fits file name, an image center, and an image size,
      creates a new fits file that is cutout of part of the original image.
@@ -2456,11 +2472,17 @@ def calc_sky_from_seg(infile,segfile):
 # -----------------------------------------------------------------------
 
 
-def display_image(infile, inhdu=0, cmap='gaia', fmin=-1.0, fmax=10.0,
+def quick_display(infile, hext=0, cmap='gaia', fmin=-1.0, fmax=10.0,
                   funits='sigma'):
    """
    Displays the image data contained in an input fits file.
    Does this through a call to the Image class, which is returned.
+   Note that most of the display parameters, which normally are accessed
+   through the Image class, are fixed to their default values.  The only
+   parameters that can be modified by this function are:
+     hext, cmap, fmin, fmax, and funits
+   For other functionality, set up an Image class structure and access the
+   display method within it rather than using this quick function.
    """
 
    # Read in the image
@@ -2468,7 +2490,6 @@ def display_image(infile, inhdu=0, cmap='gaia', fmin=-1.0, fmax=10.0,
 
    # Display the image.  Note that for now this call does not include
    #  all of the possible parameters defined in the Image.display method
-   #  (missing, e.g., wtfile, statsize, extent)
    image.display(hext=inhdu,cmap=cmap,fmin=fmin,fmax=fmax,funits=funits)
 
    return image
