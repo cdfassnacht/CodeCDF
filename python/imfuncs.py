@@ -124,6 +124,7 @@ class Image:
       self.fmax      = None     # Upper flux limit used in image display
       self.fscale    = 'linear' # Flux scaling for display
       self.statsize  = 2048     # Region size for stats if image is too big
+      self.statsec   = None     # Region to use for pixel statistics
       self.zoomsize  = 31       # Size of postage-stamp zoom
       self.dispunits = 'radec'  # Default display units are arcsec offsets
       self.extval    = None     # Just label the axes by pixels
@@ -212,10 +213,20 @@ class Image:
          nsig    - Number of sigma from the mean beyond which points are
                     rejected.  Default=3.
          statsec - Region of the input image to be used to determine the
-                   image statistics.  If this is None (the default value)
+                   image statistics, defined by the coordinates of its
+                   corners (x1, y1, x2, y2).  
+                   If this variable is is None (the default value)
                    then the image statistics will be determined from:
                      - the subimage, if it has been set
                      - else, the entire image.
+                   The format for statsec can be any of the following:
+                     1. A 4-element numpy array
+                     2. A 4-element list:  [xsize,ysize] 
+                     3. A 4-element tuple: (xsize,ysize)
+                     4. statsec=None.  In this case, the region used for 
+                        determining the pixel statistics defaults to either
+                        the subimage (if defined) or the full image (if no
+                        subimage has been defined)
          mask    - If some of the input data are known to be bad, they can
                     be flagged before the inputs are computed by including
                     a mask.  Clearly this mask must be set such that True
@@ -229,7 +240,10 @@ class Image:
       """
 
       """ Determine what the input data set is """
-      if self.subim is not None:
+      if statsec is not None:
+         x1, y1, x2, y2 = statsec
+         data = self.hdu[hext].data[y1:y2, x1:x2]
+      elif self.subim is not None:
          if mask:
             data = self.subim[mask]
          else:
@@ -1398,6 +1412,44 @@ class Image:
 
    # -----------------------------------------------------------------------
 
+   def get_rms(self, centpos, size, hext=0, verbose=True):
+      """
+      Calculates the rms (by calling the sigma_clip method) by calculating
+      the pixel value statistics in a region of the image defined by its
+      center (centpos parameter) and its size (size parameter).
+
+      Inputs:
+         centpos - (x,y) coordinates of the center of the region, in pixels
+                   centpos can take any of the following formats:
+                     1. A 2-element numpy array
+                     2. A 2-element list:  [xsize,ysize] 
+                     3. A 2-element tuple: (xsize,ysize)
+                     4. centpos=None.  In this case, the center of the cutout
+                         is just the center of the full image
+         size    - size of cutout (postage stamp) image, in pixels
+                   size can take any of the following formats:
+                     1. A single number (which will produce a square image)
+                     2. A 2-element numpy array
+                     3. A 2-element list:  [xsize,ysize] 
+                     4. A 2-element tuple: (xsize,ysize)
+                     5. size=None.  In this case, the full image is used
+         hext    - HDU containing the image data in the input image (default=0)
+      """
+
+      """ 
+      Convert the center and size paramters into the coordinates of the
+      corners of the region
+      """
+      statsec = self.get_subim_bounds(centpos, size, hext)
+      print ''
+      print statsec
+
+      """ Get the pixel statistics """
+      self.sigma_clip(statsec=statsec)
+      print 'RMS = %f' % self.rms_clip
+
+   # -----------------------------------------------------------------------
+
    def poststamp_xy(self, centpos, imsize, outfile=None, hext=0, verbose=True):
       """
       Creates a subimage that is a cutout of the original image.  For
@@ -1412,7 +1464,7 @@ class Image:
                      1. A 2-element numpy array
                      2. A 2-element list:  [xsize,ysize] 
                      3. A 2-element tuple: (xsize,ysize)
-                     4.  centpos=None.  In this case, the center of the cutout
+                     4. centpos=None.  In this case, the center of the cutout
                          is just the center of the full image
          imsize  - size of cutout (postage stamp) image, in pixels
                    imsize can take any of the following formats:
