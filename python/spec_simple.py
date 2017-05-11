@@ -18,7 +18,7 @@ Stand-alone functions:
 
 """
 
-import sys, os
+import sys
 import glob
 from math import sqrt, pi
 try:
@@ -464,8 +464,8 @@ class Spec1d():
 
    def load_linelist(self):
 
-      linefmt = [('name','S10'), ('wavelength', float), ('label','S10'),\
-                    ('dxlab', float), ('type', int), ('plot', bool)]
+      linefmt = [('name','S10'), ('wavelength', float), ('label','S10'),
+                 ('dxlab', float), ('type', int), ('plot', bool)]
       self.lineinfo = np.array([
             ("Ly-alpha",  1216.,    r"Ly $\alpha$", 0.0, 4, True),
             ("C IV",      1549.,    "C IV",         0.0, 4, True),
@@ -503,7 +503,7 @@ class Spec1d():
             ("[S III]",   9532,     "[S III]",      0.0, 2, True),
             ("Pa-gamma", 10900.,    r"Pa $\gamma$", 0.0, 4, True),
             ("Pa-beta",  12800.,    r"Pa $\beta$",  0.0, 4, True),
-            ("Pa-alpha", 18700.,    r"Pa $\alpha$", 0.0, 4, True)\
+            ("Pa-alpha", 18700.,    r"Pa $\alpha$", 0.0, 4, True)
             ], dtype=linefmt)
 
    # -----------------------------------------------------------------------
@@ -547,14 +547,16 @@ class Spec1d():
       # dlam = self.wav[1] - self.wav[0]
       x0, x1 = plt.xlim()
       y0, y1 = plt.ylim()
-      if x0 > lammin: lammin = x0
-      if x1 < lammax: lammax = x1
-      wmask = (self.wav >= x0) & (self.wav <= x1)
-      if usesmooth:
-         ff = self.smoflux[wmask]
-      else:
-         ff = self.flux[wmask]
-      fluxdiff = ff.max() - ff.min()
+      if x0 > lammin:
+         lammin = x0
+      if x1 < lammax:
+         lammax = x1
+      # wmask = (self.wav >= x0) & (self.wav <= x1)
+      # if usesmooth:
+      #    ff = self.smoflux[wmask]
+      # else:
+      #    ff = self.flux[wmask]
+      # fluxdiff = ff.max() - ff.min()
       xdiff = x1 - x0
       ydiff = y1 - y0
       dlocwin = labww / 2.
@@ -620,7 +622,7 @@ class Spec1d():
             plt.plot([xarr[i], xarr[i]], [tickstart, tickend], 'k')
             if info['plot']:
                plt.text(xarr[i] + info['dxlab'], labstart, info['label'],
-                        rotation='vertical', ha='center',va=labva,
+                        rotation='vertical', ha='center', va=labva,
                         color=labcolor, fontsize=labfs)
          else:
             plt.axvline(xarr[i], color='k', ls='--')
@@ -661,8 +663,6 @@ class Spec1d():
       if outformat=='fits':
          hdu  = pf.HDUList()
          phdu = pf.PrimaryHDU()
-         hdr = phdu.header
-         # hdr['object'] = pref
          hdu.append(phdu)
          outwv   = pf.ImageHDU(self.wav, name='wavelength')
          outflux = pf.ImageHDU(self.flux, name='flux')
@@ -697,7 +697,6 @@ class Spec1d():
 
       if verbose:
          print "Saved spectrum to file %s in format %s" % (outfile, outformat)
-
 
    # -----------------------------------------------------------------------
    # -----------------------------------------------------------------------
@@ -799,7 +798,7 @@ class Spec2d(imf.Image):
       if test.rfind('hdu') > 0:
          self.hdu = inspec
       else:
-         imf.Image.__init__(self, inspec,verbose=verbose)
+         imf.Image.__init__(self, inspec, verbose=verbose)
 
       """ Read in the external variance file if there is one """
       if extvar is not None:
@@ -1051,10 +1050,10 @@ class Spec2d(imf.Image):
 
       """ Plot the substracted sky spectrum if desired """
       if doskysub:
-         ax2 = plt.subplot(412, sharex=ax1, sharey=ax1)
+         plt.subplot(412, sharex=ax1, sharey=ax1)
          plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
 
-         ax3 = plt.subplot(212, sharex=ax1)
+         plt.subplot(212, sharex=ax1)
          print self.sky1d.wav
          print self.sky1d.flux
          self.sky1d.plot(title=None)
@@ -1069,7 +1068,6 @@ class Spec2d(imf.Image):
          xmax = int(self.npix / 2. + (sfac/2.) * self.nspat)
          plt.xlim(xmin, xmax)
       # plt.ylim(0, self.nspat)
-
 
    # -----------------------------------------------------------------------
 
@@ -1131,7 +1129,6 @@ class Spec2d(imf.Image):
       else:
          tmpdat = self.data.copy()
          
-
       """ Compress the data along the dispersion axis and find the max value """
       if self.data.ndim < 2:
          self.cdat = tmpdat
@@ -1151,7 +1148,7 @@ class Spec2d(imf.Image):
          plt.xlabel('Spatial direction (0-indexed)')
          if fit is not None:
             xmod = np.arange(1, self.cdat.shape[0]+1,0.1)
-            p = np.atleast_1d(fit) # Make sure parameters are in a numpy array
+            p = np.atleast_1d(fit)  # Make sure parameters are in a numpy array
             ngauss = int((p.size-1)/3)
             if p.size - (ngauss*3+1) != 0:
                print 'Fit not plotted since fit has wrong number of parameters'
@@ -1253,8 +1250,8 @@ class Spec2d(imf.Image):
       mf=100000
       p = p_init[fitmask]
       p_fit, ier = optimize.leastsq(fit_gauss, p,
-                                      (self.x, self.cdat, p_init, fitind),
-                                      maxfev=mf)
+                                    (self.x, self.cdat, p_init, fitind),
+                                    maxfev=mf)
       """ 
       Create the full parameter list for the fit by combining the fitted
       parameters and the fixed parameters
@@ -1386,7 +1383,6 @@ class Spec2d(imf.Image):
       print dpoly
       return dpoly, fity
 
-
    # -----------------------------------------------------------------------
 
    def trace_spectrum(self, ngauss=1, stepsize=25, muorder=3, sigorder=4, 
@@ -1439,7 +1435,6 @@ class Spec2d(imf.Image):
       sigstep = mustep.copy()
       nsteps  = np.arange(xstep.shape[0])
 
-
       if fitmu or fitsig:
          """ Step through the data """
          print ''
@@ -1450,7 +1445,8 @@ class Spec2d(imf.Image):
          print "   of the 2D spectrum..."
          for i in nsteps:
             pixrange = [xstep[i], xstep[i]+stepsize]
-            p = self.locate_trace(pixrange=pixrange, showplot=False,verbose=False)
+            p = self.locate_trace(pixrange=pixrange, showplot=False, 
+                                  verbose=False)
             for j in range(ngauss):
                mustep[i, j]  = p[j*3+1]
                sigstep[i, j] = p[j*3+2]
@@ -1525,7 +1521,7 @@ class Spec2d(imf.Image):
                                   verbose=verbose)
 
       self.trace_spectrum(ngauss, stepsize, muorder, sigorder, fitrange, doplot,
-                          do_subplot,verbose=verbose)
+                          do_subplot, verbose=verbose)
 
    # -----------------------------------------------------------------------
 
@@ -1552,8 +1548,6 @@ class Spec2d(imf.Image):
       amp = 0.0 * pix
       var = 0.0 * pix
       skyspec = 0.0 * pix
-      tmpy = 0.0 * pix
-      tmpyy = 0.0 * pix
 
       """ Extract the spectrum """
       print ""
@@ -1565,13 +1559,14 @@ class Spec2d(imf.Image):
             tmpdata = self.data[i,:]
          else:
             tmpdata = self.data[:, i]
-         if (sky == None):
+         if sky is None:
             skyval = None
          else:
             skyval = sky[i]
       
-         amp[i],var[i], skyspec[i] = \
-             extract_wtsum_col(tmpdata, self.mu[i], apmin, apmax, sig=self.sig[i],
+         amp[i], var[i], skyspec[i] = \
+             extract_wtsum_col(tmpdata, self.mu[i], apmin, apmax, 
+                               sig=self.sig[i],
                                gain=gain, rdnoise=rdnoise, sky=skyval,
                                weight=weight)
       print "   Done"
@@ -1582,7 +1577,7 @@ class Spec2d(imf.Image):
       """ Create a Spec1d container for the extracted spectrum """
       if sky is not None:
          skyspec = sky
-      self.spec1d = Spec1d(wav=self.wavelength, flux=amp,var=var, sky=skyspec)
+      self.spec1d = Spec1d(wav=self.wavelength, flux=amp, var=var, sky=skyspec)
 
    # -----------------------------------------------------------------------
 
@@ -1677,7 +1672,7 @@ class Spec2d(imf.Image):
       Put in the aperture limits, delimited by apmin and apmax
       """
       apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
-      bkgdmask = np.logical_not(apmask)
+      # bkgdmask = np.logical_not(apmask)
 
       """ 
       Third weighting: Inverse variance
@@ -1694,9 +1689,9 @@ class Spec2d(imf.Image):
       nansci  = np.isnan(self.data)
       nanvar  = np.isnan(varspec)
       nanmask = np.logical_or(np.isnan(self.data), np.isnan(varspec))
-      nnans = nansci.sum()
-      nnanv = nanvar.sum()
-      nnan = nanmask.sum()
+      # nnans = nansci.sum()
+      # nnanv = nanvar.sum()
+      # nnan = nanmask.sum()
 
       """ 
       Set up a 2d background grid (think about doing this as part of a call
@@ -1754,7 +1749,7 @@ class Spec2d(imf.Image):
       """
       # print '*** Number of nans: %d %d %d ***' % (nnans, nnanv, nnan)
       print ''
-      self.spec1d = Spec1d(wav=self.wavelength, flux=flux,var=var, sky=bkgd)
+      self.spec1d = Spec1d(wav=self.wavelength, flux=flux, var=var, sky=bkgd)
       self.apmask = apmask
 
    # -----------------------------------------------------------------------
@@ -1919,7 +1914,8 @@ def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
          for ifbc in range(0, len(gprelim)):
             if len(data[data[gprelim[ifbc],:] != 0]) == 0:
                fbc_tmp[gprelim[ifbc]] = 1
-      if findblank: fbc_tmp = 1-fbc_tmp
+      if findblank:
+         fbc_tmp = 1-fbc_tmp
       gfbc = np.where(fbc_tmp == 0)[0]
    elif output_dims==2:
       fbc_tmp = np.zeros(np.shape(data))
@@ -2004,6 +2000,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
 
 # -----------------------------------------------------------------------
 
+
 def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
                       bscale=10., xlim=[3000.,9500.], title='default', 
                       z=None, mark_em=False, mark_abs=True):
@@ -2036,8 +2033,8 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
    """
 
    """ Read in the spectra, including the scaling for the blue side """
-   wb, fb,vb = read_spectrum(bluefile)
-   wr, fr,vr = read_spectrum(redfile)
+   wb, fb, vb = read_spectrum(bluefile)
+   wr, fr, vr = read_spectrum(redfile)
    fb *= bscale
    if vb is not None:
       vb *= bscale
@@ -2075,7 +2072,6 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
       else:
          smvr = 1.0 / (smooth_width * unif_filt(wtr, smooth_width))
       
-
    """ Plot the spectra """
    plot_spectrum_array(wb, smb, smvb, rmscolor='k')
    plot_spectrum_array(wr, smr, smvr, speccolor='r', rmscolor='k')
@@ -2294,18 +2290,21 @@ def fit_gpb_fixmu(p, x, y, mu):
    if len(p) > 3:
       nps = (len(p)-1)/2
       for inpsf in range(1, nps):
-         amp, sigma = np.append(amp, p[2*inpsf+1]), np.append(sigma, p[2*inpsf+2])
+         amp = np.append(amp, p[2*inpsf+1])
+         sigma = np.append(sigma, p[2*inpsf+2])
 
    """
    Compute the difference between model and real values
    """
-   if np.shape(amp) != (): mu = np.ones(len(bkgd))*mu
+   if np.shape(amp) != ():
+      mu = np.ones(len(bkgd))*mu
    ymod = make_gauss(x, mu, sigma, amp, bkgd)
    diff = y - ymod
 
    return diff
 
 # -----------------------------------------------------------------------
+
 
 def plot_spatial_profile(infile, dispaxis="x"):
    """
@@ -2350,7 +2349,7 @@ def plot_spatial_profile(infile, dispaxis="x"):
 # -----------------------------------------------------------------------
 
 def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False,
-              showplot=True, do_subplot=False,verbose=True, apmin=-4., apmax=4.):
+              showplot=True, do_subplot=False, verbose=True, apmin=-4., apmax=4.):
    """
     Compresses a 2d spectrum along the dispersion axis so that
      the trace of the spectrum can be automatically located by fitting
@@ -2422,7 +2421,6 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False
    else:
       p = [bkgd0, mu0, sig0, amp0]
       p_out, ier = optimize.leastsq(fit_gauss, p,(x, cdat), maxfev=mf)
-
 
    # Give results
    if(verbose):
@@ -2505,8 +2503,8 @@ def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
    wtsum = ((spatialdat - bkgd)*gweight)[apmask].sum() / gweight[apmask].sum()
 
    """ Calculate the variance """
-   if (sky == None):
-      varspec = (gain * spatialdat + rdnoise**2)/gain**2
+   if sky is None:
+      varspec = (gain * spatialdat + rdnoise**2) / gain**2
       var = (varspec * gweight)[apmask].sum() / gweight[apmask].sum()
    else:
       varspec = (gain * (spatialdat + sky) + rdnoise**2)/gain**2
@@ -2515,6 +2513,7 @@ def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
    return wtsum, var, bkgd
 
 # -----------------------------------------------------------------------
+
 
 def find_trace(data, dispaxis="x", apmin=-4., apmax=4., doplot=True,
                do_subplot=False):
@@ -2575,7 +2574,8 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    ymax = dmu + 4.5*dsig
    if doplot:
       plt.plot(x, data, markformat)
-      #plt.plot(xstep, mu, marker='o', mec='b', mfc='w', markersize=8, linestyle='')
+      # plt.plot(xstep, mu, marker='o', mec='b', mfc='w', markersize=8, 
+      #          linestyle='')
       plt.xlabel("Pixel number in the dispersion direction")
       plt.ylabel(ylabel)
       plt.title(title)
@@ -2611,8 +2611,9 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
 
 # -----------------------------------------------------------------------
 
+
 def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
-   sigorder=4, fitrange=None, doplot=True, do_subplot=False):
+                   sigorder=4, fitrange=None, doplot=True, do_subplot=False):
    """
    Second step in the reduction process.
    Fits a gaussian plus background to portions of the spectrum separated
@@ -2622,10 +2623,8 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
    # Set the dispersion axis direction
    if dispaxis == "y":
       specaxis  = 0
-      spaceaxis = 1
    else:
       specaxis  = 1
-      spaceaxis = 0
    xlength   = data.shape[specaxis]
 
    # Define the slices through the 2D spectrum that will be used to find
@@ -2643,14 +2642,14 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
    print "Running fit_trace"
    print "--------------------------------------------------------------- "
    print "Finding the location and width of the peak at %d segments of " % \
-     nsteps.shape[0]
+       nsteps.shape[0]
    print"   the 2D spectrum..."
    for i in nsteps:
       if(specaxis == 0):
          tmpdata = data[xstep[i]:xstep[i]+stepsize,:]
       else:
          tmpdata = data[:, xstep[i]:xstep[i]+stepsize]
-      ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False,verbose=False)
+      ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False, verbose=False)
       mu[i]    = ptmp[1]
       sigma[i] = ptmp[2]
    print "   Done"
@@ -2723,7 +2722,7 @@ def combine_spectra(txt_files, outfile):
    print ""
    for f in file_list:
       print "Reading data from file %s" % f 
-      wi, fi,vi = np.loadtxt(f, unpack=True, usecols=(0,1,2))
+      wi, fi, vi = np.loadtxt(f, unpack=True, usecols=(0,1,2))
       wt = 1.0 / vi
       wt[vi==0] = 0.
       wtflux += wt * fi
@@ -2748,13 +2747,13 @@ def combine_spectra(txt_files, outfile):
 
 # -----------------------------------------------------------------------
 
+
 def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
    """
    Given an input wavelength vector, creates a smooth model of the
    night sky emission that matches the wavelength range and stepsize
    of the input vector.
    """
-   import pickle
 
    # Get info from input wavelength vector
    wstart = wavelength.min()
@@ -2843,7 +2842,6 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
       skylab  = "RMS Spectrum"
       hdr = hdulist[0].header
       crval1  = hdr['crval1']
-      crpix1  = hdr['crpix1']
       cd11    = hdr['cd1_1']
       waveobs = 1.0* np.arange(varspec.shape[1])
       waveobs *= cd11
@@ -2855,7 +2853,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
       skylab  = "Observed Sky"
    else:
       try:
-         waveobs,varspec = np.loadtxt(infile, unpack=True, usecols=(0,2))
+         waveobs, varspec = np.loadtxt(infile, unpack=True, usecols=(0,2))
          skyobs = np.sqrt(varspec)
       except:
          print ""
@@ -2957,7 +2955,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    """
 
    # Read the input spectrum
-   wave, fluxobs,var = read_spectrum(infile)
+   wave, fluxobs, var = read_spectrum(infile)
    rms = np.sqrt(var)
 
    # Generate the thermal spectrum and normalize it
@@ -2977,7 +2975,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    plt.figure(1)
    plt.clf()
    plt.plot(wave, fluxobs)
-   plt.plot(wave, b_lam)
+   plt.plot(wave, B_lam)
    plt.plot(wave, flux)
    plt.plot(wave, rms)
    plt.figure(2)
@@ -3015,7 +3013,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    plt.figure(3)
    plt.clf()
    plt.plot(wave, fc)
-   plt.plot(wave, b_lam)
+   plt.plot(wave, B_lam)
 
    # Write smooth response to output file
    out = np.zeros((wave.size,2))
@@ -3039,7 +3037,7 @@ def response_correct(infile, respfile, outfile):
 
    # Read input files
    try:
-      w, f,v = np.loadtxt(infile, unpack=True)
+      w, f, v = np.loadtxt(infile, unpack=True)
    except:
       print ""
       print "ERROR: response_correct.  Unable to read input spectrum %s" \
@@ -3056,7 +3054,7 @@ def response_correct(infile, respfile, outfile):
    # Apply the response correction and save the spectrum
    f *= resp
    v *= resp**2
-   save_spectrum(outfile, w, f,v)
+   save_spectrum(outfile, w, f, v)
 
 # -----------------------------------------------------------------------
 
@@ -3083,7 +3081,7 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    """
 
    # Read the input spectrum
-   wave, fluxobs,var = read_spectrum(infile)
+   wave, fluxobs, var = read_spectrum(infile)
 
    # Try to minimize outliers due to both emission and absorption
    #  lines and to cosmetic features (cosmic rays, bad sky-line subtraction).
@@ -3134,7 +3132,7 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    plt.plot(wave, fc)
 
    # Write normalized spectrum to output file
-   save_spectrum(outfile, wave, fc,vc)
+   save_spectrum(outfile, wave, fc, vc)
 
 # -----------------------------------------------------------------------
 
@@ -3266,7 +3264,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 # -----------------------------------------------------------------------
 
 
-def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax,var=None,
+def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax, var=None,
                   showsub=False):
    """
    Given vectors of flux and wavelength, interactively calculates the integrated
@@ -3413,9 +3411,9 @@ def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
          skyval = None
       else:
          skyval = sky[i]
-      amp[i],var[i] = extract_wtsum_col(tmpdata, mu[i], apmin, apmax, 
-                                        sig=sig[i], gain=gain, rdnoise=rdnoise, 
-                                        sky=skyval, weight=weight)
+      amp[i], var[i] = extract_wtsum_col(tmpdata, mu[i], apmin, apmax, 
+                                         sig=sig[i], gain=gain, rdnoise=rdnoise, 
+                                         sky=skyval, weight=weight)
    print "   Done"
 
    # Plot the extracted spectrum
@@ -3432,10 +3430,10 @@ def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
 
    # Save the extracted spectrum
    if outfile is not None:
-      save_spectrum(outfile, pix, amp,var)
+      save_spectrum(outfile, pix, amp, var)
 
    # Return the extracted spectrum
-   return amp,var
+   return amp, var
 
 # -----------------------------------------------------------------------
 
@@ -3455,7 +3453,7 @@ def plot_sky(infile):
 
 # -----------------------------------------------------------------------
 
-def save_spectrum(filename, x, flux,var=None):
+def save_spectrum(filename, x, flux, var=None):
    """
    Saves a spectrum as a text file
    """
@@ -3540,13 +3538,13 @@ def plot_spectrum(filename, varspec=True, informat="text",
    """
 
    """ Read in the spectrum, using the appropriate input format """
-   wavelength, flux,var = read_spectrum(filename, informat, varspec, verbose)
+   wavelength, flux, var = read_spectrum(filename, informat, varspec, verbose)
 
    """ Plot the spectrum """
    if title == 'default':
       title = 'Spectrum for %s' % filename
    if varspec:
-      plot_spectrum_array(wavelength, flux,var=var, xlabel=xlabel, ylabel=ylabel,
+      plot_spectrum_array(wavelength, flux, var=var, xlabel=xlabel, ylabel=ylabel,
                           title=title, docolor=docolor, speccolor=speccolor,
                           rmscolor=rmscolor, rmsoffset=rmsoffset,
                           rmsls=rmsls, fontsize=fontsize)
@@ -3625,16 +3623,16 @@ def apply_wavecal(infile, outfile, lambda0, dlambda, varspec=True):
    """
 
    """ Read the input file """
-   x, flux,var = read_spectrum(infile,varspec=varspec)
+   x, flux, var = read_spectrum(infile, varspec=varspec)
 
    """ Convert x from pixels to wavelength units """
    wavelength = lambda0 + dlambda * x
 
    """ Plot and save the results """
    if varspec:
-      plot_spectrum_array(wavelength, flux,var=var,
+      plot_spectrum_array(wavelength, flux, var=var,
                           title="Wavelength-calibrated spectrum")
-      save_spectrum(outfile, wavelength, flux,var)
+      save_spectrum(outfile, wavelength, flux, var)
    else:
       plot_spectrum_array(wavelength, flux, 
                           title="Wavelength-calibrated spectrum")
