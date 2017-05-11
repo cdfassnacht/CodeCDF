@@ -21,7 +21,7 @@ Inputs:
                 is in the first column (since python is zero-indexed)'
 
 Usage: 
- python display_radec_cutouts.py [fitsfile] [catfile] [imsize] ([fmax] 
+ python display_cutouts.py [fitsfile] [catfile] [imsize] ([fmax] 
     [racol] [deccol] [idcol])
 
 """
@@ -34,7 +34,7 @@ from matplotlib import pyplot as plt
 """ Parse the command line """
 if len(sys.argv) < 4:
     print ''
-    print 'display_radec_cutouts.py'
+    print 'display_cutouts.py'
     print '------------------------'
     print 'Program that takes an input fits file with WCS information and a '
     print 'list of (RA,Dec) coordinates and then displays a small cutout image'
@@ -59,7 +59,7 @@ if len(sys.argv) < 4:
     print ''
     print 'Examples of usage'
     print '------------------------'
-    print 'python display_radec_cutouts.py [fitsfile] [catfile] [imsize] [fmax]'
+    print 'python display_cutouts.py [fitsfile] [catfile] [imsize] [fmax]'
     print ''
     exit()
 
