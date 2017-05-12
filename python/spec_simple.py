@@ -33,6 +33,7 @@ import ccdredux as ccd
 
 # -----------------------------------------------------------------------
 
+
 def clear_all():
    """
    Clears all of the open figures
@@ -43,6 +44,7 @@ def clear_all():
       plt.clf()
 
 # -----------------------------------------------------------------------
+
 
 class Spec1d():
    """
@@ -423,7 +425,7 @@ class Spec1d():
       #       save_spectrum(outfile, wavelength, outflux)
       #    print ""
 
-# -----------------------------------------------------------------------
+   # -----------------------------------------------------------------------
 
    def apply_wavecal_linear(self, lambda0, dlambda, outfile=None, 
                             outformat='text', doplot=True):
@@ -439,8 +441,8 @@ class Spec1d():
          lambda0:   Intercept value in Angstrom
          dlambda:   Slope (dispersion) in Angstrom/pix
       Optional inputs:
-         outfile:   Name of output file, if one is desired.  Default value (None)
-                     means no output file is produced
+         outfile:   Name of output file, if one is desired.  The default value
+                     (None) means no output file is produced
          outformat: Format of output file (see help file for Spec1d.save for
                      the possible values).  Default value is 'text'
          doplot:    Plot the spectrum with the new wavelength calibration if
@@ -707,14 +709,15 @@ class Spec1d():
 #
 # ===========================================================================
 
+
 class Spec2d(imf.Image):
    """
    A class to process 2-dimensional spectra, i.e., the CCD data that
     comes out of a typical spectrograph.  
    The main purpose of this Spec2d class and its associated functions is to
     extract a 1-dimensional spectrum from a 2-dimensional spectrum.
-    The extracted 1-dimensional spectrum will, in the end, be output into a file
-    that can be analyzed using the Spec1d class.
+    The extracted 1-dimensional spectrum will, in the end, be output into a 
+    file that can be analyzed using the Spec1d class.
    NOTE: Spec2d inherits the properties of the Image class that is defined
     in imfuncs.py
 
@@ -762,11 +765,11 @@ class Spec2d(imf.Image):
                      needs to be trimmed along the y-axis.
                      Example format for trimming:  ytrim=[300,701]
          transpose - If transpose=True, transpose the x and y dimensions of the
-                     input spectrum.  This is done, e.g., to change the 
-                     dispersion axis from vertical to horizontal. 
-                     NOTE: If transpose=True, the transpose action happens AFTER
-                     any trimming that is done if xtrim and/or ytrim have
-                     a value different from None
+                     input spectrum.  This is done, e.g., to change the
+                     dispersion axis from vertical to horizontal.
+                     NOTE: If transpose=True, the transpose action happens
+                     AFTER any trimming that is done if xtrim and/or ytrim
+                     have a value different from None
                      Default = False.
          verbose   - Set to True (the default) for information about the 
                      input file to be printed.
@@ -837,7 +840,8 @@ class Spec2d(imf.Image):
       """ 
       Do the same thing for the external variance file, if there is one 
       ASSUMPTION: the external variance file (if it exists) is the same size as 
-       the data file and thus should be trimmed, transposed, etc. in the same way
+       the data file and thus should be trimmed, transposed, etc. in the same
+       way
       """
       if self.extvar is not None:
          if transpose:
@@ -853,7 +857,7 @@ class Spec2d(imf.Image):
       self.ymax = ymax
       if verbose:
          print ''
-         print '----------------------------------------------------------------'
+         print '--------------------------------------------------------------'
          print ''
          if self.infile is None:
             print 'Read in 2-dimensional spectrum from HDU=%d' % hext
@@ -1129,7 +1133,9 @@ class Spec2d(imf.Image):
       else:
          tmpdat = self.data.copy()
          
-      """ Compress the data along the dispersion axis and find the max value """
+      """ 
+      Compress the data along the dispersion axis and find the max value 
+      """
       if self.data.ndim < 2:
          self.cdat = tmpdat
       else:
@@ -1175,7 +1181,8 @@ class Spec2d(imf.Image):
        a gaussian + background to the spatial direction.  The function
        returns the parameters of the best-fit gaussian.
       The default dispersion axis is along the x direction.  To change this
-       set the dispaxis to "y" with the set_dispaxis method in this Spec2d class.
+       set the dispaxis to "y" with the set_dispaxis method in this Spec2d 
+       class.
       """
 
       """ Start by compressing the data, but don't show it yet """
@@ -1439,7 +1446,7 @@ class Spec2d(imf.Image):
          """ Step through the data """
          print ''
          print "Running fit_trace"
-         print "--------------------------------------------------------------- "
+         print "--------------------------------------------------------------"
          print "Finding the location and width of the trace at %d segments" % \
              nsteps.shape[0]
          print "   of the 2D spectrum..."
@@ -1460,8 +1467,8 @@ class Spec2d(imf.Image):
             else:
                plt.figure(2)
                plt.clf()
-         print "Fitting a polynomial of order %d to the location of the trace" \
-             % muorder
+         print 'Fitting a polynomial of order %d to the location of the '\
+             'trace' % muorder
          self.mupoly, self.mu = \
              self.fit_poly_to_trace(xstep, mustep[:,0], muorder, self.p0[1],
                                     fitrange, doplot=doplot)
@@ -1520,8 +1527,8 @@ class Spec2d(imf.Image):
                                   ngauss=ngauss, pixrange=fitrange,
                                   verbose=verbose)
 
-      self.trace_spectrum(ngauss, stepsize, muorder, sigorder, fitrange, doplot,
-                          do_subplot, verbose=verbose)
+      self.trace_spectrum(ngauss, stepsize, muorder, sigorder, fitrange,
+                          doplot, do_subplot, verbose=verbose)
 
    # -----------------------------------------------------------------------
 
@@ -1609,16 +1616,16 @@ class Spec2d(imf.Image):
            in the form of inverse variance weighting.
            The variance can either be provided as an external variance image,
             if the previous reduction / processing has provided this.  
-           If no external variance spectrum is provided, then the variance image
-            will be constructed from the data counts (including counts from
-            a 2d sky spectrum if the sky has already been subtracted from
+           If no external variance spectrum is provided, then the variance
+            image will be constructed from the data counts (including counts
+            from a 2d sky spectrum if the sky has already been subtracted from
             the data) plus the gain and readnoise of the detector.
 
       According to the Horne paper, the optimal extraction of a spectrum
-      that has a profile P and proper knowledge of the noise/variance associated
-      with each pixel is as follows.  Below D represents the calibrated data,
-      S is the sky, V is the pixel variance (based on counts and the detector
-      gain and readnoise):
+      that has a profile P and proper knowledge of the noise/variance
+      associated with each pixel is as follows.  Below D represents the
+      calibrated data, S is the sky, V is the pixel variance (based on counts
+      and the detector gain and readnoise):
 
                Sum{ P * (D - S) / V}
            f = ---------------------
@@ -1657,9 +1664,11 @@ class Spec2d(imf.Image):
       Code below is just for gaussian weighting.
       """
       self.mu2d = self.mu.repeat(self.nspat).reshape((self.npix, self.nspat)).T
-      self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix, self.nspat)).T
+      self.sig2d = self.sig.repeat(self.nspat).reshape((self.npix, 
+                                                        self.nspat)).T
       ydiff = 1.0*y - self.mu2d
-      P = (1./(self.sig2d * sqrt(2.*pi))) * np.exp(-0.5 * (ydiff/self.sig2d)**2)
+      P = (1./(self.sig2d * sqrt(2.*pi))) * \
+          np.exp(-0.5 * (ydiff/self.sig2d)**2)
 
       """ Make sure the profile is normalized in the spatial direction """
       Pnorm = (P.sum(axis=self.spaceaxis))
@@ -1717,14 +1726,14 @@ class Spec2d(imf.Image):
       self.extwt[nanmask] = 0.
       self.extwt[vmask]   = 0.
       wtdenom = (self.profile * self.extwt).sum(axis=self.spaceaxis)
-      #wtdenom *= apmask.sum(axis=self.spaceaxis)
+      # wtdenom *= apmask.sum(axis=self.spaceaxis)
 
       """ Compute the weighted sum of the flux """
       data = self.data
       data[nansci] = 0.
       wtdenom[wtdenom==0] = 1.e9
-      flux = \
-          ((self.data - bkgd2d) * self.extwt).sum(axis=self.spaceaxis) / wtdenom
+      flux = ((self.data - bkgd2d) * 
+              self.extwt).sum(axis=self.spaceaxis) / wtdenom
 
       """ 
       Compute the proper variance.
@@ -1791,7 +1800,7 @@ class Spec2d(imf.Image):
    # -----------------------------------------------------------------------
 
 
-#===========================================================================
+# ===========================================================================
 #
 # *** End of Spec2d class definition ***
 #
@@ -1807,9 +1816,10 @@ class Spec2d(imf.Image):
 #      classes.  This code will slowly disappear as it gets integrated
 #      into the new classes.
 #
-#===========================================================================
+# ===========================================================================
 
 # -----------------------------------------------------------------------
+
 
 def load_2d_spectrum(filename, hdu=0):
    """
@@ -1824,6 +1834,7 @@ def load_2d_spectrum(filename, hdu=0):
    return data
 
 # -----------------------------------------------------------------------
+
 
 def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
    """
@@ -1892,6 +1903,7 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
 
 # -----------------------------------------------------------------------
 
+
 def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
    """
    Takes 2-dimensional data and outputs indices of columns not entirely
@@ -1933,11 +1945,13 @@ def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
          fbc_tmp = 1-fbc_tmp
       gfbc = np.where(fbc_tmp == 0)
    else:
-      sys.exit("output_dims parameter for find_blank_columns must be either 1 or 2. Value was: " + str(output_dims))
+      sys.exit('output_dims parameter for find_blank_columns must be either'
+               '1 or 2. Value was: ' + str(output_dims))
    return gfbc
 
 
 # -----------------------------------------------------------------------
+
 
 def read_spectrum(filename, informat='text', varspec=True, verbose=True):
    """
@@ -2015,15 +2029,16 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
       redfile  - file containing the red-side spectral data.  Same format
                  as for bluefile
    Optional inputs:
-      outfile      - Name of output file containing the plot.  The default value
-                     (None) means no output file.
+      outfile      - Name of output file containing the plot.  The default
+                     value (None) means no output file.
       smooth_width - The input spectra will be smoothed by a boxcar of 
                      width = smooth_width (default value = 7).  If no
                      smoothing is desired, then set smooth_width=None
       bscale       - Factor to multiply the blue-side flux by in order to
                      get it to match (roughly) the red-side flux where
                      the two spectra meet/overlap. Default value = 10.
-      xlim         - x-axis range to be shown on the plot. Default=[3000.,9500.]
+      xlim         - x-axis range to be shown on the plot. 
+                     Default=[3000.,9500.]
       z            - Redshift of the object.  Default (None) means that no
                      spectral lines are marked.  If z is not None, then
                      mark spectral lines, as set by the mark_em and mark_abs
@@ -2094,6 +2109,7 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
 
 # -----------------------------------------------------------------------
 
+
 def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
    """
    Given the input 2D spectrum, creates a median sky and then subtracts
@@ -2148,10 +2164,10 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
    """ Clean up """
    del sky, sky1d, skysub
 
-
 # -----------------------------------------------------------------------
 
-#def make_gauss(x, mu, sigma, amp, bkgd):
+
+# def make_gauss(x, mu, sigma, amp, bkgd):
 def make_gauss(x, p):
    """
    Creates a model comprised of one or more Gaussian profiles plus a
@@ -2201,6 +2217,7 @@ def make_gauss(x, p):
 
 # -----------------------------------------------------------------------
 
+
 def fit_gauss(p, x, y, p_init, fitind):
    """
    Compares the data to the model.  The model consists of at least one gaussian 
@@ -2248,6 +2265,7 @@ def fit_gauss(p, x, y, p_init, fitind):
 
 # -----------------------------------------------------------------------
 
+
 def fit_gpb_fixmusig(p, x, y, mu, sigma):
    """
    Compares the data to the model.  The model is a gaussian plus a 
@@ -2272,6 +2290,7 @@ def fit_gpb_fixmusig(p, x, y, mu, sigma):
    return diff
 
 # -----------------------------------------------------------------------
+
 
 def fit_gpb_fixmu(p, x, y, mu):
    """
@@ -2318,38 +2337,21 @@ def plot_spatial_profile(infile, dispaxis="x"):
                  the wavelength axis)
    """
 
-   # Read the data
-   data = load_raw_spectrum(infile)
+   """ Read the data """
+   spec = Spec2d(infile)
 
-   # Set the dispersion axis direction
-   if dispaxis == "y":
-      specaxis = 0
-      spatlabel = "x"
-   else:
-      specaxis = 1
-      spatlabel = "y"
-   # print "specaxis = %d" % specaxis
-
-   """ Compress the data along the dispersion axis and find the max value """
-   if data.ndim < 2:
-      print ""
-      print "ERROR: plot_spatial_profile needs a 2 dimensional data set"
-      del data
-      return
-   else:
-      cdat = np.median(data, axis=specaxis)
-   x = np.arange(1, cdat.shape[0]+1)
+   """ Set the dispersion axis direction """
+   spec.set_dispaxis(dispaxis)
 
    """ Plot the spatial profile """
-   plt.plot(x, cdat)
-   plt.xlabel("Pixel in the %s direction" % spatlabel)
-   plt.ylabel("Median counts")
-   plt.title("Spatial profile for %s" % infile)
+   spec.spatial_profile()
 
 # -----------------------------------------------------------------------
 
-def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False,
-              showplot=True, do_subplot=False, verbose=True, apmin=-4., apmax=4.):
+
+def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, 
+              fixsig=False, showplot=True, do_subplot=False, verbose=True, 
+              apmin=-4., apmax=4.):
    """
     Compresses a 2d spectrum along the dispersion axis so that
      the trace of the spectrum can be automatically located by fitting
@@ -2414,10 +2416,12 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False
    mf=100000
    if fixmu and fixsig:
       p = [bkgd0, amp0]
-      pt, ier = optimize.leastsq(fit_gpb_fixmusig, p,(x, cdat, mu0, sig0), maxfev=mf)
+      pt, ier = optimize.leastsq(fit_gpb_fixmusig, p,(x, cdat, mu0, sig0), 
+                                 maxfev=mf)
       p_out = [pt[0], mu0, sig0, pt[1]]
-   #p_out, ier = optimize.leastsq(fit_gpb_fixmu, p,(x, cdat, mu0), maxfev=mf)
-   #p_out, ier = optimize.leastsq(fit_gpb_fixsig, p,(x, cdat, sig0), maxfev=mf)
+   # p_out, ier = optimize.leastsq(fit_gpb_fixmu, p,(x, cdat, mu0), maxfev=mf)
+   # p_out, ier = optimize.leastsq(fit_gpb_fixsig, p,(x, cdat, sig0), 
+   #   maxfev=mf)
    else:
       p = [bkgd0, mu0, sig0, amp0]
       p_out, ier = optimize.leastsq(fit_gauss, p,(x, cdat), maxfev=mf)
@@ -2452,6 +2456,7 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False, fixsig=False
    return p_out
 
 # -----------------------------------------------------------------------
+
 
 def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
                       gain=1.0, rdnoise=0.0, sky=None):
@@ -2529,6 +2534,7 @@ def find_trace(data, dispaxis="x", apmin=-4., apmax=4., doplot=True,
    return mu0, sig0
 
 # -----------------------------------------------------------------------
+
 
 def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
                       doplot=True, markformat='bo', ylabel='Centroid of Trace',
@@ -2649,7 +2655,8 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
          tmpdata = data[xstep[i]:xstep[i]+stepsize,:]
       else:
          tmpdata = data[:, xstep[i]:xstep[i]+stepsize]
-      ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False, verbose=False)
+      ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False, 
+                       verbose=False)
       mu[i]    = ptmp[1]
       sigma[i] = ptmp[2]
    print "   Done"
@@ -2672,7 +2679,8 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
    else:
       plt.figure(3)
       plt.clf()
-   print "Fitting a polynomial of order %d to the width of the trace" % sigorder
+   print "Fitting a polynomial of order %d to the width of the trace" \
+       % sigorder
    sigpoly = fit_poly_to_trace(xstep, sigma, sigorder, sig0, xlength, fitrange,
                                markformat='go', title='Width of Peak',
                                ylabel='Width of trace (Gaussian sigma)',
@@ -2682,6 +2690,7 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
    return mupoly, sigpoly
 
 # -----------------------------------------------------------------------
+
 
 def resample_spec(w, spec, owave=None):
    """
@@ -2702,6 +2711,7 @@ def resample_spec(w, spec, owave=None):
    return owave, outspec
 
 # -----------------------------------------------------------------------
+
 
 def combine_spectra(txt_files, outfile):
    """
@@ -2819,6 +2829,7 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
 
 # -----------------------------------------------------------------------
 
+
 def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    """
    MOVE TO SPEC1D CLASS!
@@ -2891,6 +2902,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
 
 # -----------------------------------------------------------------------
 
+
 def planck_spec(wavelength, T=1.0e4, waveunit='Angstrom'):
    """
    Given a wavelength vector and an input temperture, generates a thermal
@@ -2924,6 +2936,7 @@ def planck_spec(wavelength, T=1.0e4, waveunit='Angstrom'):
    return B_lam
 
 # -----------------------------------------------------------------------
+
 
 def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    """
@@ -3023,6 +3036,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
 
 # -----------------------------------------------------------------------
 
+
 def response_correct(infile, respfile, outfile):
    """
    Applies a response correction, calculated previously by response_ir
@@ -3057,6 +3071,7 @@ def response_correct(infile, respfile, outfile):
    save_spectrum(outfile, w, f, v)
 
 # -----------------------------------------------------------------------
+
 
 def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    """
@@ -3136,6 +3151,7 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
 
 # -----------------------------------------------------------------------
 
+
 def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    """
    Creates a Spec1d instance (i.e., a 1-dimensional spectrum) containing the 
@@ -3192,6 +3208,7 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
 
 # -----------------------------------------------------------------------
 
+
 def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
                    color='g', linestyle='-', return_atm=False,
                    modfile='default', title=None):
@@ -3213,6 +3230,7 @@ def plot_atm_trans(w, fwhm=15., flux=None, scale=1.05, offset=0.0,
       del atm
 
 # -----------------------------------------------------------------------
+
 
 def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    """
@@ -3267,12 +3285,13 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax, var=None,
                   showsub=False):
    """
-   Given vectors of flux and wavelength, interactively calculates the integrated
-   flux in an emission line.  The user enters the wavelength ranges to use
-   for the continuum on both the blue (bluemin and bluemax) and red (redmin
-   and redmax) sides of the line.  The function will do a first order fit 
-   (i.e., a line) to the continuum using these ranges, subtract the continuum
-   from the data, and then numerically integrate the flux/counts in the line.
+   Given vectors of flux and wavelength, interactively calculates the 
+   integratedflux in an emission line.  The user enters the wavelength ranges
+   to use for the continuum on both the blue (bluemin and bluemax) and red
+   (redmin and redmax) sides of the line.  The function will do a first order
+   fit  (i.e., a line) to the continuum using these ranges, subtract the
+   continuum from the data, and then numerically integrate the flux/counts in
+   the line.
    """
 
    """ Plot the data over this spectral range """
@@ -3318,13 +3337,13 @@ def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax, var=None,
    intflux = (lineflux * delwave).sum()
    print intflux
 
-#===========================================================================
+# ===========================================================================
 #
 # Code below here consists of functions that were originally the basis of
 # the spec_simple code but which now have been incorporated into the
 # (relatively) new Spec2d and Spec1d classes.
 #
-#===========================================================================
+# ===========================================================================
 
 # --------------------------------------------------------------------------
 
@@ -3411,9 +3430,10 @@ def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
          skyval = None
       else:
          skyval = sky[i]
-      amp[i], var[i] = extract_wtsum_col(tmpdata, mu[i], apmin, apmax, 
-                                         sig=sig[i], gain=gain, rdnoise=rdnoise, 
-                                         sky=skyval, weight=weight)
+      amp[i], var[i] = \
+          extract_wtsum_col(tmpdata, mu[i], apmin, apmax, sig=sig[i], 
+                            gain=gain, rdnoise=rdnoise, sky=skyval, 
+                            weight=weight)
    print "   Done"
 
    # Plot the extracted spectrum
@@ -3437,6 +3457,7 @@ def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
 
 # -----------------------------------------------------------------------
 
+
 def plot_sky(infile):
    """
    Given an input 2-dimensional fits file for which the sky has NOT been 
@@ -3452,6 +3473,7 @@ def plot_sky(infile):
    plot_spectrum_array(pix, sky, xlabel='Pixels', title='Sky Spectrum')
 
 # -----------------------------------------------------------------------
+
 
 def save_spectrum(filename, x, flux, var=None):
    """
@@ -3473,6 +3495,7 @@ def save_spectrum(filename, x, flux, var=None):
    del outdata
 
 # -----------------------------------------------------------------------
+
 
 def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
                         ylabel="Relative Flux", title='Extracted Spectrum', 
@@ -3514,6 +3537,7 @@ def plot_spectrum_array(x, flux, var=None, xlabel="Wavelength (Angstroms)",
 
 # -----------------------------------------------------------------------
 
+
 def plot_spectrum(filename, varspec=True, informat="text", 
                   xlabel="Wavelength (Angstroms)", ylabel="Relative Flux",
                   title='default', fontsize=12, docolor=True, speccolor='b', 
@@ -3523,7 +3547,8 @@ def plot_spectrum(filename, varspec=True, informat="text",
    """
    Given an input file with spectroscopy information, plot a spectrum.  
    The input file can have one of two formats: text (the default) or mwa
-   For the text format, the input file is an ascii text file, with 2 or 3 columns
+   For the text format, the input file is an ascii text file, with 2 or 3 
+   columns
       1. Wavelength (or pixel position in the dispersion direction)
       2. Flux (counts, etc.)
       3. Variance spectrum (OPTIONAL)
@@ -3544,10 +3569,10 @@ def plot_spectrum(filename, varspec=True, informat="text",
    if title == 'default':
       title = 'Spectrum for %s' % filename
    if varspec:
-      plot_spectrum_array(wavelength, flux, var=var, xlabel=xlabel, ylabel=ylabel,
-                          title=title, docolor=docolor, speccolor=speccolor,
-                          rmscolor=rmscolor, rmsoffset=rmsoffset,
-                          rmsls=rmsls, fontsize=fontsize)
+      plot_spectrum_array(wavelength, flux, var=var, xlabel=xlabel, 
+                          ylabel=ylabel, title=title, docolor=docolor, 
+                          speccolor=speccolor, rmscolor=rmscolor, 
+                          rmsoffset=rmsoffset, rmsls=rmsls, fontsize=fontsize)
    else:
       plot_spectrum_array(wavelength, flux, xlabel=xlabel, ylabel=ylabel,
                           title=title, docolor=docolor, speccolor=speccolor,
@@ -3565,6 +3590,7 @@ def plot_spectrum(filename, varspec=True, informat="text",
       del var
 
 # -----------------------------------------------------------------------
+
 
 def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
    """
@@ -3595,7 +3621,8 @@ def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
    outflux = ndimage.filters.uniform_filter(yin, filtwidth)
    outflux /= ndimage.filters.uniform_filter(wt, filtwidth)
    if varwt:
-      outvar = 1.0 / (filtwidth * ndimage.filters.uniform_filter(wt, filtwidth))
+      outvar = 1.0 / (filtwidth * 
+                      ndimage.filters.uniform_filter(wt, filtwidth))
 
    """ Plot the smoothed spectrum """
    if varwt:
