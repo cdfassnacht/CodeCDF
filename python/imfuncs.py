@@ -277,7 +277,7 @@ class Image:
          if sig == 0.:
             clipError = True
             break
-         d = d[abs(d-mu)<nsig*sig]
+         d = d[abs(d - mu) < nsig * sig]
          mu = d.mean()
          sig = d.std()
          if verbose:
@@ -452,7 +452,7 @@ class Image:
       """
 
       """ Get RA format """
-      if type(ra)==float or type(ra)==np.float32 or type(ra)==np.float64:
+      if type(ra) == float or type(ra) == np.float32 or type(ra) == np.float64:
          rafmt = u.deg
       else:
          rafmt = u.hourangle
@@ -671,7 +671,7 @@ class Image:
       """
       x1, x2 = x0-rmax-1, x0+rmax+1
       y1, y2 = y0-rmax-1, y0+rmax+1
-      pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
+      pixmask = (x > x1) & (x < x2) & (y > y1) & (y < y2)
       if skytype is None:
          f   = data[pixmask]
       else:
@@ -772,8 +772,8 @@ class Image:
 
       """ Set up the defaults """
       amp0 = max(flux)
-      sig0 = max(r[flux>(amp0/2.)])
-      mf=100000  # Maximum number of evaluations
+      sig0 = max(r[flux > (amp0 / 2.)])
+      mf = 100000  # Maximum number of evaluations
 
       """ Set up for the cases with and without a background """
       if bkgd is not None:
@@ -829,8 +829,8 @@ class Image:
       Fit a 1 dimensional Gaussian to the circularly averaged profile, only
        fitting out to rmax_fit
       """
-      r2 = self.rcirc[self.rcirc<rmax_fit]
-      f2 = self.fcirc[self.rcirc<rmax_fit]
+      r2 = self.rcirc[self.rcirc < rmax_fit]
+      f2 = self.fcirc[self.rcirc < rmax_fit]
       self.fit_gauss_1d_r(r2, f2)
 
       if verbose:
@@ -922,7 +922,7 @@ class Image:
       """
       x1, x2 = xc-rmax-1, xc+rmax+1
       y1, y2 = yc-rmax-1, yc+rmax+1
-      pixmask = (x>x1)&(x<x2)&(y>y1)&(y<y2)
+      pixmask = (x > x1) & (x < x2) & (y > y1) & (y < y2)
       dx = x[pixmask] - xc
       dy = y[pixmask] - yc
       r = np.sqrt(dx**2 + dy**2)
@@ -931,14 +931,14 @@ class Image:
       Get the pixel scale if needed, which it will be if either runit==arcsec
        or if zp is set (and thus the first plot is mag/arcsec**2).
       """
-      if zp or (runit=='arcsec'):
+      if zp or (runit == 'arcsec'):
          if self.pixscale is None:
             self.set_pixscale()
          print 'Using pixel scale of %6.3f arcsec/pix' % self.pixscale
 
       """ Select the points within rmax and convert to mags if desired """
       ii = np.argsort(r)
-      if runit=='arcsec':
+      if runit == 'arcsec':
          rr = r[ii] * self.pixscale
          xlab = 'r (arcsec)'
          rmax *= self.pixscale
@@ -1021,7 +1021,7 @@ class Image:
             out[:, 0] = self.rcirc
             out[:, 1] = self.fcirc
          else:
-            out = np.zeros(rr.size,2)
+            out = np.zeros(rr.size, 2)
             out[:, 0] = rr
             out[:, 1] = rflux
          np.savetxt(outfile, out, fmt='%7.3f %f')
@@ -1073,7 +1073,7 @@ class Image:
       """ Set the contours based on the rms and the contour base """
       maxcont = int(log((self.subim.max()/rms), self.contbase))
       if maxcont < 3:
-         self.clevs = np.array([-3.,3., self.contbase**3])
+         self.clevs = np.array([-3., 3., self.contbase**3])
       else:
          poslevs = np.logspace(2., maxcont, maxcont-1, base=self.contbase)
          self.clevs = np.concatenate(([-self.contbase**2], poslevs))
@@ -1533,7 +1533,8 @@ class Image:
       """
       newhdr = self.hdu[hext].header.copy()
       wcskeys = \
-          ['ra', 'dec', 'ctype1', 'ctype2', 'crval1', 'crpix1', 'crval2', 'crpix2']
+          ['ra', 'dec', 'ctype1', 'ctype2', 'crval1', 'crpix1', 'crval2', 
+           'crpix2']
       if docdmatx:
          for i in ('cd1_1', 'cd1_2', 'cd2_1', 'cd2_2'):
             wcskeys.append(i)
@@ -1730,7 +1731,7 @@ class Image:
       """ Set the rectangle size """
       imsize = np.atleast_1d(size)  # Converts size to a numpy array
       xsize = imsize[0]
-      if imsize.size>1:
+      if imsize.size > 1:
          ysize = imsize[1]
       else:
          ysize = xsize
@@ -1838,11 +1839,11 @@ class Image:
             tmpmax = self.fmax
             tmp = raw_input('Enter minimum flux value for display [%f]: '
                             % tmpmin)
-            if len(tmp)>0:
+            if len(tmp) > 0:
                self.fmin = float(tmp)
             tmp = raw_input('Enter maximum flux value for display [%f]: '
                             % tmpmax)
-            if len(tmp)>0:
+            if len(tmp) > 0:
                self.fmax = float(tmp)
          print 'fmin:  %f' % self.fmin
          print 'fmax:  %f' % self.fmax
@@ -1879,8 +1880,8 @@ class Image:
          self.fmax = self.mean_clip + fmax * self.rms_clip
          print " Clipped mean: %f" % self.mean_clip
          print " Clipped rms:  %f" % self.rms_clip
-         s1='-' if fmin < 0. else '+'
-         s2='-' if fmax < 0. else '+'
+         s1 = '-' if fmin < 0. else '+'
+         s2 = '-' if fmax < 0. else '+'
          print " fmin (mean %s %3d sigma):  %f" % (s1, fabs(fmin), self.fmin)
          print " fmax (mean %s %3d sigma):  %f" % (s2, fabs(fmax), self.fmax)
 
@@ -2022,7 +2023,8 @@ class Image:
       Set up for displaying the image data
        - If show_xyproj is False (the default), then just show self.subim
        - If show_xyproj is True, then make a three panel plot, with
-          Panel 1: self.subim (i.e., what you would see in the default behavior)
+          Panel 1: self.subim (i.e., what you would see in the default
+           behavior)
           Panel 2: Projection of data in self.subim onto the x-axis
           Panel 3: Projection of data in self.subim onto the x-axis
         - Setting show_xyproj=True is most useful when evaluating, e.g., a 
@@ -2069,10 +2071,10 @@ class Image:
          # vmax = log10(self.fmax - self.subim.min() + 1.)
          data = self.subim.copy()  - self.subim.min()
          """ Now rescale from 1-255 in requested range """
-         data[data>=0] = ((bitscale - 1) * data[data>=0] / fdiff) + 1.
+         data[data >= 0] = ((bitscale - 1) * data[data >= 0] / fdiff) + 1.
          vmin = 0
          vmax = log10(bitscale)
-         data[data<=0.] = 1.
+         data[data <= 0.] = 1.
          data = np.log10(data)
          print 'Using log scaling: vmin = %f, vmax = %f' % (vmin, vmax)
          print data.min(), data.max()
@@ -2146,10 +2148,10 @@ class Image:
          zeropos   - NOTE: Only used if dispunits='radec'
                       By default, which happens when zeropos=None, the (0, 0)
                       point on the output image, as designated by the image
-                      axis labels, will be at the center of the image.  However,
-                      you can shift the (0, 0) point to be somewhere else by
-                      setting zeropos.  For example, zeropos=(0.5, 0.3) will
-                      shift the origin to the point that would have been
+                      axis labels, will be at the center of the image.  
+                      However,you can shift the (0, 0) point to be somewhere
+                      else by setting zeropos.  For example, zeropos=(0.5, 0.3)
+                      will shift the origin to the point that would have been
                       (0.5, 0.3) if the origin were at the center of the image
 
       """
@@ -2245,7 +2247,8 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
       makerms - Set to True to make, in addition, an output rms file following
                 Matt Auger's prescription for the NIRC2 data.  Default is False
                 NB: Both whtsuff being something other than None and 
-                 makerms=True are required for an output rms file to be created.
+                 makerms=True are required for an output rms file to be 
+                 created.
       rmssuff - Suffix for output rms file.  Default='_rms' means that for
                 infile='foo.fits', the output file will be 'foo_rms.fits'
       hext    - Input file HDU number that contains the WCS info (default 0)
@@ -2262,8 +2265,8 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
       whtfile = infile.replace('.fits', '%s.fits' % whtsuff)
       outwht  = outfile.replace('.fits', '%s.fits' % whtsuff)
       whtfits = Image(whtfile)
-      whtfits.poststamp_radec(ra, dec, imsize, imsize, scale, outwht, hext=hext,
-                              dext=dext, verbose=verbose)
+      whtfits.poststamp_radec(ra, dec, imsize, imsize, scale, outwht, 
+                              hext=hext, dext=dext, verbose=verbose)
 
    """ Make output RMS file, if requested """
    # CODE STILL TO COME
