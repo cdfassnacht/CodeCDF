@@ -1,12 +1,10 @@
-#!/usr/bin/env/python
-
 import sys
 import numpy as n
 from astropy.io import fits as pf
 from scipy.ndimage.filters import minimum_filter
 import glob
-import ccdredux as ccd
 from math import sqrt as msqrt
+import imfuncs as imf
 
 """ Get command line parameters """
 medfile = sys.argv[1]
@@ -14,7 +12,7 @@ resampdir = sys.argv[2]
 outfile = sys.argv[3]
 
 # list of input files
-# inlist=glob.glob("check/check_??.fits")
+# inlist = glob.glob("check/check_??.fits")
 inlist = glob.glob("%s/resamp_??.fits" % resampdir)
 print ''
 print 'Input files'
@@ -23,7 +21,7 @@ for i in inlist:
     print i
 
 
-#check that files (images) are same size
+# check that files (images) are same size
 hdr0 = pf.getheader(inlist[0])
 x0 = hdr0["naxis1"]
 y0 = hdr0["naxis2"]
@@ -32,26 +30,25 @@ print 'Check that images are all the same size: %dx%d' % (x0, y0)
 print '-------------------------------------------------------'
 
 for i in inlist:
-    hdr=pf.getheader(i)
-    x=hdr["naxis1"]
-    y=hdr["naxis2"]
+    hdr = pf.getheader(i)
+    x = hdr["naxis1"]
+    y = hdr["naxis2"]
     if x != x0 or y != y0:
         print ""
-        print "Error: shape of %s does not match shape of %s" %(i, inlist[0]) 
+        print "Error: shape of %s does not match shape of %s"  % (i, inlist[0])
         print ""
         exit()
-    else: 
-        print "%s: Shape matches" %i
+    else:
+        print "%s: Shape matches" % i
 
 
-#get the median files
-meddata = pf.getdata(medfile)
-#print meddata.shape
-meanmed, noisemed = ccd.sigma_clip(meddata)
-#print meanmed, noisemed
+""" Get the median file data """
+med = imf.Image(medfile)
+meddata = med.hdu[0].data
+meanmed, noisemed = med.sigma_clip(meddata)
 
 """ initialize 3d arrays with zeros """
-check  = n.zeros((len(inlist), y0, x0))
+insci  = n.zeros((len(inlist), y0, x0))
 wht    = n.zeros((len(inlist), y0, x0))
 newwht = n.zeros((len(inlist), y0, x0))
 
@@ -61,45 +58,46 @@ print 'Masking the bad pixels...'
 for i in range(len(inlist)):
     '''Put data in arrays'''
     infile = inlist[i]
-    check[i, :, :] = pf.getdata(infile)
-    checki = check[i, :, :].copy()
-    tmp = pf.getdata(infile.replace(".fits", "_wht.fits"))
-    tmpwht = n.ones(tmp.shape)
-    wht[i, :, :] = tmp.copy()
+    whtfile = infile.replace('.fits', '_wht.fits')
+    imi = imf.Image(infile)
+    insci[i, :, :] = imi.hdu[0].data.copy()
+    insci_i = insci[i, :, :].copy()
+    whti = imf.Image(whtfile)
+    wht[i, :, :] = whti.hdu[0].data.copy()
+    tmpwht = n.ones(whti.hdu[0].data.shape)
 
     '''Mask pixels associated with weight of zero'''
-    mask = tmp !=0
+    mask = whti.hdu[0].data != 0
     newwht[i, :, :][mask] = 1
     newwhti = newwht[i, :, :].copy()
-    data = checki[mask]
 
-    """ 
-    Find bad pixels 
+    """
+    Find bad pixels
     NOTE: right now this does not account for Poisson noise where there are
     real objects.  This needs to be fixed!
     """
-    meani, noisei = ccd.sigma_clip(data)
+    meani, noisei = imi.sigma_clip(mask=mask)
     noise = msqrt(noisei**2 + noisemed**2)
-    diffi = (checki - meddata) * newwhti
-    mask2 = diffi > (3*noise)
+    diffi = (insci_i - meddata) * newwhti
+    mask2 = diffi > (3 * noise)
 
     ''' Grow the masked region around the bad pixels '''
     tmpwht[mask2] = 0
-    tmp2 = minimum_filter(tmpwht,size=3)
-    # outfile="tmp%d.fits" %i
-    wht[i,:,:] *= tmp2
-    newwht[i,:,:] *= tmp2
+    tmp2 = minimum_filter(tmpwht, size=3)
+    # outfile = "tmp%d.fits" %i
+    wht[i, :, :] *= tmp2
+    # newwht[i,:,:] *= tmp2
 
 """ Do the weighted sum and also create the sum of the weights """
 print ''
-print 'Creating the weighted average image (may take a while)'
-datasum = (check*wht).sum(axis=0) #2d array
-whtsum = wht.sum(axis=0) #2d array
+print 'Creating the weighted average image'
+datasum = (insci * wht).sum(axis=0)  # 2d array
+whtsum = wht.sum(axis=0)  # 2d array
 
 """ Avoid devision by zero errors """
-mask = whtsum==0 
+mask = whtsum == 0
 tmpwht = whtsum.copy()
-tmpwht[mask] = 1 
+tmpwht[mask] = 1
 datasum[mask] = 0
 
 """' Finally, define the weighted average """
