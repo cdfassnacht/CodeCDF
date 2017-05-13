@@ -176,7 +176,7 @@ class Spec1d():
          print "Input file has format: %s" % informat
 
       """ Read in the input spectrum """
-      if informat=='fits':
+      if informat == 'fits':
          hdu = pf.open(self.infile)
          # print hdu[1].data
          if self.logwav:
@@ -184,13 +184,13 @@ class Spec1d():
          else:
             self.wav  = hdu[1].data.copy()
          self.flux = hdu[2].data.copy()
-         if len(hdu)>3:
+         if len(hdu) > 3:
             self.var  = hdu[3].data.copy()
          self.varspec = True
-         if len(hdu)>4:
+         if len(hdu) > 4:
             self.sky = hdu[4].data.copy()
          del hdu
-      elif informat=='fitstab':
+      elif informat == 'fitstab':
          hdu = pf.open(self.infile)
          # hdu.info()
          tdat = hdu[1].data
@@ -200,7 +200,7 @@ class Spec1d():
             self.var = tdat.field(3)
             self.varspec = True
          del hdu
-      elif informat=='fitsflux':
+      elif informat == 'fitsflux':
          hdu = pf.open(self.infile)
          self.flux = hdu[0].data.copy()
          self.varspec = False
@@ -211,7 +211,7 @@ class Spec1d():
          else:
             self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
          del hdu
-      elif informat=='mwa':
+      elif informat == 'mwa':
          hdu = pf.open(self.infile)
          self.flux = hdu[1].data.copy()
          self.var  = hdu[3].data.copy()
@@ -226,14 +226,14 @@ class Spec1d():
       else:
          spec = np.loadtxt(self.infile)
          if self.logwav:
-            self.wav  = 10.**(spec[:,0])
+            self.wav  = 10.**(spec[:, 0])
          else:
-            self.wav  = spec[:,0]
-         self.flux = spec[:,1]
+            self.wav  = spec[:, 0]
+         self.flux = spec[:, 1]
          if spec.shape[1] > 2:
-            self.var = spec[:,2]
+            self.var = spec[:, 2]
          if spec.shape[1] > 3:
-            self.sky = spec[:,3]
+            self.sky = spec[:, 3]
          del spec
 
       """ Check for NaN's, which this code can't handle """
@@ -363,14 +363,14 @@ class Spec1d():
 
       """ Set up for plotting """
       ls = 'steps%s' % linestyle
-      if xlabel=='default':
+      if xlabel == 'default':
          xlab = 'Wavelength (Angstroms)'
       else:
          xlab = xlabel
 
       """ Plot the spectrum """
       plt.plot(self.wav, skyflux, ls=ls, color=color)
-      if title=='default':
+      if title == 'default':
          plttitle = 'Sky Spectrum'
       else:
          plttitle = title
@@ -466,46 +466,46 @@ class Spec1d():
 
    def load_linelist(self):
 
-      linefmt = [('name','S10'), ('wavelength', float), ('label','S10'),
+      linefmt = [('name', 'S10'), ('wavelength', float), ('label', 'S10'),
                  ('dxlab', float), ('type', int), ('plot', bool)]
       self.lineinfo = np.array([
-            ("Ly-alpha",  1216.,    r"Ly $\alpha$", 0.0, 4, True),
-            ("C IV",      1549.,    "C IV",         0.0, 4, True),
-            ("C III]",    1909.,    "C III]",       0.0, 4, True),
-            ("Mg II",     2800.,    "Mg II",        0.0, 3, True),
-            ("[O II]",    3726.03,  "[O II]",       0.0, 4, True),
-            ("[O II]",    3728.82,  "[O II]",       0.0, 4, False),
-            ("CN bandhd", 3883,     "CN",           0.0, 0, True),
-            ("CaII K",    3933.667, "CaII K",       0.0, 0, True),
-            ("CaII H",    3968.472, "CaII H",       0.0, 0, True),
-            ("H-delta",   4101,     r"H$\delta$",   0.0, 1, True),
-            ("G-band",    4305,     "G-band",       0.0, 0, True),
-            ("H-gamma",   4340,     r"H$\gamma$",   0.0, 1, True),
-            ("Fe4383",    4383,     "Fe4383",       0.0, 0, True),
-            ("Ca4455",    4455,     "Ca4455",       0.0, 0, True),
-            ("Fe4531",    4531,     "Fe4531",       0.0, 0, True),
-            ("H-beta",    4861,     r"H$\beta$",    0.0, 3, True),
-            ("[O III]",   4962.,    "[O III]",      0.0, 4, False),
-            ("[O III]",   5007.,    "[O III]",      0.0, 4, True),
-            ("Mg I (b)",  5176,     "Mg b",         0.0, 0, True),
-            ("[N I]",     5199.,    "[N I]",        0.0, 2, True),
-            ("HeI",       5876.,    "He I",         0.0, 2, True),
-            ("Na I (D)",  5889.95,  "    ",         0.0, 0, True),
-            ("Na I (D)",  5895.92,  "Na D ",        0.0, 0, True),
-            ("[O I]",     6300.,    "[O I]",        0.0, 2, True),
-            ("[N II]",    6548.,    "[N II]",       0.0, 2, False),
-            ("H-alpha",   6562.8,   r"H$\alpha$",   0.0, 3, True),
-            ("[N II]",    6583.5,   "[N II]",       0.0, 2, False),
-            ("[S II]",    6716.4,   "[S II]",       0.0, 2, False),
-            ("[S II]",    6730.8,   "[S II]",       0.0, 2, True),
-            ("Ca triplet",8498.03,  "CaII",         0.0, 0, True),
-            ("Ca triplet",8542.09,  "CaII",         0.0, 0, True),
-            ("Ca triplet",8662.14,  "CaII",         0.0, 0, True),
-            ("[S III]",   9069,     "[S III]",      0.0, 2, True),
-            ("[S III]",   9532,     "[S III]",      0.0, 2, True),
-            ("Pa-gamma", 10900.,    r"Pa $\gamma$", 0.0, 4, True),
-            ("Pa-beta",  12800.,    r"Pa $\beta$",  0.0, 4, True),
-            ("Pa-alpha", 18700.,    r"Pa $\alpha$", 0.0, 4, True)
+            ("Ly-alpha",    1216.,    r"Ly $\alpha$", 0.0, 4, True),
+            ("C IV",        1549.,    "C IV",         0.0, 4, True),
+            ("C III]",      1909.,    "C III]",       0.0, 4, True),
+            ("Mg II",       2800.,    "Mg II",        0.0, 3, True),
+            ("[O II]",      3726.03,  "[O II]",       0.0, 4, True),
+            ("[O II]",      3728.82,  "[O II]",       0.0, 4, False),
+            ("CN bandhd",   3883,     "CN",           0.0, 0, True),
+            ("CaII K",      3933.667, "CaII K",       0.0, 0, True),
+            ("CaII H",      3968.472, "CaII H",       0.0, 0, True),
+            ("H-delta",     4101,     r"H$\delta$",   0.0, 1, True),
+            ("G-band",      4305,     "G-band",       0.0, 0, True),
+            ("H-gamma",     4340,     r"H$\gamma$",   0.0, 1, True),
+            ("Fe4383",      4383,     "Fe4383",       0.0, 0, True),
+            ("Ca4455",      4455,     "Ca4455",       0.0, 0, True),
+            ("Fe4531",      4531,     "Fe4531",       0.0, 0, True),
+            ("H-beta",      4861,     r"H$\beta$",    0.0, 3, True),
+            ("[O III]",     4962.,    "[O III]",      0.0, 4, False),
+            ("[O III]",     5007.,    "[O III]",      0.0, 4, True),
+            ("Mg I (b)",    5176,     "Mg b",         0.0, 0, True),
+            ("[N I]",       5199.,    "[N I]",        0.0, 2, True),
+            ("HeI",         5876.,    "He I",         0.0, 2, True),
+            ("Na I (D)",    5889.95,  "    ",         0.0, 0, True),
+            ("Na I (D)",    5895.92,  "Na D ",        0.0, 0, True),
+            ("[O I]",       6300.,    "[O I]",        0.0, 2, True),
+            ("[N II]",      6548.,    "[N II]",       0.0, 2, False),
+            ("H-alpha",     6562.8,   r"H$\alpha$",   0.0, 3, True),
+            ("[N II]",      6583.5,   "[N II]",       0.0, 2, False),
+            ("[S II]",      6716.4,   "[S II]",       0.0, 2, False),
+            ("[S II]",      6730.8,   "[S II]",       0.0, 2, True),
+            ("Ca triplet",  8498.03,  "CaII",         0.0, 0, True),
+            ("Ca triplet",  8542.09,  "CaII",         0.0, 0, True),
+            ("Ca triplet",  8662.14,  "CaII",         0.0, 0, True),
+            ("[S III]",     9069,     "[S III]",      0.0, 2, True),
+            ("[S III]",     9532,     "[S III]",      0.0, 2, True),
+            ("Pa-gamma",   10900.,    r"Pa $\gamma$", 0.0, 4, True),
+            ("Pa-beta",    12800.,    r"Pa $\beta$",  0.0, 4, True),
+            ("Pa-alpha",   18700.,    r"Pa $\alpha$", 0.0, 4, True)
             ], dtype=linefmt)
 
    # -----------------------------------------------------------------------
@@ -628,7 +628,7 @@ class Spec1d():
                         color=labcolor, fontsize=labfs)
          else:
             plt.axvline(xarr[i], color='k', ls='--')
-            # if namepos=='bottom':
+            # if namepos == 'bottom':
             #    labstart = 
          # elif tmpfmin[i] > plt.ylim()[0]:
          #    plt.axvline(xarr[i], linestyle='--', color='k', lw=1)
@@ -636,7 +636,7 @@ class Spec1d():
 
       """ Label the plot with the redshift, if requested """
       if showz:
-         if labloc=='topright':
+         if labloc == 'topright':
             labx = x0 + 0.95 * xdiff
             laby = y0 + 0.95 * ydiff
             ha = 'right'
@@ -645,7 +645,7 @@ class Spec1d():
             laby = y0 + 0.95 * ydiff
             ha = 'left'
          # print labx, laby
-         plt.text(labx, laby, 'z = %5.3f'%z, ha=ha, va='center', 
+         plt.text(labx, laby, 'z = %5.3f' % z, ha=ha, va='center', 
                   color=labcolor, fontsize=labfs+4)
 
    # -----------------------------------------------------------------------
@@ -662,7 +662,7 @@ class Spec1d():
          
       """
 
-      if outformat=='fits':
+      if outformat == 'fits':
          hdu  = pf.HDUList()
          phdu = pf.PrimaryHDU()
          hdu.append(phdu)
@@ -678,21 +678,21 @@ class Spec1d():
             hdu.append(outsky)
          hdu.writeto(outfile, clobber=True)
 
-      elif outformat=='text':
+      elif outformat == 'text':
          if self.var is not None:
             if self.sky is not None:
-               outdata = np.zeros((self.wav.shape[0],4))
+               outdata = np.zeros((self.wav.shape[0], 4))
                fmtstring = '%7.2f %9.3f %10.4f %9.3f'
-               outdata[:,3] = self.sky
+               outdata[:, 3] = self.sky
             else:
-               outdata = np.zeros((self.wav.shape[0],3))
+               outdata = np.zeros((self.wav.shape[0], 3))
                fmtstring = '%7.2f %9.3f %10.4f'
-            outdata[:,2] = self.var
+            outdata[:, 2] = self.var
          else:
-            outdata = np.zeros((self.wav.shape[0],2))
+            outdata = np.zeros((self.wav.shape[0], 2))
             fmtstring = '%7.2f %9.3f'
-         outdata[:,0] = self.wav
-         outdata[:,1] = self.flux
+         outdata[:, 0] = self.wav
+         outdata[:, 1] = self.flux
          print ""
          np.savetxt(outfile, outdata, fmt=fmtstring)
          del outdata
@@ -999,7 +999,7 @@ class Spec2d(imf.Image):
 
       nanmask = np.isnan(self.data)
       nnan = nanmask.sum()
-      if nnan>0:
+      if nnan > 0:
          if verbose:
             print 'Found %d NaNs in the two-dimensional spectrum' % nnan
 
@@ -1104,7 +1104,7 @@ class Spec2d(imf.Image):
          self.sky1d = Spec1d(wav=pix, flux=tmp1d)
 
       """ Turn the 1-dimension sky spectrum into a 2-dimensional form """
-      self.sky2d = np.tile(self.sky1d.flux,(self.data.shape[spaceaxis],1))
+      self.sky2d = np.tile(self.sky1d.flux, (self.data.shape[spaceaxis], 1))
 
       """ Subtract the sky from the data """
       self.skysub = self.data - self.sky2d
@@ -1126,7 +1126,7 @@ class Spec2d(imf.Image):
             tmpdat = self.data[pixrange[0]:pixrange[1]]
          else:
             if self.specaxis == 0:
-               tmpdat = self.data[pixrange[0]:pixrange[1],:]
+               tmpdat = self.data[pixrange[0]:pixrange[1], :]
             else:
                tmpdat = self.data[:, pixrange[0]:pixrange[1]]
          # print pixrange
@@ -1153,7 +1153,7 @@ class Spec2d(imf.Image):
          plt.plot(self.x, self.cdat, linestyle='steps')
          plt.xlabel('Spatial direction (0-indexed)')
          if fit is not None:
-            xmod = np.arange(1, self.cdat.shape[0]+1,0.1)
+            xmod = np.arange(1, self.cdat.shape[0]+1, 0.1)
             p = np.atleast_1d(fit)  # Make sure parameters are in a numpy array
             ngauss = int((p.size-1)/3)
             if p.size - (ngauss*3+1) != 0:
@@ -1206,7 +1206,7 @@ class Spec2d(imf.Image):
            p_init[ind+2] is amplitude
          """
          ind = 3*i + 1
-         if i==0:
+         if i == 0:
             tmp = self.cdat.argsort()
             p_init[ind] = 1.0 * tmp[tmp.shape[0]-1]
          else:
@@ -1229,7 +1229,7 @@ class Spec2d(imf.Image):
             print ''
             return np.nan
          for j in range(nparam):
-            if init[j]>-998.:
+            if init[j] > -998.:
                p_init[j] = init[j]
 
       """ 
@@ -1249,12 +1249,12 @@ class Spec2d(imf.Image):
             print '  (since ngauss=%d ==> nparam= 3*%d +1)' % (ngauss, ngauss)
             print ''
             return np.nan
-         fixstr[fixvec==1] = 'Yes'
-      fitmask = fixvec==0
+         fixstr[fixvec == 1] = 'Yes'
+      fitmask = fixvec == 0
       fitind  = np.arange(nparam)[fitmask]
 
       """ Fit a Gaussian plus a background to the compressed spectrum """
-      mf=100000
+      mf = 100000
       p = p_init[fitmask]
       p_fit, ier = optimize.leastsq(fit_gauss, p,
                                     (self.x, self.cdat, p_init, fitind),
@@ -1277,9 +1277,9 @@ class Spec2d(imf.Image):
          print "background       %9.3f    %3s    %9.3f"     \
              % (p_init[0], fixstr[0], p_out[0])
          for i in range(ngauss):
-            ind = 3*i + 1
-            j=i+1
-            if i==0:
+            ind = 3 * i + 1
+            j = i + 1
+            if i == 0:
                mustr = 'mu_1'
             else:
                mustr = 'offset_%d' % j
@@ -1320,11 +1320,11 @@ class Spec2d(imf.Image):
       if fitrange is None:
          tmpfitdat = data
       else:
-         fitmask = np.logical_and(x>=fitrange[0], x<fitrange[1])
+         fitmask = np.logical_and(x >= fitrange[0], x < fitrange[1])
          tmpfitdat = data[fitmask]
-      dmu, dsig = ccd.sigma_clip(tmpfitdat,3.0)
-      goodmask = np.absolute(data - dmu)<3.0*dsig
-      badmask  = np.absolute(data - dmu)>=3.0*dsig
+      dmu, dsig = ccd.sigma_clip(tmpfitdat, 3.0)
+      goodmask = np.absolute(data - dmu) < 3.0 * dsig
+      badmask  = np.absolute(data - dmu) >= 3.0 * dsig
       dgood    = data[goodmask]
       dbad     = data[badmask]
       xgood    = x[goodmask]
@@ -1336,7 +1336,7 @@ class Spec2d(imf.Image):
          xpoly = xgood
          dpoly = dgood
       else:
-         fitmask = np.logical_and(xgood>=fitrange[0], xgood<fitrange[1])
+         fitmask = np.logical_and(xgood >= fitrange[0], xgood < fitrange[1])
          xpoly  = xgood[fitmask]
          dpoly  = dgood[fitmask]
 
@@ -1368,10 +1368,10 @@ class Spec2d(imf.Image):
          plt.axhline(data0, color='k', linestyle='--')
 
          """ Mark the bad points that were not included in the fit """
-         plt.plot(xbad, dbad,"rx", markersize=10, markeredgewidth=2)
+         plt.plot(xbad, dbad, "rx", markersize=10, markeredgewidth=2)
 
          """ Show the fitted function """
-         plt.plot(fitx, fity,"r")
+         plt.plot(fitx, fity, "r")
 
          """
          Show the range of points included in the fit, if fitrange was set
@@ -1470,7 +1470,7 @@ class Spec2d(imf.Image):
          print 'Fitting a polynomial of order %d to the location of the '\
              'trace' % muorder
          self.mupoly, self.mu = \
-             self.fit_poly_to_trace(xstep, mustep[:,0], muorder, self.p0[1],
+             self.fit_poly_to_trace(xstep, mustep[:, 0], muorder, self.p0[1],
                                     fitrange, doplot=doplot)
 
       """ Fit a polynomial to the width of the trace """
@@ -1484,7 +1484,7 @@ class Spec2d(imf.Image):
          print "Fitting a polynomial of order %d to the width of the trace" \
              % sigorder
          self.sigpoly, self.sig = \
-             self.fit_poly_to_trace(xstep, sigstep[:,0], sigorder, self.p0[2],
+             self.fit_poly_to_trace(xstep, sigstep[:, 0], sigorder, self.p0[2],
                                     fitrange, markformat='go',
                                     title='Width of Peak',
                                     ylabel='Width of trace (Gaussian sigma)',
@@ -1563,7 +1563,7 @@ class Spec2d(imf.Image):
       apmax = self.apmax
       for i in pix:
          if self.specaxis == 0:
-            tmpdata = self.data[i,:]
+            tmpdata = self.data[i, :]
          else:
             tmpdata = self.data[:, i]
          if sky is None:
@@ -1680,7 +1680,7 @@ class Spec2d(imf.Image):
       ----------------------------------------
       Put in the aperture limits, delimited by apmin and apmax
       """
-      apmask = (ydiff>self.apmin-1) & (ydiff<self.apmax)
+      apmask = (ydiff > self.apmin - 1) & (ydiff < self.apmax)
       # bkgdmask = np.logical_not(apmask)
 
       """ 
@@ -1731,7 +1731,7 @@ class Spec2d(imf.Image):
       """ Compute the weighted sum of the flux """
       data = self.data
       data[nansci] = 0.
-      wtdenom[wtdenom==0] = 1.e9
+      wtdenom[wtdenom == 0] = 1.e9
       flux = ((self.data - bkgd2d) * 
               self.extwt).sum(axis=self.spaceaxis) / wtdenom
 
@@ -1867,7 +1867,7 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
       if spaceaxis == 1:
          sky[:, i] = sky1d
       else:
-         sky[i,:] = sky1d
+         sky[i, :] = sky1d
 
    """ Subtract the sky  """
    skysub = data - sky
@@ -1914,33 +1914,33 @@ def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
    """
    if data.ndim != 2:
       sys.exit("find_blank_columns takes only 2-dimensional data")
-   if output_dims==1:
+   if output_dims == 1:
       fbc_tmp = np.zeros(np.shape(data)[1-comp_axis])
       if comp_axis == 0:
-         gprelim = np.where(data[int(np.shape(data)[comp_axis]/2),:] == 0)[0]
+         gprelim = np.where(data[int(np.shape(data)[comp_axis] / 2), :] == 0)[0]
          for ifbc in range(0, len(gprelim)):
             if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
                fbc_tmp[gprelim[ifbc]] = 1
       else:
-         gprelim = np.where(data[:, int(np.shape(data)[comp_axis]/2)] == 0)[0]
+         gprelim = np.where(data[:, int(np.shape(data)[comp_axis] / 2)] == 0)[0]
          for ifbc in range(0, len(gprelim)):
-            if len(data[data[gprelim[ifbc],:] != 0]) == 0:
+            if len(data[data[gprelim[ifbc], :] != 0]) == 0:
                fbc_tmp[gprelim[ifbc]] = 1
       if findblank:
          fbc_tmp = 1-fbc_tmp
       gfbc = np.where(fbc_tmp == 0)[0]
-   elif output_dims==2:
+   elif output_dims == 2:
       fbc_tmp = np.zeros(np.shape(data))
       if comp_axis == 0:
-         gprelim = np.where(data[int(np.shape(data)[comp_axis]/2),:] == 0)[0]
+         gprelim = np.where(data[int(np.shape(data)[comp_axis]/2), :] == 0)[0]
          for ifbc in range(0, len(gprelim)):
             if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
                fbc_tmp[:, gprelim[ifbc]] = 1
       else:
          gprelim = np.where(data[:, int(np.shape(data)[comp_axis]/2)] == 0)[0]
          for ifbc in range(0, len(gprelim)):
-            if len(data[data[gprelim[ifbc],:] != 0]) == 0:
-               fbc_tmp[gprelim[ifbc],:] = 1
+            if len(data[data[gprelim[ifbc], :] != 0]) == 0:
+               fbc_tmp[gprelim[ifbc], :] = 1
       if findblank: 
          fbc_tmp = 1-fbc_tmp
       gfbc = np.where(fbc_tmp == 0)
@@ -1991,15 +1991,15 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
       del hdulist
    else:
       spec = np.loadtxt(filename)
-      wavelength = spec[:,0]
-      flux       = spec[:,1]
+      wavelength = spec[:, 0]
+      flux       = spec[:, 1]
       if varspec:
          if spec.shape[1] < 3:
             print ''
             print '**Warning: varspec=True but only 2 columns in input file'
             print ''
          else:
-            var = spec[:,2]
+            var = spec[:, 2]
       del spec
 
    if verbose:
@@ -2016,7 +2016,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
 
 
 def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
-                      bscale=10., xlim=[3000.,9500.], title='default', 
+                      bscale=10., xlim=[3000., 9500.], title='default', 
                       z=None, mark_em=False, mark_abs=True):
    """
    Creates a single plot given files that contain data from the blue and red
@@ -2139,7 +2139,7 @@ def subtract_sky(data, outfile, outskyspec, dispaxis='x', doplot=True):
       if spaceaxis == 1:
          sky[:, i] = sky1d
       else:
-         sky[i,:] = sky1d
+         sky[i, :] = sky1d
 
    """ Plot the sky if desired """
    x = np.arange(sky1d.size)
@@ -2413,18 +2413,18 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False,
       print ""
 
    # Fit a Gaussian plus a background to the compressed spectrum
-   mf=100000
+   mf = 100000
    if fixmu and fixsig:
       p = [bkgd0, amp0]
-      pt, ier = optimize.leastsq(fit_gpb_fixmusig, p,(x, cdat, mu0, sig0), 
+      pt, ier = optimize.leastsq(fit_gpb_fixmusig, p, (x, cdat, mu0, sig0), 
                                  maxfev=mf)
       p_out = [pt[0], mu0, sig0, pt[1]]
-   # p_out, ier = optimize.leastsq(fit_gpb_fixmu, p,(x, cdat, mu0), maxfev=mf)
-   # p_out, ier = optimize.leastsq(fit_gpb_fixsig, p,(x, cdat, sig0), 
+   # p_out, ier = optimize.leastsq(fit_gpb_fixmu, p, (x, cdat, mu0), maxfev=mf)
+   # p_out, ier = optimize.leastsq(fit_gpb_fixsig, p, (x, cdat, sig0), 
    #   maxfev=mf)
    else:
       p = [bkgd0, mu0, sig0, amp0]
-      p_out, ier = optimize.leastsq(fit_gauss, p,(x, cdat), maxfev=mf)
+      p_out, ier = optimize.leastsq(fit_gauss, p, (x, cdat), maxfev=mf)
 
    # Give results
    if(verbose):
@@ -2445,7 +2445,7 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False,
          plt.figure(1)
          plt.clf()
       plt.plot(x, cdat, linestyle='steps')
-      xmod = np.arange(1, cdat.shape[0]+1,0.1)
+      xmod = np.arange(1, cdat.shape[0]+1, 0.1)
       ymod = make_gauss(xmod, p_out[1], p_out[2], p_out[3], p_out[0])
       plt.plot(xmod, ymod)
       plt.axvline(p_out[1]+apmin, color='k')
@@ -2502,7 +2502,7 @@ def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
       gweight = np.zeros(y.size)
       gweight[apmask] = 1.0
    else:
-      gweight = make_gauss(y, mu, sig,1.0,0.0)
+      gweight = make_gauss(y, mu, sig, 1.0, 0.0)
 
    """ Do the weighted sum """
    wtsum = ((spatialdat - bkgd)*gweight)[apmask].sum() / gweight[apmask].sum()
@@ -2546,7 +2546,7 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
    else:
       fitmask = np.logical_and(x>=fitrange[0], x<fitrange[1])
       tmpfitdat = data[fitmask]
-   dmu, dsig = ccd.sigma_clip(tmpfitdat,3.0)
+   dmu, dsig = ccd.sigma_clip(tmpfitdat, 3.0)
    goodmask = np.absolute(data - dmu)<3.0*dsig
    badmask  = np.absolute(data - dmu)>=3.0*dsig
    dgood    = data[goodmask]
@@ -2590,14 +2590,14 @@ def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
       plt.axhline(data0, color='k', linestyle='--')
 
       # Mark the bad points that were not included in the fit
-      plt.plot(xbad, dbad,"rx", markersize=10, markeredgewidth=2)
+      plt.plot(xbad, dbad, "rx", markersize=10, markeredgewidth=2)
 
       # Show the fitted function
-      fitx = np.arange(0, x_max,0.1)
+      fitx = np.arange(0, x_max, 0.1)
       fity = 0.0 * fitx
       for i in range(dpoly.size):
          fity += dpoly[i] * fitx**(dpoly.size - 1 - i)
-      plt.plot(fitx, fity,"r")
+      plt.plot(fitx, fity, "r")
 
       # Show the range of points included in the fit, if fitrange was set
       if fitrange is not None:
@@ -2652,7 +2652,7 @@ def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
    print"   the 2D spectrum..."
    for i in nsteps:
       if(specaxis == 0):
-         tmpdata = data[xstep[i]:xstep[i]+stepsize,:]
+         tmpdata = data[xstep[i]:xstep[i]+stepsize, :]
       else:
          tmpdata = data[:, xstep[i]:xstep[i]+stepsize]
       ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False, 
@@ -2724,7 +2724,7 @@ def combine_spectra(txt_files, outfile):
 
    """ Setup """
    tmpdat = np.loadtxt(file_list[0])
-   wavelength = tmpdat[:,0].copy()
+   wavelength = tmpdat[:, 0].copy()
    wtflux = wavelength * 0.0
    wtsum  = wavelength * 0.0
 
@@ -2732,9 +2732,9 @@ def combine_spectra(txt_files, outfile):
    print ""
    for f in file_list:
       print "Reading data from file %s" % f 
-      wi, fi, vi = np.loadtxt(f, unpack=True, usecols=(0,1,2))
+      wi, fi, vi = np.loadtxt(f, unpack=True, usecols=(0, 1, 2))
       wt = 1.0 / vi
-      wt[vi==0] = 0.
+      wt[vi == 0] = 0.
       wtflux += wt * fi
       wtsum += wt
 
@@ -2743,8 +2743,8 @@ def combine_spectra(txt_files, outfile):
    Note that the equation below for the variance only works for the case
     of inverse variance weighting.
    """
-   wtflux[wtsum==0] = 0
-   wtsum[wtsum==0] = 1
+   wtflux[wtsum == 0] = 0
+   wtsum[wtsum == 0] = 1
    outspec = wtflux / wtsum
    outvar  = 1.0 / wtsum
 
@@ -2804,7 +2804,7 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
    The call to splev does a spline interpolation of the sky model onto the 
     points defined by the "wave" array
    """
-   wave = np.arange(wstart, wend,0.2)
+   wave = np.arange(wstart, wend, 0.2)
    tmpskymod = interpolate.splev(wave, skymodel)
    tmpskymod = ndimage.gaussian_filter(tmpskymod, smoothKernel)
 
@@ -2846,7 +2846,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    """
 
    """ Read in the observed sky spectrum """
-   if informat=='fits':
+   if informat == 'fits':
       hdulist = pf.open(infile)
       varspec = hdulist[1].data.copy()
       skyobs  = np.sqrt(np.median(varspec, axis=0))
@@ -2857,14 +2857,14 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
       waveobs = 1.0* np.arange(varspec.shape[1])
       waveobs *= cd11
       waveobs += crval1
-   elif informat=='fitsold':
+   elif informat == 'fitsold':
       hdulist = pf.open(infile)
       waveobs = hdulist[1].data.copy()
       skyobs  = hdulist[2].data.copy()
       skylab  = "Observed Sky"
    else:
       try:
-         waveobs, varspec = np.loadtxt(infile, unpack=True, usecols=(0,2))
+         waveobs, varspec = np.loadtxt(infile, unpack=True, usecols=(0, 2))
          skyobs = np.sqrt(varspec)
       except:
          print ""
@@ -2891,7 +2891,7 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
    wrange = waveobs.max() - waveobs.min()
    xmin = waveobs.min() - 0.05*wrange
    xmax = waveobs.max() + 0.05*wrange
-   plt.plot(waveobs, skyobs,'k', ls='steps', label=skylab)
+   plt.plot(waveobs, skyobs, 'k', ls='steps', label=skylab)
    skymod.plot(color='r', label='Model sky')
    plt.legend()
    plt.xlim(xmin, xmax)
@@ -2918,10 +2918,10 @@ def planck_spec(wavelength, T=1.0e4, waveunit='Angstrom'):
    # Convert the wavelength into meters (default assumption is that the
    #  input wavelength is in Angstroms
    wtmp = wavelength.copy()
-   if waveunit[0:6].lower()=='micron':
+   if waveunit[0:6].lower() == 'micron':
       print "Converting wavelength from microns to meters"
       wtmp *= 1.0e-6
-   elif waveunit[0:5].lower()=='meter':
+   elif waveunit[0:5].lower() == 'meter':
       wtmp *= 1.0
    else:
       print "Converting wavelength from Angstroms to meters"
@@ -2958,7 +2958,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
       fitrange:  A list of 2-element lists, where each of the smaller lists
                   contains the starting and ending values for a range of
                   good data to include in the fit.
-                  E.g., fitrange=[[20150.,21500.],[22000.,25000.]]
+                  E.g., fitrange=[[20150., 21500.],[22000., 25000.]]
                   The default (fitrange=None) uses the full wavelength range
                   in the fit.
       filtwidth: Width of box used in the maximum filtering step, which is
@@ -3000,7 +3000,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
       mask = np.zeros(respobs.size, dtype=np.bool)
       fitr = np.atleast_2d(np.asarray(fitrange))
       for i in range(fitr.shape[0]):
-         wmask = np.logical_and(wave>fitr[i,0], wave<fitr[i,1])
+         wmask = np.logical_and(wave>fitr[i, 0], wave<fitr[i, 1])
          mask[wmask] = True
       wavegood = wave[mask]
       respgood = respobs[mask]
@@ -3021,7 +3021,7 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    resp = p(wave)
 
    # Add the smooth response to the plot and show corrected curve
-   plt.plot(wave, resp,'r')
+   plt.plot(wave, resp, 'r')
    fc = fluxobs * resp
    plt.figure(3)
    plt.clf()
@@ -3029,10 +3029,10 @@ def response_ir(infile, outfile, order=6, fitrange=None, filtwidth=9):
    plt.plot(wave, B_lam)
 
    # Write smooth response to output file
-   out = np.zeros((wave.size,2))
-   out[:,0] = wave
-   out[:,1] = resp
-   np.savetxt(outfile, out,'%8.3f  %.18e')
+   out = np.zeros((wave.size, 2))
+   out[:, 0] = wave
+   out[:, 1] = resp
+   np.savetxt(outfile, out, '%8.3f  %.18e')
 
 # -----------------------------------------------------------------------
 
@@ -3086,7 +3086,7 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
       fitrange:  A list of 2-element lists, where each of the smaller lists
                   contains the starting and ending values for a range of
                   good data to include in the fit.
-                  E.g., fitrange=[[20150.,21500.],[22000.,25000.]]
+                  E.g., fitrange=[[20150., 21500.],[22000., 25000.]]
                   The default (fitrange=None) uses the full wavelength range
                   in the fit.
       filtwidth: Width of box used in the boxcar smoothing step, which is
@@ -3111,14 +3111,14 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    plt.figure(1)
    plt.clf()
    plt.plot(wave, fluxobs)
-   plt.plot(wave, flux,'r')
+   plt.plot(wave, flux, 'r')
 
    # Define the spectral range to be included in the fit
    if fitrange is not None:
       mask = np.zeros(flux.size, dtype=np.bool)
       fitr = np.atleast_2d(np.asarray(fitrange))
       for i in range(fitr.shape[0]):
-         wmask = np.logical_and(wave>fitr[i,0], wave<fitr[i,1])
+         wmask = np.logical_and(wave>fitr[i, 0], wave<fitr[i, 1])
          mask[wmask] = True
       wavegood = wave[mask]
       fluxgood = flux[mask]
@@ -3139,7 +3139,7 @@ def normalize(infile, outfile, order=6, fitrange=None, filtwidth=11):
    cfit = p(wave)
 
    # Add the smooth response to the plot and show corrected curve
-   plt.plot(wave, cfit,'k')
+   plt.plot(wave, cfit, 'k')
    fc = fluxobs / cfit
    vc = var / cfit**2
    plt.figure(2)
@@ -3181,7 +3181,7 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
    atm0.wav *= 1.0e4
 
    """ Only use the relevant part of the atmospheric transmission spectrum"""
-   mask = np.where((atm0.wav>=w.min())&(atm0.wav<=w.max()))
+   mask = np.where((atm0.wav >= w.min()) & (atm0.wav <= w.max()))
    watm = atm0.wav[mask]
    trans = atm0.flux[mask]
    del atm0
@@ -3264,7 +3264,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
    if z is not None:
       print atm.mark_speclines('strongem', z, marktype='line', showz=False)
    plt.xlim(xmin, xmax)
-   plt.ylim(-0.15,1.1)
+   plt.ylim(-0.15, 1.1)
 
    """ Plot the night-sky emission lines """
    plt.subplot(212, sharex=ax1)
@@ -3273,7 +3273,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
       print atm.mark_speclines('strongem', z, marktype='line')
    plt.xlim(xmin, xmax)
    dy = 0.05 * skymod.flux.max()
-   plt.ylim(-dy,(skymod.flux.max()+dy))
+   plt.ylim(-dy, (skymod.flux.max()+dy))
 
    """ 
    Plot the locations of bright emission features at the requested redshift
@@ -3309,9 +3309,9 @@ def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax, var=None,
        ((tmplamb>redmin) & (tmplamb<redmax))
    bkgdwave = tmplamb[bkgdmask].copy()
    bkgdflux = tmpflux[bkgdmask].copy()
-   bkgdpoly = np.polyfit(bkgdwave, bkgdflux,1)
+   bkgdpoly = np.polyfit(bkgdwave, bkgdflux, 1)
    continuum = tmplamb*bkgdpoly[0] + bkgdpoly[1]
-   plt.plot(tmplamb, continuum,'r')
+   plt.plot(tmplamb, continuum, 'r')
    plt.axvline(bluemin, color='k')
    plt.axvline(bluemax, color='k')
    plt.axvline(redmin, color='k')
@@ -3423,7 +3423,7 @@ def extract_spectrum(data, mupoly, sigpoly, dispaxis="x", apmin=-4., apmax=4.,
    for i in pix:
       # print pix[i], mu[i], sig[i]
       if specaxis == 0:
-         tmpdata = data[i,:]
+         tmpdata = data[i, :]
       else:
          tmpdata = data[:, i]
       if sky is None:
@@ -3481,14 +3481,14 @@ def save_spectrum(filename, x, flux, var=None):
    """
 
    if var is not None:
-      outdata = np.zeros((x.shape[0],3))
-      outdata[:,2] = var
+      outdata = np.zeros((x.shape[0], 3))
+      outdata[:, 2] = var
       fmtstring = '%7.2f %9.3f %10.4f'
    else:
-      outdata = np.zeros((x.shape[0],2))
+      outdata = np.zeros((x.shape[0], 2))
       fmtstring = '%7.2f %9.3f'
-   outdata[:,0] = x
-   outdata[:,1] = flux
+   outdata[:, 0] = x
+   outdata[:, 1] = flux
    print ""
    print "Saving spectrum to file %s" % filename
    np.savetxt(filename, outdata, fmt=fmtstring)
@@ -3603,8 +3603,8 @@ def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
 
    """ Read the input spectrum """
    inspec = np.loadtxt(infile)
-   wavelength = inspec[:,0]
-   influx = inspec[:,1]
+   wavelength = inspec[:, 0]
+   influx = inspec[:, 1]
    if(varwt):
       if(inspec.shape[1] < 3):
          print ""
@@ -3612,7 +3612,7 @@ def smooth_boxcar(infile, filtwidth, outfile=None, varwt=True):
          print "       has fewer than 3 columns (ncol = %d)" % inspec.shape[1]
          return
       else:
-         wt = 1.0 / inspec[:,2]
+         wt = 1.0 / inspec[:, 2]
    else:
       wt = 0.0 * influx + 1.0
 

@@ -220,8 +220,8 @@ class Image:
                      - else, the entire image.
                    The format for statsec can be any of the following:
                      1. A 4-element numpy array
-                     2. A 4-element list:  [xsize, ysize] 
-                     3. A 4-element tuple: (xsize, ysize)
+                     2. A 4-element list:  [x1, y1, x2, y2] 
+                     3. A 4-element tuple: (x1, y1, x2, y2)
                      4. statsec=None.  In this case, the region used for 
                         determining the pixel statistics defaults to either
                         the subimage (if defined) or the full image (if no
@@ -243,12 +243,12 @@ class Image:
          x1, y1, x2, y2 = statsec
          data = self.hdu[hext].data[y1:y2, x1:x2]
       elif self.subim is not None:
-         if mask:
+         if mask is not None:
             data = self.subim[mask]
          else:
             data = self.subim
       else:
-         if mask:
+         if mask is not None:
             data = self.hdu[hext].data[mask]
          else:
             data = self.hdu[hext].data

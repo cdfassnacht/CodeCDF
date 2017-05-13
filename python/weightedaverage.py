@@ -43,9 +43,10 @@ for i in inlist:
 
 
 """ Get the median file data """
-med = imf.Image(medfile)
+med = imf.Image(medfile, verbose=False)
 meddata = med.hdu[0].data
-meanmed, noisemed = med.sigma_clip(meddata)
+med.sigma_clip()
+noisemed = med.rms_clip
 
 """ initialize 3d arrays with zeros """
 insci  = n.zeros((len(inlist), y0, x0))
@@ -55,14 +56,16 @@ newwht = n.zeros((len(inlist), y0, x0))
 """ Find and mask the bad pixels, and the area around them """
 print ''
 print 'Masking the bad pixels...'
+print '-------------------------'
 for i in range(len(inlist)):
+    print '  %s' % inlist[i]
     '''Put data in arrays'''
     infile = inlist[i]
     whtfile = infile.replace('.fits', '_wht.fits')
-    imi = imf.Image(infile)
+    imi = imf.Image(infile, verbose=False)
     insci[i, :, :] = imi.hdu[0].data.copy()
     insci_i = insci[i, :, :].copy()
-    whti = imf.Image(whtfile)
+    whti = imf.Image(whtfile, verbose=False)
     wht[i, :, :] = whti.hdu[0].data.copy()
     tmpwht = n.ones(whti.hdu[0].data.shape)
 
@@ -76,7 +79,8 @@ for i in range(len(inlist)):
     NOTE: right now this does not account for Poisson noise where there are
     real objects.  This needs to be fixed!
     """
-    meani, noisei = imi.sigma_clip(mask=mask)
+    imi.sigma_clip(mask=mask)
+    noisei = imi.rms_clip
     noise = msqrt(noisei**2 + noisemed**2)
     diffi = (insci_i - meddata) * newwhti
     mask2 = diffi > (3 * noise)
