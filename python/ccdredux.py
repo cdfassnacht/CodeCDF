@@ -28,20 +28,20 @@ except:
    import pyfits as pf
 import scipy as sp
 import numpy as n
+from math import cos,sin,pi,sqrt,atan2
 import imfuncs as imf
 import wcs as wcsmwa
 import coords
-from math import cos,sin,pi,sqrt,atan2
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def sigma_clip(data, nsig=3.,verbose=False):
    # Only compute outputs for data values that are numbers
    if verbose:
       print " sigma_clip: Full size of data       = %d" % data.size
       print " sigma_clip: Number of finite values = %d" % \
-          data[n.isfinite(data)].size
-   d = data[n.isfinite(data)].flatten()
+          data[np.isfinite(data)].size
+   d = data[np.isfinite(data)].flatten()
    avg = d.mean()
    std = d.std()
    
@@ -54,7 +54,7 @@ def sigma_clip(data, nsig=3.,verbose=False):
       delta = size-d.size
    return avg,std
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def robust_sigma(data, refzero=False):
     """
@@ -77,15 +77,15 @@ def robust_sigma(data, refzero=False):
     if refzero:
         dat0 = 0.0
     else:
-        dat0 = n.median(data)
+        dat0 = np.median(data)
     datdiff = (data - dat0).flatten()
 
     """ Find absolute deviation about the median """
-    mad = n.median(n.absolute(datdiff))/0.6745
+    mad = np.median(np.absolute(datdiff))/0.6745
 
     """ Try the mean absolute deviation if the mad is zero """
     if mad<eps:
-        mad = (n.absolute(datdiff)).mean()/0.8
+        mad = (np.absolute(datdiff)).mean()/0.8
     if mad<eps:
         return 0.0
 
@@ -98,17 +98,17 @@ def robust_sigma(data, refzero=False):
         print 'robust_sigma: input distribution is just too weird.'
         print 'returning value of -1.'
         return -1.
-    ntot = data[n.isfinite(data)].sum()
+    ntot = data[np.isfinite(data)].sum()
     num = ((data[q] - dat0)**2 * (1.-uu[q])**4).sum()
     denom = ((1.-uu[q]) * (1. - 5.*uu[q])).sum()
     rvar = ntot * num / (denom * (denom - 1.))
 
     if rvar>0.:
-        return n.sqrt(rvar)
+        return np.sqrt(rvar)
     else:
         return 0.
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def set_param_array(hdulen,inval):
    """
@@ -126,9 +126,9 @@ def set_param_array(hdulen,inval):
 
    if (isinstance(inval,int)) or (isinstance(inval,float)):
       if hdulen == 1:
-         valarr = n.array([inval]).astype(int)
+         valarr = np.array([inval]).astype(int)
       else:
-         valarr = n.zeros(hdulen-1).astype(int)
+         valarr = np.zeros(hdulen-1).astype(int)
          for i in range(hdulen-1):
             valarr[i] = inval
    else:
@@ -136,7 +136,7 @@ def set_param_array(hdulen,inval):
 
    return valarr
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def define_trimsec(hdu,x1,x2,y1,y2):
    xmax = hdu.header['NAXIS1']
@@ -159,7 +159,7 @@ def define_trimsec(hdu,x1,x2,y1,y2):
    #ytrim = slice(y1,y2,1)
    return x1,x2,y1,y2
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def divide_images(a,b,output,preserve_header=0):
    print "Dividing images: '%s' / '%s' = '%s'" % (a,b,output)
@@ -179,7 +179,7 @@ def divide_images(a,b,output,preserve_header=0):
       hdu = pf.PrimaryHDU(hdua.data/hdub.data)
    hdu.writeto(output,output_verify='ignore')
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def subtract_images(a,b,output,hexta=0,hextb=0):
    print("Subtracting images: '%s' - '%s' = '%s'" % (a,b,output))
@@ -194,7 +194,7 @@ def subtract_images(a,b,output,hexta=0,hextb=0):
    hdu = pf.PrimaryHDU(hdua.data - hdub.data)
    hdu.writeto(output,output_verify='ignore',clobber=True)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def add_images(a,b,output,preserve_header=0):
    print("Adding images: '%s' + '%s' = '%s'" % (a,b,output))
@@ -216,7 +216,7 @@ def add_images(a,b,output,preserve_header=0):
 
    hdu.writeto(output,output_verify='ignore',clobber=True)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def read_calfile(filename, file_description):
    print 'Reading in %s file: %s' % (file_description, filename)
@@ -232,11 +232,11 @@ def read_calfile(filename, file_description):
          return -1
    return calhdulist
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
-                   biasfile=None,gain=-1.0,normalize=False,zeromedian=False,
-                   NaNmask=False,hdu0only=False):
+def median_combine(input_files, output_file, method='median', x1=0, x2=0,
+                   y1=0, y2=0, biasfile=None, gain=-1.0, normalize=False,
+                   zeromedian=False, NaNmask=False, hdu0only=False):
    """ 
    Given a list of input file names, this function will:
       1. Subtract a bias frame (if the optional biasfile parameter is set)
@@ -267,7 +267,7 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
       try:
          f = pf.open(filename)
       except:
-         f = pf.open(filename,ignore_missing_end=True)
+         f = pf.open(filename, ignore_missing_end=True)
       files.append(f)
 
    # Use first file to check for multiple HDUs, and set some variables
@@ -278,22 +278,22 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
    files[0].info()
    hdulen = len(files[0])
    if (hdulen == 1) or (hdu0only == True):
-      imhdu = n.arange(1)
+      imhdu = np.arange(1)
    else:
-      imhdu = n.arange(1,hdulen)
+      imhdu = np.arange(1, hdulen)
       phdu = pf.PrimaryHDU()
       phdu.header.add_comment(
-         'This file contains %d image extensions' % (hdulen-1),after='extend')
+         'This file contains %d image extensions' % (hdulen-1), after='extend')
       hdulist = pf.HDUList([phdu])
 
    # Set up the trim variables as numpy arrays, if they are not
    #  already in that format
 
-   x1 = set_param_array(hdulen,x1)
-   x2 = set_param_array(hdulen,x2)
-   y1 = set_param_array(hdulen,y1)
-   y2 = set_param_array(hdulen,y2)
-   gain = set_param_array(hdulen,gain)
+   x1 = set_param_array(hdulen, x1)
+   x2 = set_param_array(hdulen, x2)
+   y1 = set_param_array(hdulen, y1)
+   y2 = set_param_array(hdulen, y2)
+   gain = set_param_array(hdulen, gain)
 
    # Start outer loop on the extension number.  For old-school FITS files
    #  there is only one extension, which is the main image.
@@ -304,14 +304,14 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
       #  to define the container for the stack of images
 
       k = j-1
-      xt1,xt2,yt1,yt2 = define_trimsec((files[0])[j], \
-                                          x1[k],x2[k],y1[k],y2[k])
+      xt1, xt2, yt1, yt2 = define_trimsec((files[0])[j], x1[k], x2[k], y1[k],
+                                          y2[k])
       print ""
       print "median_combine: setting up stack for images (HDU %d)" % j
       print "----------------------------------------------------"
-      print "Stack will have dimensions (%d,%d,%d)" \
-          %(len(input_files),yt2-yt1,xt2-xt1)
-      stack = n.zeros((len(input_files),yt2-yt1,xt2-xt1))
+      print "Stack will have dimensions (%d, %d, %d)" \
+          %(len(input_files), yt2 - yt1, xt2 - xt1)
+      stack = np.zeros((len(input_files), yt2 - yt1, xt2 - xt1))
 
       # Inner loop is on the input files
 
@@ -322,23 +322,23 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
 
          # Process the data (bias and gain only), if desired
          if (biasfile == None):
-            process_data(files[i],j,gain=gain[k],x1=x1[k],x2=x2[k], \
-                            y1=y1[k],y2=y2[k])
+            process_data(files[i], j, gain=gain[k], x1=x1[k], x2=x2[k], \
+                            y1=y1[k], y2=y2[k])
          else:
-            process_data(files[i],j,bias,gain=gain[k],x1=x1[k], \
-                            x2=x2[k],y1=y1[k],y2=y2[k])
+            process_data(files[i], j, bias, gain=gain[k], x1=x1[k], \
+                            x2=x2[k], y1=y1[k], y2=y2[k])
 
          tmpf = (files[i])[j].data
 
          # Normalize or set to zero median, if desired
          if(normalize == True):
-            frame_med = n.median(tmpf,axis=None)
+            frame_med = np.median(tmpf,axis=None)
             print "    Normalizing %s by %f" % (files[i].filename(),frame_med)
             tmpf *= 1.
             tmpf /= (1. * frame_med)
          if(zeromedian == True):
             print "    Subtracting the median from %s" % files[i].filename()
-            tmpf -= n.median(tmpf,axis=None)
+            tmpf -= np.median(tmpf,axis=None)
          stack[count] = tmpf.copy()
          count += 1
       
@@ -349,18 +349,18 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
          if(NaNmask == True):
             print "median_combine: Computing summed frame using NaN masking"
             print "   Can take a while..."
-            outdat = n.nansum(stack,axis=0)
+            outdat = np.nansum(stack, axis=0)
          else:
             print "median_combine: Computing summed frame (can take a while)..."
-            outdat = n.sum(stack,axis=0)
+            outdat = np.sum(stack, axis=0)
       else:
          if(NaNmask == True):
             print "median_combine: Computing median frame using NaN masking"
             print "   Can take a while..."
-            outdat = sp.stats.stats.nanmedian(stack,axis=0)
+            outdat = sp.stats.stats.nanmedian(stack, axis=0)
          else:
             print "median_combine: Computing median frame (can take a while)..."
-            outdat = n.median(stack,axis=0)
+            outdat = np.median(stack, axis=0)
       del stack
 
       # Save the median HDU
@@ -374,7 +374,7 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
 
    # Write the output median file
 
-   hdulist.writeto(output_file,output_verify='ignore',clobber=True)
+   hdulist.writeto(output_file, output_verify='ignore', clobber=True)
    print "   ... Writing output to %s." % output_file
 
    # Clean up
@@ -382,7 +382,7 @@ def median_combine(input_files,output_file,method='median', x1=0,x2=0,y1=0,y2=0,
    for i in range(len(input_files)):
       files[i].close()
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
    """
@@ -401,7 +401,7 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
    if phdu is None:
       phdu = hdu
 
-   if pixscale>0.0:
+   if pixscale > 0.0:
 
       """ 
       Get the size of the data array.  Note that if this fails, the
@@ -479,7 +479,7 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
          hdr.update('EQUINOX',2000.0)
          hdr.update('RADECSYS','FK5')
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_bias(infiles, outfile="Bias.fits", x1=0, x2=0, y1=0, y2=0, 
               hdu0only=False):
@@ -502,7 +502,7 @@ def make_bias(infiles, outfile="Bias.fits", x1=0, x2=0, y1=0, y2=0,
 
    median_combine(infiles,outfile,x1,x2,y1,y2,hdu0only=hdu0only)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_bias_frames(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
                      outfile="Bias.fits", x1=0,x2=0,y1=0,y2=0,hdu0only=False):
@@ -535,7 +535,7 @@ def make_bias_frames(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
    # Call median_combine
    median_combine(filenames,outfile,x1,x2,y1,y2,hdu0only=hdu0only)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
       outfile="Flat.fits", biasfile=None, gain=-1.0, normalize=True,
@@ -587,7 +587,7 @@ def make_flat(flat_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
    median_combine(filenames,outfile,biasfile=biasfile,gain=gain,
                   normalize=normalize,x1=x1,x2=x2,y1=y1,y2=y2)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_flat_files(infiles, outfile="Flat.fits", biasfile=None, gain=1.0, 
                     normalize=True, x1=0, x2=0, y1=0, y2=0):
@@ -618,7 +618,7 @@ def make_flat_files(infiles, outfile="Flat.fits", biasfile=None, gain=1.0,
    median_combine(infiles,outfile,biasfile=biasfile,gain=gain,
                   normalize=normalize,x1=x1,x2=x2,y1=y1,y2=y2)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_fringe(fringe_frames, in_prefix, indir=None, inext='fits',
       outfile="Fringe.fits", biasfile=None, gain=1.0, normalize=False,
@@ -663,7 +663,7 @@ def make_fringe(fringe_frames, in_prefix, indir=None, inext='fits',
    median_combine(filenames,outfile,biasfile=biasfile,gain=gain,
     normalize=normalize,zeromedian=zeromedian,x1=x1,x2=x2,y1=y1,y2=y2)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_fringe_files(fringe_frames, in_prefix, indir=None, 
       outfile="Fringe.fits", biasfile=None, gain=1.0, normalize=False,
@@ -711,7 +711,7 @@ def make_fringe_files(fringe_frames, in_prefix, indir=None,
    median_combine(filenames,outfile,biasfile=biasfile,gain=gain,
     normalize=normalize,zeromedian=zeromedian,x1=x1,x2=x2,y1=y1,y2=y2)
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None, 
                  darksky=None, gain=-1.0, texp_key=None, skysub=False,
@@ -918,7 +918,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
 
 #   return hdu
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def apply_calib(in_frames, in_prefix, out_prefix, split=False,
                 biasfile=None, flatfile=None, fringefile=None, darkskyfile=None,
@@ -1023,9 +1023,9 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
       """ Set things up depending on whether there are extensions or not """
       hdulen = len(hdu)
       if hdulen == 1:
-         imhdu = n.arange(1)
+         imhdu = np.arange(1)
       else:
-         imhdu = n.arange(1,hdulen)
+         imhdu = np.arange(1,hdulen)
          phdu = hdu[0]
          phdu.header.add_comment(
             'This file contains %d image extensions' % (hdulen-1),after='extend')
@@ -1099,7 +1099,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 #  y1 = 775
 #  y2 = 3200
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
                          goodval=1, hdunum=0):
@@ -1154,9 +1154,9 @@ def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
       whtdat = whthdu[hdunum].data
    else:
       if goodval == 1:
-         whtdat = n.ones(indat.shape)
+         whtdat = np.ones(indat.shape)
       else:
-         whtdat = n.zeros(indat.shape)
+         whtdat = np.zeros(indat.shape)
 
    """ Flag the bad pixels """
    if goodval == 1:
@@ -1179,7 +1179,7 @@ def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
    """ Clean up """
    del indat
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
                        outwht_suff='_wht.fits', flag_posonly=False, 
@@ -1234,12 +1234,12 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
       return
 
    """ First loop through the input files to get information """
-   gain = n.zeros(len(tmplist))
-   bkgd = n.zeros(len(tmplist))
-   fscal = n.zeros(len(tmplist))
-   x1 = n.zeros(len(tmplist),dtype=int)
-   y1 = n.zeros(len(tmplist),dtype=int)
-   rmssky = n.zeros(len(tmplist))
+   gain = np.zeros(len(tmplist))
+   bkgd = np.zeros(len(tmplist))
+   fscal = np.zeros(len(tmplist))
+   x1 = np.zeros(len(tmplist),dtype=int)
+   y1 = np.zeros(len(tmplist),dtype=int)
+   rmssky = np.zeros(len(tmplist))
 
    print ''
    print ' Input file                  gain  <bkgd>   fscal  rms_sky rms_scal'
@@ -1345,7 +1345,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
       meddat = medall[y1[i]:y2,x1[i]:x2]
       medwht = medwhtall[y1[i]:y2,x1[i]:x2]
       print 'Calculating difference image'
-      diff = n.zeros(indat.shape)
+      diff = np.zeros(indat.shape)
       whtmask = inwht>0
       diff[whtmask] = indat[whtmask] * fscal[i] - meddat[whtmask]
       del whtmask
@@ -1372,21 +1372,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
       """
       print 'Masking and then calculating variance from stacked median'
-      medvar = n.zeros(indat.shape)
-      medmask = (inwht>0) & (n.absolute(medwht>epsil))
+      medvar = np.zeros(indat.shape)
+      medmask = (inwht>0) & (np.absolute(medwht>epsil))
       medvar[medmask] = 1. / medwht[medmask]
       del medmask
       print 'Masking and then adding Poisson noise from stacked median'
-      medmask = meddat > n.sqrt(medvar)
+      medmask = meddat > np.sqrt(medvar)
       medvar[medmask] += meddat[medmask] / gainmean
       del medmask
       #del medwht,meddat
       print 'Masking and then calculating variance in individual image'
-      indvar = n.zeros(indat.shape)
+      indvar = np.zeros(indat.shape)
       mask = (inwht>0) & ((indat + bkgd[i]) > 0.)
       indvar[mask] = fscal[i]**2 * (indat[mask]+bkgd[i])/gain[i]
       print 'Calculating combined rms'
-      rms = n.sqrt(medvar + indvar)
+      rms = np.sqrt(medvar + indvar)
       del medvar,indvar,mask,indat
 
       """ 
@@ -1398,12 +1398,12 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
       if flag_posonly:
          blotmask = diff > nsig*rms
       else:
-         blotmask = n.absolute(diff) > nsig*rms
+         blotmask = np.absolute(diff) > nsig*rms
       print '%-38s %9d' \
           % (f[:-5],blotmask.sum())
 
       """ Debugging step(s) """
-      #foodat = n.ones(diff.shape)
+      #foodat = np.ones(diff.shape)
       #foodat[blotmask] = 0
       #fooname = f.replace('.fits','_foo.fits')
       #pf.PrimaryHDU(foodat).writeto(fooname,clobber=True)
@@ -1412,7 +1412,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
       #rmsname = f.replace('.fits','_rms.fits')
       #pf.PrimaryHDU(rms,hdr).writeto(rmsname,clobber=True)
 
-      #snr = n.zeros(diff.shape)
+      #snr = np.zeros(diff.shape)
       #rmsmask = rms>0
       #snr[rmsmask] = diff[rmsmask] / rms[rmsmask]
       #snrname = f.replace('.fits','_snr.fits')
@@ -1434,7 +1434,7 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
    #medwhthdu.close()
    del medall,medwhtall
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
    """
@@ -1497,7 +1497,7 @@ def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
       if verbose:
          print 'Updated %s with EXPTIME=%.2f' % (i,texp)
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def make_texp_map(infiles, texp, whtext='wht', outext='texp'):
    """
@@ -1567,7 +1567,7 @@ def make_texp_map(infiles, texp, whtext='wht', outext='texp'):
       del data,hdr
       count += 1
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def split_imext(infits, next, outroot=None):
    """
@@ -1875,7 +1875,7 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                
    inhdu.flush()
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
                 oformat='pix', hext=0, verbose=True):
@@ -1913,10 +1913,10 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
    """
 
    # Initialize containers
-   ra   = n.zeros(len(files))
-   dec  = n.zeros(len(files))
-   dx   = n.zeros(len(files))
-   dy   = n.zeros(len(files))
+   ra   = np.zeros(len(files))
+   dec  = np.zeros(len(files))
+   dx   = np.zeros(len(files))
+   dy   = np.zeros(len(files))
    cdmatx = []
 
    # Print out some header information
@@ -1939,8 +1939,8 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
       hdr = hdulist[hext].header
 
       # Initialize the containers
-      ra[count] = n.nan
-      dec[count] = n.nan
+      ra[count] = np.nan
+      dec[count] = np.nan
 
       # Start with the default behavior of trying to read in the WCS info
       # If this is successful, set the parameter values based on the WCS info
@@ -1961,7 +1961,7 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
          else:
             dec[count] = wcsinfo[0][0]
       else:
-         cd = n.array([[-1.0,0.0],[0.0,1.0]])
+         cd = np.array([[-1.0,0.0],[0.0,1.0]])
 
       # Calculate the RA and Dec based on whether the override parameters are set
       if rakey is not None:
@@ -2023,7 +2023,7 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
    else:
       return dx,dy
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def plot_hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None, 
                      oformat='pix', hext=0, verbose=True):
@@ -2070,7 +2070,7 @@ def plot_hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
       plt.xlabel('dx (pixels)')
       plt.ylabel('dy (pixels)')
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def xcorr_offsets(infiles, hext=0):
    """
@@ -2091,7 +2091,7 @@ def xcorr_offsets(infiles, hext=0):
 
    """ Set the first file as the reference """
    ref = imf.Image(infiles[0])
-   refdat = ref.hdu[hext].data.astype(n.float32)
+   refdat = ref.hdu[hext].data.astype(np.float32)
    if refdat.shape[1]%2 == 0:
       xcent = refdat.shape[1] / 2
    else:
@@ -2103,15 +2103,15 @@ def xcorr_offsets(infiles, hext=0):
    Fref = fftpack.fft2(refdat)
 
    """ Loop through the list of files """
-   xshift = n.zeros(len(infiles))
-   yshift = n.zeros(len(infiles))
+   xshift = np.zeros(len(infiles))
+   yshift = np.zeros(len(infiles))
    for i in range(1,len(infiles)):
       comp = imf.Image(infiles[i])
-      compdat = comp.hdu[hext].data.astype(n.float32)
+      compdat = comp.hdu[hext].data.astype(np.float32)
       Fprod = Fref * fftpack.fft2(compdat).conj()
       xcorr = fftpack.ifft2(Fprod)
       corrshift = fftpack.fftshift(xcorr)
-      ymax,xmax = n.unravel_index(corrshift.argmax(),corrshift.shape)
+      ymax,xmax = np.unravel_index(corrshift.argmax(),corrshift.shape)
       xshift[i] = xmax - xcent
       yshift[i] = ymax - ycent
       del compdat,Fprod,xcorr,corrshift
@@ -2124,7 +2124,7 @@ def xcorr_offsets(infiles, hext=0):
    del ref
    return xshift,yshift
    
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def coadd_intshift(infiles, xshifts, yshifts, outfile, origsize=False, hext=0):
 
@@ -2134,17 +2134,17 @@ def coadd_intshift(infiles, xshifts, yshifts, outfile, origsize=False, hext=0):
    tmpxshift = xshifts - xshifts.min()
    tmpyshift = yshifts - yshifts.min()
    if origsize:
-      xmed = n.median(tmpxshift)
-      ymed = n.median(tmpyshift)
+      xmed = np.median(tmpxshift)
+      ymed = np.median(tmpyshift)
    del ref
 
    """ Modify the size based on the shifts """
-   dimx = xsize + int(n.ceil(xshifts.max() - xshifts.min()))
-   dimy = ysize + int(n.ceil(yshifts.max() - yshifts.min()))
+   dimx = xsize + int(np.ceil(xshifts.max() - xshifts.min()))
+   dimy = ysize + int(np.ceil(yshifts.max() - yshifts.min()))
 
    """ Create containers for the output data and nexp info """
-   odat = n.zeros((len(infiles),dimy,dimx))
-   nexp = n.zeros((len(infiles),dimy,dimx))
+   odat = np.zeros((len(infiles),dimy,dimx))
+   nexp = np.zeros((len(infiles),dimy,dimx))
 
    """ Load data into the containers """
    for i in range(len(infiles)):
@@ -2166,7 +2166,7 @@ def coadd_intshift(infiles, xshifts, yshifts, outfile, origsize=False, hext=0):
    pf.PrimaryHDU(outdat).writeto(outfile,clobber=True)
    del odat,nexp
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def fixpix_wht(datafile, whtfile, outfile=None, boxsize=11, datahdu=0,
                whthdu=0):
@@ -2196,7 +2196,9 @@ def fixpix_wht(datafile, whtfile, outfile=None, boxsize=11, datahdu=0,
    """ Median filter the data """
    meddat = filters.median_filter(data,boxsize)
 
-   """ Replace the bad data (where whtdat==0) with the median-filtered values """
+   """
+   Replace the bad data (where whtdat==0) with the median-filtered values
+   """
    mask = whtdat==0
    data[mask] = meddat[mask]
    dhdulist[datahdu].header.update('fixpix','ccdredux.fixpix_wht',
@@ -2208,7 +2210,7 @@ def fixpix_wht(datafile, whtfile, outfile=None, boxsize=11, datahdu=0,
    else:
       pf.PrimaryHDU(data,dhdulist[datahdu].header).writeto(outfile)
 
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def fixpix_rms(datafile, rms_high=5., rms_low=5., rms_sigclip=3., outfile=None, 
                boxsize=11, datahdu=0, verbose=True):
@@ -2236,14 +2238,14 @@ def fixpix_rms(datafile, rms_high=5., rms_low=5., rms_sigclip=3., outfile=None,
       data = dhdulist[datahdu].data.copy()
 
    """ Sigma clip the input data and set the bad pixel mask """
-   m,s = sigma_clip(data,verbose=verbose)
-   mask = (data > m+rms_high*s) | (data < m-rms_low*s)
+   m, s = sigma_clip(data, verbose=verbose)
+   mask = (data > m + rms_high * s) | (data < m-rms_low * s)
 
    """ Pass 1, replace bad pixels with the overall median value """
-   data[mask] = n.median(data)
+   data[mask] = np.median(data)
 
    """ Median filter the data """
-   meddat = filters.median_filter(data,boxsize)
+   meddat = filters.median_filter(data, boxsize)
 
    """ Pass 2, replace the bad data with the median-filtered values """
    data[mask] = meddat[mask]
@@ -2252,5 +2254,113 @@ def fixpix_rms(datafile, rms_high=5., rms_low=5., rms_sigclip=3., outfile=None,
    if outfile is None:
       dhdulist.flush()
    else:
-      pf.PrimaryHDU(data,dhdulist[datahdu].header).writeto(outfile)
+      pf.PrimaryHDU(data, dhdulist[datahdu].header).writeto(outfile)
 
+# ---------------------------------------------------------------------------
+
+def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
+   """
+   Coadds the input data files after first masking out discrepant pixels
+   """
+
+   print ''
+   print 'Input files'
+   print '-------------------'
+   for i in infiles:
+      print i
+
+
+      """ Check that images are same size """
+      hdr0 = pf.getheader(infiles[0])
+      x0 = hdr0["naxis1"]
+      y0 = hdr0["naxis2"]
+      print ''
+      print 'Check that images are all the same size: %dx%d' % (x0, y0)
+      print '-------------------------------------------------------'
+
+      for i in infiles:
+         hdr = pf.getheader(i)
+         x = hdr["naxis1"]
+         y = hdr["naxis2"]
+         if x != x0 or y != y0:
+            print ""
+            print "Error: shape of %s does not match shape of %s" \
+                % (i, infiles[0])
+            print ""
+            exit()
+         else:
+            print "%s: Shape matches" % i
+
+
+   """ Get the median file data """
+   med = imf.Image(medfile, verbose=False)
+   meddata = med.hdu[0].data
+   med.sigma_clip()
+   noisemed = med.rms_clip
+
+   """ initialize 3d arrays with zeros """
+   insci  = n.zeros((len(infiles), y0, x0))
+   wht    = n.zeros((len(infiles), y0, x0))
+   newwht = n.zeros((len(infiles), y0, x0))
+
+   """ Find and mask the bad pixels, and the area around them """
+   print ''
+   print 'Masking the bad pixels...'
+   print '-------------------------'
+   for i in range(len(infiles)):
+      print '  %s' % infiles[i]
+      '''Put data in arrays'''
+      infile = infiles[i]
+      whtfile = infile.replace('.fits', '_%s.fits', whtsuff)
+      imi = imf.Image(infile, verbose=False)
+      insci[i, :, :] = imi.hdu[0].data.copy()
+      insci_i = insci[i, :, :].copy()
+      whti = imf.Image(whtfile, verbose=False)
+      wht[i, :, :] = whti.hdu[0].data.copy()
+      tmpwht = n.ones(whti.hdu[0].data.shape)
+
+      '''Mask pixels associated with weight of zero'''
+      mask = whti.hdu[0].data != 0
+      newwht[i, :, :][mask] = 1
+      newwhti = newwht[i, :, :].copy()
+
+      """
+      Find bad pixels
+      NOTE: right now this does not account for Poisson noise where there are
+      real objects.  This needs to be fixed!
+      """
+      imi.sigma_clip(mask=mask)
+      noisei = imi.rms_clip
+      noise = msqrt(noisei**2 + noisemed**2)
+      diffi = (insci_i - meddata) * newwhti
+      mask2 = diffi > (3 * noise)
+
+      ''' Grow the masked region around the bad pixels '''
+      tmpwht[mask2] = 0
+      tmp2 = minimum_filter(tmpwht, size=3)
+      # outfile = "tmp%d.fits" %i
+      wht[i, :, :] *= tmp2
+      # newwht[i,:,:] *= tmp2
+
+      """ Do the weighted sum and also create the sum of the weights """
+      print ''
+      print 'Creating the weighted average image'
+      datasum = (insci * wht).sum(axis=0)  # 2d array
+      whtsum = wht.sum(axis=0)  # 2d array
+
+      """ Avoid devision by zero errors """
+      mask = whtsum == 0
+      tmpwht = whtsum.copy()
+      tmpwht[mask] = 1
+      datasum[mask] = 0
+
+      """' Finally, define the weighted average """
+      whtedav = datasum / tmpwht
+      print '  ...Done'
+
+      """ Save the outputs """
+      print 'Writing output to %s' % outfile
+      pf.PrimaryHDU(whtedav).writeto(outfile, clobber=True)
+      outwht = outfile.replace('.fits', '_%s.fits', whtsuff)
+      pf.PrimaryHDU(whtsum).writeto(outwht, clobber=True)
+      print ''
