@@ -1366,8 +1366,8 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
           sigma_med^2 = (1. / medwht) + [for SNR>1: meddat/gain] 
             - Swarp produces an inverse-variance weight map
               NOTE: However, this does NOT include Poisson noise from the
-              objects in the image.  This is because computes this Poisson
-              noise when it does its object detections, and therefore 
+              objects in the image.  This is because SExtractor computes this
+              Poisson noise when it does its object detections, and therefore 
               expects any input weight file to not include the Poisson noise.
 
       """
@@ -2270,26 +2270,26 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
       print i
 
 
-      """ Check that images are same size """
-      hdr0 = pf.getheader(infiles[0])
-      x0 = hdr0["naxis1"]
-      y0 = hdr0["naxis2"]
-      print ''
-      print 'Check that images are all the same size: %dx%d' % (x0, y0)
-      print '-------------------------------------------------------'
+   """ Check that images are same size """
+   hdr0 = pf.getheader(infiles[0])
+   x0 = hdr0["naxis1"]
+   y0 = hdr0["naxis2"]
+   print ''
+   print 'Check that images are all the same size: %dx%d' % (x0, y0)
+   print '-------------------------------------------------------'
 
-      for i in infiles:
-         hdr = pf.getheader(i)
-         x = hdr["naxis1"]
-         y = hdr["naxis2"]
-         if x != x0 or y != y0:
-            print ""
-            print "Error: shape of %s does not match shape of %s" \
-                % (i, infiles[0])
-            print ""
-            exit()
-         else:
-            print "%s: Shape matches" % i
+   for i in infiles:
+      hdr = pf.getheader(i)
+      x = hdr["naxis1"]
+      y = hdr["naxis2"]
+      if x != x0 or y != y0:
+         print ""
+         print "Error: shape of %s does not match shape of %s" \
+             % (i, infiles[0])
+         print ""
+         exit()
+      else:
+         print "%s: Shape matches" % i
 
 
    """ Get the median file data """

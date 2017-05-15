@@ -37,10 +37,12 @@ for i in inlist:
         print ""
         print "Error: shape of %s does not match shape of %s"  % (i, inlist[0])
         print ""
+        del hdr
         exit()
     else:
         print "%s: Shape matches" % i
-
+        del hdr
+del hdr0
 
 """ Get the median file data """
 med = imf.Image(medfile, verbose=False)
@@ -51,7 +53,6 @@ noisemed = med.rms_clip
 """ initialize 3d arrays with zeros """
 insci  = n.zeros((len(inlist), y0, x0))
 wht    = n.zeros((len(inlist), y0, x0))
-newwht = n.zeros((len(inlist), y0, x0))
 
 """ Find and mask the bad pixels, and the area around them """
 print ''
@@ -71,8 +72,8 @@ for i in range(len(inlist)):
 
     '''Mask pixels associated with weight of zero'''
     mask = whti.hdu[0].data != 0
-    newwht[i, :, :][mask] = 1
-    newwhti = newwht[i, :, :].copy()
+    newwhti = np.zeros(y0, x0)
+    newwhti[mask] = 1
 
     """
     Find bad pixels
@@ -82,7 +83,7 @@ for i in range(len(inlist)):
     imi.sigma_clip(mask=mask)
     noisei = imi.rms_clip
     noise = msqrt(noisei**2 + noisemed**2)
-    diffi = (insci_i - meddata) * newwhti
+    diffi = (insci[i, :, :] - meddata) * newwhti
     mask2 = diffi > (3 * noise)
 
     ''' Grow the masked region around the bad pixels '''
