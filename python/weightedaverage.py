@@ -1,10 +1,11 @@
 import sys
-import numpy as n
+import numpy as np
 from astropy.io import fits as pf
 from scipy.ndimage.filters import minimum_filter
 import glob
 from math import sqrt as msqrt
 import imfuncs as imf
+import ccdredux as ccd
 
 """ Get command line parameters """
 medfile = sys.argv[1]
@@ -45,14 +46,20 @@ for i in inlist:
 del hdr0
 
 """ Get the median file data """
+verbose=False
 med = imf.Image(medfile, verbose=False)
 meddata = med.hdu[0].data
-med.sigma_clip()
-noisemed = med.rms_clip
+texpfile = medfile.replace('median', 'texp')
+tim = imf.Image(texpfile, verbose=verbose)
+texp = tim.hdu[0].data
+outvar = medfile.replace('median', 'var')
+noisemed = np.sqrt(ccd.make_var_with_poisson(medfile, 'eps', maskfile=texpfile,
+                                             texp=texp, verbose=True,
+                                             outfile=outvar))
 
 """ initialize 3d arrays with zeros """
-insci  = n.zeros((len(inlist), y0, x0))
-wht    = n.zeros((len(inlist), y0, x0))
+insci  = np.zeros((len(inlist), y0, x0))
+wht    = np.zeros((len(inlist), y0, x0))
 
 """ Find and mask the bad pixels, and the area around them """
 print ''
@@ -68,11 +75,11 @@ for i in range(len(inlist)):
     insci_i = insci[i, :, :].copy()
     whti = imf.Image(whtfile, verbose=False)
     wht[i, :, :] = whti.hdu[0].data.copy()
-    tmpwht = n.ones(whti.hdu[0].data.shape)
+    tmpwht = np.ones(whti.hdu[0].data.shape)
 
     '''Mask pixels associated with weight of zero'''
     mask = whti.hdu[0].data != 0
-    newwhti = np.zeros(y0, x0)
+    newwhti = np.zeros((y0, x0))
     newwhti[mask] = 1
 
     """
@@ -82,7 +89,7 @@ for i in range(len(inlist)):
     """
     imi.sigma_clip(mask=mask)
     noisei = imi.rms_clip
-    noise = msqrt(noisei**2 + noisemed**2)
+    noise = np.sqrt(noisei**2 + noisemed**2)
     diffi = (insci[i, :, :] - meddata) * newwhti
     mask2 = diffi > (3 * noise)
 

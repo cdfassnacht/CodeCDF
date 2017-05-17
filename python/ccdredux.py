@@ -26,8 +26,8 @@ try:
    from astropy.io import fits as pf
 except:
    import pyfits as pf
-import scipy as sp
-import numpy as n
+import numpy as np
+from scipy.ndimage import filters
 from math import cos,sin,pi,sqrt,atan2
 import imfuncs as imf
 import wcs as wcsmwa
@@ -357,7 +357,7 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
          if(NaNmask == True):
             print "median_combine: Computing median frame using NaN masking"
             print "   Can take a while..."
-            outdat = sp.stats.stats.nanmedian(stack, axis=0)
+            outdat = np.nanmedian(stack, axis=0)
          else:
             print "median_combine: Computing median frame (can take a while)..."
             outdat = np.median(stack, axis=0)
@@ -1624,7 +1624,7 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
    validwcs = False
 
    try:
-      hdulist = open_fits(fitsfile)
+      hdulist = imf.open_fits(fitsfile)
    except:
       return
    hdr = hdulist[inhdu].header
@@ -1841,14 +1841,14 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
 
    """ Open the files """
    try:
-      refhdu = open_fits(reffile)
+      refhdu = imf.open_fits(reffile)
    except:
       print "ERROR.  Could not read reference file %s" % reffile
       return
    refhdr = refhdu[hext].header
 
    try:
-      inhdu = open_fits(infile,mode='update')
+      inhdu = imf.open_fits(infile,mode='update')
    except:
       return
    inhdr = inhdu[hext].header
@@ -2258,6 +2258,174 @@ def fixpix_rms(datafile, rms_high=5., rms_low=5., rms_sigclip=3., outfile=None,
 
 # ---------------------------------------------------------------------------
 
+
+def check_type(x, validtypes):
+   """
+   Checks the type of x versus a list of valid types.  If type(x) matches
+   any member of the list, then return True, otherwise return False
+   """
+   type_ok = False
+   tmp = type(x)
+   for i in validtypes:
+      if tmp == i:
+         type_ok = True
+   return type_ok
+
+# ---------------------------------------------------------------------------
+
+
+def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
+                          texp=None, origbkgd=0., epsilon=None, hext=0,
+                          statcent=None, statsize=None, outfile=None,
+                          outtype='var', outsnr=None, returnvar=True,
+                          verbose=False):
+   """
+   Makes a variance file from an input image.  The variance will be based
+   both on the variance in the pixel values in regions of blank sky and on
+   the Poisson noise where there are objects in the image.
+
+   Required inputs:
+     infile - input image
+     units  - units for the pixel values in the input image.  Allowed choices
+              are:
+                1. 'counts' - for input values in ADU
+                2. 'cps'    - for input values in ADU/sec
+                3. 'e-'     - for input values in electrons
+                4. 'eps'    - for input values in electrons/sec
+
+   Optional inputs:
+     maskfile - file indicating bad pixels, where bad pixels have the value 0
+                (or are larger than the epsilon parameter, if that parameter
+                is set to something besides None), and good pixels have 
+                non-zero values (or values > epsilon, if epsilon is not None).
+                The mask file can be a weight file or bad pixel mask produced
+                by standard image processing.
+     gain     - gain (in e-/ADU).  Only used if units is 'counts' or 'cps'
+     texp     - exposure time of the input image.  Only used if units is
+                'cps' or 'eps'
+   """
+
+   """
+   Start with some error checking based on the value chosen for the units
+   """
+   units_ok = False
+   validtypes = [float, np.float32, np.float64, np.ndarray, int]
+   if (units == 'counts' or units == 'cps'):
+      units_ok = True
+      if gain is None:
+         print 'Error: Selected are counts or cps but the gain value is not set'
+         raise TypeError
+      if check_type(gain, validtypes) is not True:
+         print 'Error: gain must either be a single number or a 2-D array'
+         raise TypeError
+   if (units == 'cps' or units == 'eps'):
+      units_ok = True
+      if texp is None:
+         print 'Error: Selected units are cps or eps but texp is not set'
+         raise TypeError
+      if check_type(texp, validtypes) is not True:
+         print 'Error: texp must either be a single number or a 2-D array'
+         raise TypeError
+   if units == 'e-':
+      units_ok = True
+
+   if units_ok is not True:
+      print 'Error: Invalid value for units parameter'
+      raise ValueError
+   if verbose:
+      print 'Finished unit and type check'
+
+   """
+   Load the input image and the mask image
+   """
+   im = imf.Image(infile, verbose=verbose)
+   hdr = im.hdu[0].header.copy()
+   data = im.hdu[hext].data
+   if maskfile is not None:
+      maskim = imf.Image(maskfile, verbose=verbose)
+      mask = maskim.hdu[hext].data.copy()
+      if epsilon is not None:
+         mask[mask < epsilon] = 0
+      mask[mask > 0] = 1
+      mask = mask.astype(bool)
+      del maskim
+   else:
+      mask = None
+
+   """ Convert the texp to a 2-d array if it is not one already """
+   if texp is not None:
+      if type(texp) != np.ndarray:
+         exptime = np.ones(data.shape) * texp
+      else:
+         exptime = texp
+
+   """
+   Determine the clipped RMS in the input image, which is a good proxy
+   for the RMS in the blank sky pixels.  Use the mask to exclude bad
+   pixels before doing the calculation.  Use the statcent and statsec
+   parameters to define the region to use for the calculation, otherwise
+   use the whole image.
+   """
+   im.sigma_clip(mask=mask, hext=hext, verbose=verbose)  # Put in the statsec later...
+   if units == 'counts':
+      rms = sqrt(im.rms_clip**2 - rdnoise**2)  # Think about the 'cps' case
+   else:
+      rms = im.rms_clip
+   var = np.ones(data.shape) * rms**2
+
+   """
+   Now that the base level of the variance has been set, add the Poisson
+   noise for pixels associated with objects.  Define these pixels as the
+   ones where (after smoothing) the pixel value is more than 1 sigma above
+   the clipped mean (which is a good proxy for the sky level).
+   """
+   bgsub = data - im.mean_clip
+   snrsmo = filters.gaussian_filter(bgsub / rms, 1.)
+   snrmask = (snrsmo > 1.) & (mask)
+
+   """
+   Determine the Poisson noise based on the units.  For the
+   four cases, the additional amount to add for the relevant pixels is:
+     1. units == 'counts':  gain * pixval
+     2. [Needs to be double-checked]
+     3. units == 'e-':      pixval
+     4. units == 'eps':     pixval / texp
+   """
+   if verbose:
+      print ''
+      print 'Adding the Poisson noise'
+      print '------------------------'
+
+   if units == 'counts':
+      var[snrmask] += gain * bgsub[snrmask]
+   elif units == 'cps':
+      var[snrmask] += gain * bgsub[snrmask] / exptime[snrmask]
+   elif units == 'e-':
+      var[snrmask] += bgsub[snrmask]
+   elif units == 'eps':
+      var[snrmask] += (data[snrmask] + origbkgd) / exptime[snrmask]
+   if verbose:
+      print 'Done'
+
+   """ Clean up """
+   del im, mask, texp, gain
+
+   """ Write to output files if requested """
+   if outsnr is not None:
+      pf.PrimaryHDU(bgsub / var**0.5).writeto(outsnr, clobber=True)
+      del bgsub
+   if outfile is not None:
+      if outtype == 'rms':
+         pf.PrimaryHDU(var**0.5).writeto(outfile, clobber=True)
+      else:
+         pf.PrimaryHDU(var).writeto(outfile, clobber=True)
+   if returnvar:
+      return var
+   else:
+      del var
+
+# ---------------------------------------------------------------------------
+
 def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
    """
    Coadds the input data files after first masking out discrepant pixels
@@ -2299,9 +2467,9 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
    noisemed = med.rms_clip
 
    """ initialize 3d arrays with zeros """
-   insci  = n.zeros((len(infiles), y0, x0))
-   wht    = n.zeros((len(infiles), y0, x0))
-   newwht = n.zeros((len(infiles), y0, x0))
+   insci  = np.zeros((len(infiles), y0, x0))
+   wht    = np.zeros((len(infiles), y0, x0))
+   newwht = np.zeros((len(infiles), y0, x0))
 
    """ Find and mask the bad pixels, and the area around them """
    print ''
@@ -2317,7 +2485,7 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
       insci_i = insci[i, :, :].copy()
       whti = imf.Image(whtfile, verbose=False)
       wht[i, :, :] = whti.hdu[0].data.copy()
-      tmpwht = n.ones(whti.hdu[0].data.shape)
+      tmpwht = np.ones(whti.hdu[0].data.shape)
 
       '''Mask pixels associated with weight of zero'''
       mask = whti.hdu[0].data != 0
@@ -2331,13 +2499,13 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
       """
       imi.sigma_clip(mask=mask)
       noisei = imi.rms_clip
-      noise = msqrt(noisei**2 + noisemed**2)
+      noise = sqrt(noisei**2 + noisemed**2)
       diffi = (insci_i - meddata) * newwhti
       mask2 = diffi > (3 * noise)
 
       ''' Grow the masked region around the bad pixels '''
       tmpwht[mask2] = 0
-      tmp2 = minimum_filter(tmpwht, size=3)
+      tmp2 = filters.minimum_filter(tmpwht, size=3)
       # outfile = "tmp%d.fits" %i
       wht[i, :, :] *= tmp2
       # newwht[i,:,:] *= tmp2

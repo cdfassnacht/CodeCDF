@@ -1187,8 +1187,7 @@ class Image:
       """
 
       Selects the data in the subimage defined by the bounds x1, x2, y1, y2.
-      These bounds are all contained within the Image class itself, and
-      were either set directly (e.g., by a call to imcopy) or by the
+      These were either set directly (e.g., by a call to imcopy) or by the
       get_subim_bounds function (which takes a subimage center and size)
 
       Inputs:
@@ -1452,7 +1451,8 @@ class Image:
 
       """ Get the pixel statistics """
       self.sigma_clip(statsec=statsec)
-      print 'RMS = %f' % self.rms_clip
+      if verbose:
+         print 'RMS = %f' % self.rms_clip
       return self.rms_clip
 
    # -----------------------------------------------------------------------
