@@ -2310,6 +2310,7 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
    """
    units_ok = False
    validtypes = [float, np.float32, np.float64, np.ndarray, int]
+
    if (units == 'counts' or units == 'cps'):
       units_ok = True
       if gain is None:
@@ -2318,6 +2319,7 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
       if check_type(gain, validtypes) is not True:
          print 'Error: gain must either be a single number or a 2-D array'
          raise TypeError
+
    if (units == 'cps' or units == 'eps'):
       units_ok = True
       if texp is None:
@@ -2326,6 +2328,7 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
       if check_type(texp, validtypes) is not True:
          print 'Error: texp must either be a single number or a 2-D array'
          raise TypeError
+
    if units == 'e-':
       units_ok = True
 
@@ -2397,11 +2400,11 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
       print '------------------------'
 
    if units == 'counts':
-      var[snrmask] += gain * bgsub[snrmask]
+      var[snrmask] += gain * (data[snrmask] + origbkgd)
    elif units == 'cps':
-      var[snrmask] += gain * bgsub[snrmask] / exptime[snrmask]
+      var[snrmask] += gain * (data[snrmask] + origbkgd) / exptime[snrmask]
    elif units == 'e-':
-      var[snrmask] += bgsub[snrmask]
+      var[snrmask] += (data[snrmask] + origbkgd)
    elif units == 'eps':
       var[snrmask] += (data[snrmask] + origbkgd) / exptime[snrmask]
    if verbose:
