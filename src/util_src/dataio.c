@@ -1307,9 +1307,12 @@ int write_secat(Secat *secat, int ncat, char *outname, int format)
 		sptr->r2,sptr->r5,sptr->r8);
 	fprintf(ofp,"%11.7f %+11.7f %8.2f %8.2f %8.2f ",
 		sptr->alpha,sptr->delta,sptr->dx,sptr->dy,sptr->dpos);
-	fprintf(ofp,"%02d %02d %08.5f %+03d %02d %07.4f\n",
+	/*
+	fprintf(ofp,"%02d %02d %08.5f %+03d %02d %07.4f",
 		sptr->skypos.hr,sptr->skypos.min,sptr->skypos.sec,
 		sptr->skypos.deg,sptr->skypos.amin,sptr->skypos.asec);
+	*/
+	fprintf(ofp,"\n");
 	break;
       case 9: case 10:
 	fprintf(ofp,"%s %11.7f %+11.7f  %5.2f %5.2f  ",

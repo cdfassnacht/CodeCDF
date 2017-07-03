@@ -218,6 +218,10 @@ class Secat:
       if verbose:
          print "Number of rows:    %d" % nrows
          print "Number of columns: %d" % ncols
+         if self.rafield is not None:
+            print 'RA field name:  %s' % self.rafield
+         if self.decfield is not None:
+            print 'Dec field name: %s' % self.decfield
 
       self.infile = infile
       self.catformat = catformat

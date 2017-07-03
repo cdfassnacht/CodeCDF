@@ -1586,11 +1586,11 @@ class Image:
       """ 
       Cut the file, and then update the CRPIXn header cards if they're there 
       """
-      print "imcopy: Cutting out region between (%d,%d) and (%d,%d)" % \
+      print "imcopy: Cutting out region between ((%d,%d)) and ((%d,%d))" % \
           (x1, y1, x2, y2)
       outdat = self.hdu[hext].data[y1:y2, x1:x2].copy()
-      inhdr.update('ORIG_IM', 'Copied from %s with region[%d:%d,%d:%d]' % 
-                   (self.infile, x1, x2, y1, y2))
+      inhdr['ORIG_IM'] = 'Copied from %s with region[%d:%d,%d:%d]' % \
+          (self.infile, x1, x2, y1, y2)
       print ""
       print "Updating CRPIXn header cards if they exist"
       print "------------------------------------------"
@@ -1604,11 +1604,15 @@ class Image:
       except:
          print "   No CRPIX2 header found"
          crpix2 = np.nan
-      if np.isnan(crpix1) is False:
+      if np.isnan(crpix1):
+         pass
+      else:
          inhdr['crpix1'] -= x1
          print "   Updating CRPIX1:  %8.2f --> %8.2f" % \
              (crpix1, inhdr['crpix1'])
-      if np.isnan(crpix2) is False:
+      if np.isnan(crpix2):
+         pass
+      else:
          inhdr['crpix2'] -= y1
          print "   Updating CRPIX2:  %8.2f --> %8.2f" % \
              (crpix2, inhdr['crpix2'])
