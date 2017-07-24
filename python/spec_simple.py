@@ -11,6 +11,8 @@ NOTE: More and more of the previous stand-alone functionality has been moved
  will probably not be moved.  These include the list below.
 
 Stand-alone functions:
+   combine_spectra    - takes a list of input spectra and does a inverse-
+                        variance weighted sum of the flux densities
    plot_model_sky_ir  - plots the NIR sky transmission as well as the night-sky
                         emission lines to aid in planning NIR spectroscopy
                         observations.
@@ -57,15 +59,16 @@ class Spec1d():
       Reads in the input 1-dimensional spectrum.
       This can be done in two mutually exclusive ways:
 
-        1. By providing some 1-d arrays containing the wavelength vector,
-           the flux vector, and, optionally, the variance vector.
+        1. By providing some 1-d arrays containing the wavelength array,
+           the flux array, and, optionally, the variance array and the
+           sky .
 
                  ---- or ----
 
         2. By providing the name of a file that contains the spectrum.
             There are four possible input file formats:
               fits: A multi-extension fits file
-                    Extension 1 is the wavelength vector
+                    Extension 1 is the wavelength
                     Extension 2 is the extracted spectrum (flux)
                     Extension 3 is the variance spectrum
                     [OPTIONAL] Extension 4 is the sky spectrum
@@ -2713,7 +2716,62 @@ def resample_spec(w, spec, owave=None):
 # -----------------------------------------------------------------------
 
 
-def combine_spectra(txt_files, outfile):
+def combine_spectra(file_list, outfile, informat='text', **kwargs):
+   """
+   Given a list of input spectra, reads in
+   the files and does an inverse-variance weighted combination of the flux
+   """
+
+   """ Read in the input spectra """
+   inspec = []
+   for f in file_list:
+      tmpspec = Spec1d(f, informat)
+      inspec.append(tmpspec)
+
+   """ Initialize """
+   nx = inspec[0].wav.size
+   wtflux = np.zeros(nx)
+   skysum = np.zeros(nx)
+   wtsum  = np.zeros(nx)
+
+   """ Create the weighted sum """
+   print ""
+   for spec in inspec:
+      wt = np.zeros(nx)
+      wt[spec.var != 0] = 1.0 / spec.var
+      wtflux += wt * spec.flux
+      if spec.sky is not None:
+         skysum += spec.sky
+      wtsum += wt
+      del wt
+
+   """
+   Normalize the flux, and calculate the variance of the coadded spectrum.
+   Note that the equation below for the variance only works for the case
+    of inverse variance weighting.
+   """
+   wtflux[wtsum == 0] = 0
+   wtsum[wtsum == 0] = 1
+   outflux = wtflux / wtsum
+   outvar  = 1.0 / wtsum
+   if inspec[0].sky is None:
+      outsky = None
+   else:
+      outsky = skysum / len(inspec)
+
+   """ Create a Spec1d structure for the output spectrum """
+   outspec = Spec1d(wav=inspec[0].wav, flux=outflux, var=outvar, sky=outsky)   
+
+   """ Plot the combined spectrum """
+   outspec.plot(title='Combined spectrum', kwargs)
+
+   """ Save the combined spectrum """
+   outspec.save(outfile, outformat=informat)
+
+# -----------------------------------------------------------------------
+
+
+def combine_spectra_old(txt_files, outfile):
    """
    Given the input spectra, stored as text files (e.g., "vega*txt"), reads in
    the files and does an inverse-variance weighted combination of the counts
