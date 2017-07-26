@@ -2716,7 +2716,7 @@ def resample_spec(w, spec, owave=None):
 # -----------------------------------------------------------------------
 
 
-def combine_spectra(file_list, outfile, informat='text', **kwargs):
+def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
    """
    Given a list of input spectra, reads in
    the files and does an inverse-variance weighted combination of the flux
@@ -2763,7 +2763,7 @@ def combine_spectra(file_list, outfile, informat='text', **kwargs):
    outspec = Spec1d(wav=inspec[0].wav, flux=outflux, var=outvar, sky=outsky)   
 
    """ Plot the combined spectrum """
-   outspec.plot(title='Combined spectrum', kwargs)
+   outspec.plot(title='Combined spectrum', xlabel=xlabel)
 
    """ Save the combined spectrum """
    outspec.save(outfile, outformat=informat)
