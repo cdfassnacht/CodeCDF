@@ -16,6 +16,7 @@ Stand-alone functions:
    plot_model_sky_ir  - plots the NIR sky transmission as well as the night-sky
                         emission lines to aid in planning NIR spectroscopy
                         observations.
+   plot_blue_and_red  - Plots a blue-side and red-side spectrum on the same plot
    xxxx               - more descriptions here
 
 """
@@ -2020,7 +2021,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
 
 def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
                       bscale=10., xlim=[3000., 9500.], title='default',
-                      z=None, mark_em=False, mark_abs=True):
+                      z=None, mark_em=False, mark_abs=True, informat='text'):
    """
    Creates a single plot given files that contain data from the blue and red
    sides of a spectrograph.
@@ -2051,63 +2052,42 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
    """
 
    """ Read in the spectra, including the scaling for the blue side """
-   wb, fb, vb = read_spectrum(bluefile)
-   wr, fr, vr = read_spectrum(redfile)
-   fb *= bscale
-   if vb is not None:
-      vb *= bscale
+   bspec = Spec1d(infile=bluefile, informat=informat)
+   rspec = Spec1d(infile=redfile, informat=informat)
+   bspec.flux *= bscale
+   if bspec.var is not None:
+      bspec.var *= bscale
 
    """ Smooth the data """
    if smooth_width is None:
-      smb  = fb
-      smvb = vb
-      smr  = fr
-      smvr = vr
+      usesmooth = False
    else:
-      from scipy.ndimage.filters import uniform_filter as unif_filt
-      if vb is None:
-         tmpvb = np.ones(wb.size)
-      else:
-         tmpvb = vb
-      if vr is None:
-         tmpvr = np.ones(wr.size)
-      else:
-         tmpvr = vr
-      wtb = 1./tmpvb
-      wtr = 1./tmpvr
-      tmpb = wtb * fb
-      tmpr = wtr * fr
-      smb = unif_filt(tmpb, smooth_width)
-      smb /= unif_filt(wtb, smooth_width)
-      smr = unif_filt(tmpr, smooth_width)
-      smr /= unif_filt(wtr, smooth_width)
-      if vb is None:
-         smvb = None
-      else:
-         smvb = 1.0 / (smooth_width * unif_filt(wtb, smooth_width))
-      if vr is None:
-         smvr = None
-      else:
-         smvr = 1.0 / (smooth_width * unif_filt(wtr, smooth_width))
+      bspec.smooth_boxcar(smooth_width)
+      rspec.smooth_boxcar(smooth_width)
+      usesmooth = True
 
    """ Plot the spectra """
-   plot_spectrum_array(wb, smb, smvb, rmscolor='k')
-   plot_spectrum_array(wr, smr, smvr, speccolor='r', rmscolor='k')
+   bspec.plot(rmscolor='k', usesmooth=usesmooth)
+   rspec.plot(speccolor='r', rmscolor='k', usesmooth=usesmooth)
    plt.xlim(xlim[0], xlim[1])
 
    """ Mark the lines if the redshift is given """
    if z is not None:
       is_z_shown = False
-      w = np.concatenate((wb, wr))
-      f = np.concatenate((smb, smr))
+      w = np.concatenate((bspec.wav, rspec.wav))
+      if smooth_width is None:
+         f = np.concatenate((bspec.flux, rspec.flux))
+      else:
+         f = np.concatenate((bspec.smoflux, rspec.smoflux))
+      combspec = Spec1d(wav=w, flux=f)
       if mark_em:
-         mark_spec_emission(z, w, f)
+         combspec.mark_speclines('em', z)
          is_z_shown = True
       if mark_abs:
          if is_z_shown:
-            mark_spec_absorption(z, w, f, showz=False)
+            combspec.mark_speclines('abs', z, showz=False)
          else:
-            mark_spec_absorption(z, w, f)
+            combspec.mark_speclines('abs', z)
 
 
 # -----------------------------------------------------------------------
@@ -2760,7 +2740,7 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
       outsky = skysum / len(inspec)
 
    """ Create a Spec1d structure for the output spectrum """
-   outspec = Spec1d(wav=inspec[0].wav, flux=outflux, var=outvar, sky=outsky)   
+   outspec = Spec1d(wav=inspec[0].wav, flux=outflux, var=outvar, sky=outsky)
 
    """ Plot the combined spectrum """
    outspec.plot(title='Combined spectrum', xlabel=xlabel)
