@@ -2,9 +2,19 @@
 spec_simple.py - A library of functions to do various basic spectroscopy
  processing and plotting operations
 
-Classes (UNDER CONSTRUCTION, BUT GETTING THERE...)
-  Spec1d
+Classes and their most useful methods (UNDER CONSTRUCTION, BUT GETTING THERE.)
   Spec2d
+     display_spec
+     spatial_profile
+     find_and_trace
+     extract_spectrum
+  Spec1d
+     plot
+     smooth_boxcar
+     plot_sky
+     apply_wavecal_linear (NEEDS TO BE CHANGED TO ACCEPT A POLYFIT POLYNOMIAL)
+     mark_speclines
+     save
 
 NOTE: More and more of the previous stand-alone functionality has been moved
  into either the Spec1d or  Spec2d class.  However, some stand-alone functions
@@ -1546,62 +1556,6 @@ class Spec2d(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def extract_old(self, weight='gauss', sky=None, gain=1.0, rdnoise=0.0):
-        """
-        This method contains the old code that was used to do the extraction
-        of a 1-D spectrum from the 2-D spectrum in the extract_spectrum
-        method.  It has been split out from that while a new method that
-        is more compact and may be faster is developed.  Once the new
-        method has been written and is shown to produce the same results
-        as this old code, the old code will be deleted.
-        By splitting this code out in this way and allowing it to be
-        called from the extract_spectrum method, we can make the changeover
-        from the old code to the new code transparent to the user.
-        """
-
-        """ Set the wavelength axis """
-        pix = np.arange(self.npix)
-
-        """
-        Set up the containers for the amplitude and variance of the spectrum
-        along the trace
-        """
-        amp = 0.0 * pix
-        var = 0.0 * pix
-        skyspec = 0.0 * pix
-
-        """ Extract the spectrum """
-        print ""
-        print "Extracting the spectrum..."
-        apmin = self.apmin
-        apmax = self.apmax
-        for i in pix:
-            if self.specaxis == 0:
-                tmpdata = self.data[i, :]
-            else:
-                tmpdata = self.data[:, i]
-            if sky is None:
-                skyval = None
-            else:
-                skyval = sky[i]
-
-            amp[i], var[i], skyspec[i] = \
-                extract_wtsum_col(tmpdata, self.mu[i], apmin, apmax,
-                                  sig=self.sig[i], gain=gain, rdnoise=rdnoise,
-                                  sky=skyval, weight=weight)
-        print "    Done"
-
-        """ Get the wavelength/pixel vector """
-        self.get_wavelength()
-
-        """ Create a Spec1d container for the extracted spectrum """
-        if sky is not None:
-            skyspec = sky
-        self.spec1d = Spec1d(wav=self.wavelength, flux=amp, var=var,
-                             sky=skyspec)
-
-    # -----------------------------------------------------------------------
-
     def extract_horne(self, gain=1.0, rdnoise=0.0):
         """
 
@@ -1914,56 +1868,6 @@ def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
 
     """ Clean up """
     del sky, skysub, ssrms, tmpsub, szapped
-
-# -----------------------------------------------------------------------
-
-
-def find_blank_columns(data, comp_axis=0, output_dims=1, findblank=False):
-    """
-    Takes 2-dimensional data and outputs indices of columns not entirely
-    composed of zeros. If output_dims is 1, only the indices of the columns
-    are give. If output_dims = 2, the indices for every point in any of these
-    columns are given. By default, it is actually non-blank columns that are
-    found. Setting findblank to True switches this.
-    """
-    if data.ndim != 2:
-        sys.exit("find_blank_columns takes only 2-dimensional data")
-    if output_dims == 1:
-        fbc_tmp = np.zeros(np.shape(data)[1-comp_axis])
-        condind = int(np.shape(data)[comp_axis] / 2)
-        if comp_axis == 0:
-            gprelim = np.where(data[condind, :] == 0)[0]
-            for ifbc in range(0, len(gprelim)):
-                if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
-                    fbc_tmp[gprelim[ifbc]] = 1
-        else:
-            gprelim = np.where(data[:, condind] == 0)[0]
-            for ifbc in range(0, len(gprelim)):
-                if len(data[data[gprelim[ifbc], :] != 0]) == 0:
-                    fbc_tmp[gprelim[ifbc]] = 1
-        if findblank:
-            fbc_tmp = 1-fbc_tmp
-        gfbc = np.where(fbc_tmp == 0)[0]
-    elif output_dims == 2:
-        fbc_tmp = np.zeros(np.shape(data))
-        if comp_axis == 0:
-            gprelim = np.where(data[condind, :] == 0)[0]
-            for ifbc in range(0, len(gprelim)):
-                if len(data[data[:, gprelim[ifbc]] != 0]) == 0:
-                    fbc_tmp[:, gprelim[ifbc]] = 1
-        else:
-            gprelim = np.where(data[:, condind] == 0)[0]
-            for ifbc in range(0, len(gprelim)):
-                if len(data[data[gprelim[ifbc], :] != 0]) == 0:
-                    fbc_tmp[gprelim[ifbc], :] = 1
-        if findblank:
-            fbc_tmp = 1-fbc_tmp
-        gfbc = np.where(fbc_tmp == 0)
-    else:
-        sys.exit('output_dims parameter for find_blank_columns must be either'
-                 '1 or 2. Value was: ' + str(output_dims))
-    return gfbc
-
 
 # -----------------------------------------------------------------------
 
@@ -2698,6 +2602,8 @@ def resample_spec(w, spec, owave=None):
      (spec), resample onto a linearized wavelength grid.  The grid can either
      be defined by the input wavelength range itself (the default) or by
      a wavelength vector that is passed to the function.
+
+    *** MOVE TO SPEC1D CLASS ***
     """
 
     if owave is None:
@@ -2764,51 +2670,6 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
 
     """ Save the combined spectrum """
     outspec.save(outfile, outformat=informat)
-
-# -----------------------------------------------------------------------
-
-
-def combine_spectra_old(txt_files, outfile):
-    """
-    Given the input spectra, stored as text files (e.g., "vega*txt"), reads in
-    the files and does an inverse-variance weighted combination of the counts
-    columns.
-    """
-
-    file_list = glob.glob(txt_files)
-
-    """ Setup """
-    tmpdat = np.loadtxt(file_list[0])
-    wavelength = tmpdat[:, 0].copy()
-    wtflux = wavelength * 0.0
-    wtsum  = wavelength * 0.0
-
-    """ Create the weighted sum """
-    print ""
-    for f in file_list:
-        print "Reading data from file %s" % f
-        wi, fi, vi = np.loadtxt(f, unpack=True, usecols=(0, 1, 2))
-        wt = 1.0 / vi
-        wt[vi == 0] = 0.
-        wtflux += wt * fi
-        wtsum += wt
-
-    """
-    Normalize the flux, and calculate the variance of the coadded spectrum.
-    Note that the equation below for the variance only works for the case
-     of inverse variance weighting.
-    """
-    wtflux[wtsum == 0] = 0
-    wtsum[wtsum == 0] = 1
-    outspec = wtflux / wtsum
-    outvar  = 1.0 / wtsum
-
-    """ Plot the combined spectrum """
-    plot_spectrum_array(wavelength, outspec, outvar, xlabel="Pixels",
-                        title="Combined spectrum")
-
-    print "Saving the combined spectrum"
-    save_spectrum(outfile, wavelength, outspec, outvar)
 
 # -----------------------------------------------------------------------
 
