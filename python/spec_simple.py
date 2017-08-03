@@ -31,8 +31,8 @@ Stand-alone functions:
 
 """
 
-import sys
-import glob
+# import sys
+# import glob
 from math import sqrt, pi
 try:
     from astropy.io import fits as pf
@@ -40,6 +40,7 @@ except:
     import pyfits as pf
 import numpy as np
 from scipy import optimize, interpolate, ndimage
+from scipy.ndimage import filters
 import matplotlib.pyplot as plt
 import imfuncs as imf
 import ccdredux as ccd
@@ -1069,7 +1070,7 @@ class Spec2d(imf.Image):
         ax1 = plt.subplot(pltnum_main)
         self.display()
 
-        """ Plot the substracted sky spectrum if desired """
+        """ Plot the subtracted sky spectrum if desired """
         if doskysub:
             plt.subplot(412, sharex=ax1, sharey=ax1)
             plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
@@ -1192,6 +1193,55 @@ class Spec2d(imf.Image):
 
     # -----------------------------------------------------------------------
 
+    def szap(self, outfile, sigmax=5., boxsize=7):
+        """
+
+        Rejects cosmic rays from a 2D spectrum via the following
+        1. Creates the median sky from the spectrum
+        2. Subtracts the sky from the spectrum
+        3. Divides the subtracted spectrum by the square root of the sky, which
+           gives it a constant rms
+        4. Rejects pixels that exceed a certain number of sigma
+        5. Adds the sky back in
+
+        """
+
+        """ Subtract the sky  """
+        self.subtract_sky_2d()
+        skysub = self.skysub.copy()
+
+        """
+        Divide the result by the square root of the sky to get a rms image
+        """
+        ssrms = skysub / np.sqrt(self.sky2d)
+        m, s = ccd.sigma_clip(ssrms)
+
+        """ Now subtract a median-filtered version of the spectrum """
+        tmpsub = ssrms - filters.median_filter(ssrms, boxsize)
+
+        """
+        Make a bad pixel mask that contains pixels in tmpsub with
+         values > sigmax*s
+        """
+        mask = tmpsub > sigmax * s
+        tmpsub[mask] = m
+
+        """ Replace the bad pixels in skysub with a median-filtered value """
+        m2, s2 = ccd.sigma_clip(self.skysub)
+        skysub[mask] = m2
+        ssfilt = filters.median_filter(skysub, boxsize)
+        skysub[mask] = ssfilt[mask]
+
+        """ Add the sky back in and save the final result """
+        szapped = skysub + self.sky
+        pf.PrimaryHDU(szapped).writeto(outfile)
+        print ' Wrote szapped data to %s' % outfile
+
+        """ Clean up """
+        del skysub, ssrms, tmpsub, szapped
+
+    # -----------------------------------------------------------------------
+
     def locate_trace(self, pixrange=None, init=None, fix=None,
                      showplot=True, do_subplot=False, ngauss=1,
                      verbose=True):
@@ -1307,9 +1357,9 @@ class Spec2d(imf.Image):
                     mustr = 'offset_%d' % j
                 print "%-9s          %9.3f     %3s     %9.3f" \
                     % (mustr, p_init[ind], fixstr[ind], p_out[ind])
-                print "sigma_%d             %9.3f     %3s     %9.3f" \
+                print "sigma_%d            %9.3f    %3s    %9.3f" \
                     % (j, p_init[ind+1], fixstr[ind+1], p_out[ind+1])
-                print "amp_%d                %9.3f     %3s     %9.3f" \
+                print "amp_%d              %9.3f    %3s    %9.3f" \
                     % (j, p_init[ind+2], fixstr[ind+2], p_out[ind+2])
             print ""
 
@@ -1800,74 +1850,6 @@ def load_2d_spectrum(filename, hdu=0):
     print 'Loaded a 2-dimensional spectrum from %s' % filename
     print 'Data dimensions (x y): %dx%d' % (data.shape[1], data.shape[0])
     return data
-
-# -----------------------------------------------------------------------
-
-
-def zap_cosmic_rays(data, outfile, sigmax=5., boxsize=7, dispaxis="x"):
-    """
-    A method to reject cosmic rays from a 2D spectrum via the following steps:
-      1. Creates the median sky from the spectrum
-      2. Subtracts the sky from the spectrum
-      3. Divides the subtracted spectrum by the square root of the sky, which
-          gives it a constant rms
-      4. Rejects pixels that exceed a certain number of sigma
-      5. Adds the sky back in
-    """
-
-    from scipy.ndimage import filters
-
-    """ Set the dispersion axis direction """
-    if dispaxis == "y":
-        spaceaxis = 1
-    else:
-        spaceaxis = 0
-
-    """ Take the median along the spatial direction to estimate the sky """
-    if data.ndim < 2:
-        print ""
-        print "ERROR: zap_cosmic_rays needs a 2 dimensional data set"
-        return
-    else:
-        sky1d = np.median(data, axis=spaceaxis)
-    sky = np.zeros(data.shape)
-    for i in range(data.shape[spaceaxis]):
-        if spaceaxis == 1:
-            sky[:, i] = sky1d
-        else:
-            sky[i, :] = sky1d
-
-    """ Subtract the sky  """
-    skysub = data - sky
-
-    """
-    Divide the result by the square root of the sky to get a rms image
-    """
-    ssrms = skysub / np.sqrt(sky)
-    m, s = ccd.sigma_clip(ssrms)
-
-    """ Now subtract a median-filtered version of the spectrum """
-    tmpsub = ssrms - filters.median_filter(ssrms, boxsize)
-
-    """
-    Make a bad pixel mask that contains pixels in tmpsub with values > sigmax*s
-    """
-    mask = tmpsub > sigmax * s
-    tmpsub[mask] = m
-
-    """ Replace the bad pixels in skysub with a median-filtered value """
-    m2, s2 = ccd.sigma_clip(skysub)
-    skysub[mask] = m2
-    ssfilt = filters.median_filter(skysub, boxsize)
-    skysub[mask] = ssfilt[mask]
-
-    """ Add the sky back in and save the final result """
-    szapped = skysub + sky
-    pf.PrimaryHDU(szapped).writeto(outfile)
-    print ' Wrote szapped data to %s' % outfile
-
-    """ Clean up """
-    del sky, skysub, ssrms, tmpsub, szapped
 
 # -----------------------------------------------------------------------
 
