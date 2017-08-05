@@ -1793,7 +1793,7 @@ class Image:
 
    # -----------------------------------------------------------------------
 
-   def set_display_limits(self, fmin=-1., fmax=10., funits='sigma',
+   def set_display_limits(self, fmin=-1., fmax=10., funits='sigma', hext=0,
                           verbose=False):
       """
 
@@ -1873,7 +1873,7 @@ class Image:
          if self.found_rms is False:
             print "Calculating display limits"
             print "--------------------------"
-            self.sigma_clip(verbose=verbose)
+            self.sigma_clip(hext=hext, verbose=verbose)
             self.found_rms = True
 
          """ If disprange is not set, then query the user for the range """
@@ -2011,7 +2011,7 @@ class Image:
          self.extval = None
 
       """ Set the image flux display limits """
-      self.set_display_limits(fmin, fmax, funits)
+      self.set_display_limits(fmin, fmax, funits, hext=hext)
       self.fscale = fscale
 
       """ Set the color map """

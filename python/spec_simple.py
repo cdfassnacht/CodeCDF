@@ -135,14 +135,14 @@ class Spec1d():
         """
 
         """ Initialize some variables """
-        self.wav  = None
+        self.wav = None
         self.flux = None
-        self.var  = None
-        self.sky  = None
+        self.var = None
+        self.sky = None
         self.varspec = None
-        self.infile  = None
+        self.infile = None
         self.smoflux = None
-        self.smovar  = None
+        self.smovar = None
 
         """ Check inputs """
         self.logwav = logwav
@@ -795,18 +795,20 @@ class Spec2d(imf.Image):
         self.dispaxis  = 'x'
         self.specaxis  = 1
         self.spaceaxis = 0
-        self.extvar     = None
-        self.sky1d      = None
-        self.sky2d      = None
-        self.skysub     = None
-        self.spec1d     = None
+        self.extvar = None
+        self.sky1d = None
+        self.sky2d = None
+        self.skyext = None
+        self.skysub = None
+        self.ssext = None
+        self.spec1d = None
         self.fitrange  = None
-        self.apmin      = -4.
-        self.apmax      = 4.
-        self.muorder    = 3
-        self.sigorder  = 3
-        self.p0          = None  # Parameters of fit to the spatial profile
-        self.logwav     = logwav
+        self.apmin = -4.
+        self.apmax = 4.
+        self.muorder = 3
+        self.sigorder = 3
+        self.p0 = None  # Parameters of fit to the spatial profile
+        self.logwav = logwav
 
         """
         Read in the data and call the superclass initialization for useful
@@ -1036,63 +1038,6 @@ class Spec2d(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def display_spec(self, doskysub=True):
-        """
-        Displays the two-dimensional spectrum and also, by default, the
-        same spectrum after a crude sky subtraction.  To show only the
-        input spectrum without the additional sky-subtracted version,
-        just set show_skysub=False
-
-        Optional inputs:
-            show_skysub - If this is True (the default) then make a second
-                           plot, showing the 2-D spectrum after a crude
-                           sky-subtraction has been performed.
-        """
-
-        if doskysub:
-
-            """ Subtract the sky if this has not already been done """
-            if self.skysub is None:
-                self.subtract_sky_2d()
-
-            """ Set the subplot designation for the main spectrum """
-            pltnum_main = 411
-
-            """ Get rid of the space between the subplots"""
-            # plt.figure(1)
-            plt.subplots_adjust(hspace=0.001)
-
-        else:
-            """ If no sky subtraction, then we just have one plot """
-            pltnum_main = 111
-
-        """ Plot the input spectrum """
-        ax1 = plt.subplot(pltnum_main)
-        self.display()
-
-        """ Plot the subtracted sky spectrum if desired """
-        if doskysub:
-            plt.subplot(412, sharex=ax1, sharey=ax1)
-            plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
-
-            plt.subplot(212, sharex=ax1)
-            print self.sky1d.wav
-            print self.sky1d.flux
-            self.sky1d.plot(title=None)
-
-        """
-        For ease of viewing, only display part of the spectrum if it is
-        much longer in one dimension than the other
-        """
-        sfac = 7.5
-        if self.npix > sfac * self.nspat:
-            xmin = int(self.npix / 2. - (sfac/2.) * self.nspat)
-            xmax = int(self.npix / 2. + (sfac/2.) * self.nspat)
-            plt.xlim(xmin, xmax)
-        # plt.ylim(0, self.nspat)
-
-    # -----------------------------------------------------------------------
-
     def subtract_sky_2d(self, outfile=None, outsky=None):
         """
         Given the input 2D spectrum, creates a median sky and then subtracts
@@ -1123,12 +1068,81 @@ class Spec2d(imf.Image):
             self.sky1d = Spec1d(wav=pix, flux=tmp1d)
 
         """ Turn the 1-dimension sky spectrum into a 2-dimensional form """
-        self.sky2d = np.tile(self.sky1d.flux, (self.data.shape[spaceaxis], 1))
+        sky2d = np.tile(self.sky1d.flux, (self.data.shape[spaceaxis], 1))
+        skyhdu = pf.ImageHDU(sky2d, name='Sky')
+        self.hdu.append(skyhdu)
+        self.skyext = len(self.hdu) - 1
+        self.sky2d = self.hdu[self.skyext].data
 
         """ Subtract the sky from the data """
-        self.skysub = self.data - self.sky2d
+        skysub = self.data - sky2d
+        sshdu = pf.ImageHDU(skysub, name='SkySub')
+        self.hdu.append(sshdu)
+        self.ssext = len(self.hdu) - 1
+        self.skysub = self.hdu[self.ssext].data
 
-        # !! NOT DONE YET (needs possible saving of sky spectra) !! #
+        # !! NOT QUITE DONE YET (needs possible saving of sky spectra) !! #
+
+        """ Clean up """
+        del sky2d, skysub
+
+    # -----------------------------------------------------------------------
+
+    def display_spec(self, doskysub=True):
+        """
+        Displays the two-dimensional spectrum and also, by default, the
+        same spectrum after a crude sky subtraction.  To show only the
+        input spectrum without the additional sky-subtracted version,
+        just set show_skysub=False
+
+        Optional inputs:
+            show_skysub - If this is True (the default) then make a second
+                           plot, showing the 2-D spectrum after a crude
+                           sky-subtraction has been performed.
+        """
+
+        if doskysub:
+
+            """ Subtract the sky if this has not already been done """
+            if self.skysub is None:
+                self.subtract_sky_2d()
+
+            """ Set the subplot designation for the main spectrum """
+            pltnum_main = 411
+
+            """ Get rid of the space between the subplots"""
+            plt.subplots_adjust(hspace=0.001)
+
+        else:
+            """ If no sky subtraction, then we just have one plot """
+            pltnum_main = 111
+
+        """ Plot the input spectrum """
+        ax1 = plt.subplot(pltnum_main)
+        self.display()
+
+        """ Plot the subtracted sky spectrum if desired """
+        if doskysub:
+            plt.subplot(412, sharex=ax1, sharey=ax1)
+            self.found_rms = False
+            self.display(hext=self.ssext)
+            #plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
+
+            plt.subplot(212, sharex=ax1)
+            print self.sky1d.wav
+            print self.sky1d.flux
+            self.sky1d.plot(title=None)
+
+        """
+        For ease of viewing, only display part of the spectrum if it is
+        much longer in one dimension than the other
+        """
+        sfac = 7.5
+        if self.npix > sfac * self.nspat:
+            xmin = int(self.npix / 2. - (sfac/2.) * self.nspat)
+            xmax = int(self.npix / 2. + (sfac/2.) * self.nspat)
+            plt.xlim(xmin, xmax)
+        # plt.ylim(0, self.nspat)
 
     # -----------------------------------------------------------------------
 
@@ -1233,7 +1247,7 @@ class Spec2d(imf.Image):
         skysub[mask] = ssfilt[mask]
 
         """ Add the sky back in and save the final result """
-        szapped = skysub + self.sky
+        szapped = skysub + self.sky2d
         pf.PrimaryHDU(szapped).writeto(outfile)
         print ' Wrote szapped data to %s' % outfile
 
