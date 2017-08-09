@@ -1126,11 +1126,10 @@ class Spec2d(imf.Image):
             plt.subplot(412, sharex=ax1, sharey=ax1)
             self.found_rms = False
             self.display(hext=self.ssext)
-            #plt.imshow(self.skysub, origin='bottom', cmap='YlOrBr_r')
 
             plt.subplot(212, sharex=ax1)
-            print self.sky1d.wav
-            print self.sky1d.flux
+            # print self.sky1d.wav
+            # print self.sky1d.flux
             self.sky1d.plot(title=None)
 
         """
