@@ -2700,11 +2700,14 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
      in the code below, convert them back into the appropriate B-spline tuple
      format that interpolate.splev requires.
     """
-    moddir = __file__.split('spec_simple')[0]
-    if wstart >= 9000.:
-        modfile = '%sData/nirspec_skymodel.fits' % moddir
+    if __file__ == 'spec_simple.py':
+        moddir = '.'
     else:
-        modfile = '%sData/uves_skymodel.fits' % moddir
+        moddir = __file__.split('/spec_simple')[0]
+    if wstart >= 9000.:
+        modfile = '%s/Data/nirspec_skymodel.fits' % moddir
+    else:
+        modfile = '%s/Data/uves_skymodel.fits' % moddir
     modspec = Spec1d(modfile, informat='fitstab')
     if modspec is None:
         return None
@@ -3087,8 +3090,11 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
     if modfile != 'default':
         infile = modfile
     else:
-        infile = '%s/Data/atm_trans_maunakea.fits' \
-             % __file__.split('spec_simple')[0]
+        if __file__ == 'spec_simple.py':
+            moddir = '.'
+        else:
+            moddir = __file__.split('/spec_simple')[0]
+        infile = '%s/Data/atm_trans_maunakea.fits' % moddir
     print "Loading atmospheric data from %s" % infile
     atm0 = Spec1d(infile, informat='fitstab')
     atm0.wav *= 1.0e4
@@ -3177,7 +3183,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 
     """ Plot the atmospheric transmission spectrum """
     ax1 = plt.subplot(211)
-    atm.plot(color='g', title='Near IR Sky')
+    atm.plot(color='g', title='Near IR Sky', ylabel='Transmission')
     if z is not None:
         print atm.mark_speclines('strongem', z, marktype='line', showz=False)
     plt.xlim(xmin, xmax)
@@ -3185,7 +3191,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
 
     """ Plot the night-sky emission lines """
     plt.subplot(212, sharex=ax1)
-    skymod.plot(title=None)
+    skymod.plot(title=None, ylabel='Sky Emission')
     if z is not None:
         print atm.mark_speclines('strongem', z, marktype='line')
     plt.xlim(xmin, xmax)
