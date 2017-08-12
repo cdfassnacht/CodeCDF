@@ -31,19 +31,17 @@ NOTE: More and more of the previous stand-alone functionality has been moved
 
 """
 
-# import sys
-# import glob
 from math import sqrt, pi
+from scipy import optimize, interpolate, ndimage
+from scipy.ndimage import filters
+import matplotlib.pyplot as plt
 try:
     from astropy.io import fits as pf
 except:
     import pyfits as pf
 import numpy as np
-from scipy import optimize, interpolate, ndimage
-from scipy.ndimage import filters
-import matplotlib.pyplot as plt
 import imfuncs as imf
-import ccdredux as ccd
+import datafuncs as df
 
 # -----------------------------------------------------------------------
 
@@ -1226,11 +1224,11 @@ class Spec2d(imf.Image):
         """
         Divide the result by the square root of the sky to get a rms image
         """
-        ssrms = skysub / np.sqrt(self.sky2d)
-        m, s = ccd.sigma_clip(ssrms)
+        ssrms = df.DataGen(skysub / np.sqrt(self.sky2d))
+        m, s = ssrms.sigma_clip
 
         """ Now subtract a median-filtered version of the spectrum """
-        tmpsub = ssrms - filters.median_filter(ssrms, boxsize)
+        tmpsub = ssrms.data - filters.median_filter(ssrms, boxsize)
 
         """
         Make a bad pixel mask that contains pixels in tmpsub with
@@ -1240,8 +1238,9 @@ class Spec2d(imf.Image):
         tmpsub[mask] = m
 
         """ Replace the bad pixels in skysub with a median-filtered value """
-        m2, s2 = ccd.sigma_clip(self.skysub)
-        skysub[mask] = m2
+        # m2, s2 = df.sigma_clip(self.skysub)
+        self.sigma_clip(hext=self.ssext)
+        skysub[mask] = self.mean_clip
         ssfilt = filters.median_filter(skysub, boxsize)
         skysub[mask] = ssfilt[mask]
 
@@ -1397,19 +1396,19 @@ class Spec2d(imf.Image):
     # -----------------------------------------------------------------------
 
     def fit_poly_to_trace(self, x, data, fitorder, data0, fitrange=None,
-                          doplot=True, markformat='bo',
+                          nsig=3.0, doplot=True, markformat='bo',
                           ylabel='Centroid of Trace (0-indexed)',
                           title='Location of the Peak'):
 
         """ Do a sigma clipping to reject clear outliers """
         if fitrange is None:
-            tmpfitdat = data
+            tmpfitdat = df.DataGen(data)
         else:
             fitmask = np.logical_and(x >= fitrange[0], x < fitrange[1])
-            tmpfitdat = data[fitmask]
-        dmu, dsig = ccd.sigma_clip(tmpfitdat, 3.0)
-        goodmask = np.absolute(data - dmu) < 3.0 * dsig
-        badmask  = np.absolute(data - dmu) >= 3.0 * dsig
+            tmpfitdat = df.DataGen(data[fitmask])
+        dmu, dsig = tmpfitdat.sigma_clip(nsig=nsig)
+        goodmask = np.absolute(data - dmu) < nsig * dsig
+        badmask  = np.absolute(data - dmu) >= nsig * dsig
         dgood     = data[goodmask]
         dbad      = data[badmask]
         xgood     = x[goodmask]
@@ -1434,7 +1433,10 @@ class Spec2d(imf.Image):
         if fitorder == -1:
             dpoly[0] = data0
 
-        """ Calculate the fitted function """
+        """
+        Calculate the fitted function
+        REPLACE THIS WITH np.polyval
+        """
         fitx  = np.arange(self.npix).astype(np.float32)
         fity  = 0.0 * fitx
         for i in range(dpoly.size):

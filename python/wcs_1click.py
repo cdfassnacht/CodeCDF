@@ -60,7 +60,7 @@ crpix2 = n.zeros(len(files))
 for i in range(len(files)):
     im1 = imf.Image(files[i])
     im1.zoomsize = subimsize
-    im1.display(sighigh=30.)
+    im1.display(fmax=30.)
     im1.keypress_info()
     im1.start_interactive()
     plt.show()
