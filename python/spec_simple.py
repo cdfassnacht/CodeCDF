@@ -16,10 +16,6 @@ Classes and their most useful methods (UNDER CONSTRUCTION, BUT GETTING THERE.)
      mark_speclines
      save
 
-NOTE: More and more of the previous stand-alone functionality has been moved
- into either the Spec1d or  Spec2d class.  However, some stand-alone functions
- will probably not be moved.  These include the list below.
-
 Stand-alone functions:
     combine_spectra   - takes a list of input spectra and does a inverse-
                           variance weighted sum of the flux densities
@@ -28,6 +24,10 @@ Stand-alone functions:
                           observations.
     plot_blue_and_red - Plots a blue-side and red-side spectrum on one plot
     xxxx              - more descriptions here
+
+NOTE: More and more of the previous stand-alone functionality has been moved
+ into either the Spec1d or  Spec2d class.  However, some stand-alone functions
+ will probably not be moved.
 
 """
 
@@ -2418,179 +2418,6 @@ def extract_wtsum_col(spatialdat, mu, apmin, apmax, weight='gauss', sig=1.0,
 # -----------------------------------------------------------------------
 
 
-def find_trace(data, dispaxis="x", apmin=-4., apmax=4., doplot=True,
-               do_subplot=False):
-    """
-    First step in the reduction process.
-    Runs find_peak on the full 2d spectrum in order to set the initial
-     guess for trace_spectrum.
-    """
-    p = find_peak(data, dispaxis=dispaxis, apmin=apmin, apmax=apmax,
-                  showplot=doplot, do_subplot=do_subplot)
-    mu0  = p[1]
-    sig0 = p[2]
-    return mu0, sig0
-
-# -----------------------------------------------------------------------
-
-
-def fit_poly_to_trace(x, data, fitorder, data0, x_max, fitrange=None,
-                      doplot=True, markformat='bo', ylabel='Centroid of Trace',
-                      title='Location of the Peak'):
-
-    # Do a sigma clipping to reject clear outliers
-    if fitrange is None:
-        tmpfitdat = data
-    else:
-        fitmask = np.logical_and(x >= fitrange[0], x < fitrange[1])
-        tmpfitdat = data[fitmask]
-    dmu, dsig = ccd.sigma_clip(tmpfitdat, 3.0)
-    goodmask = np.absolute(data - dmu) < 3.0 * dsig
-    badmask  = np.absolute(data - dmu) >= 3.0 * dsig
-    dgood     = data[goodmask]
-    dbad      = data[badmask]
-    xgood     = x[goodmask]
-    xbad      = x[badmask]
-
-    # Fit a polynomial to the trace
-
-    if fitrange is None:
-        xpoly = xgood
-        dpoly = dgood
-    else:
-        fitmask = np.logical_and(xgood >= fitrange[0], xgood < fitrange[1])
-        # print fitmask
-        xpoly  = xgood[fitmask]
-        dpoly  = dgood[fitmask]
-
-    if fitorder == -1:
-        polyorder = 0
-    else:
-        polyorder = fitorder
-    dpoly = np.polyfit(xpoly, dpoly, polyorder)
-
-    if fitorder == -1:
-        dpoly[0] = data0
-
-    # Plot the results
-
-    ymin = dmu - 4.5*dsig
-    ymax = dmu + 4.5*dsig
-    if doplot:
-        plt.plot(x, data, markformat)
-        # plt.plot(xstep, mu, marker='o', mec='b', mfc='w', markersize=8,
-        #             linestyle='')
-        plt.xlabel("Pixel number in the dispersion direction")
-        plt.ylabel(ylabel)
-        plt.title(title)
-
-        # Show the value from the compressed spatial profile
-        plt.axhline(data0, color='k', linestyle='--')
-
-        # Mark the bad points that were not included in the fit
-        plt.plot(xbad, dbad, "rx", markersize=10, markeredgewidth=2)
-
-        # Show the fitted function
-        fitx = np.arange(0, x_max, 0.1)
-        fity = 0.0 * fitx
-        for i in range(dpoly.size):
-            fity += dpoly[i] * fitx**(dpoly.size - 1 - i)
-        plt.plot(fitx, fity, "r")
-
-        # Show the range of points included in the fit, if fitrange was set
-        if fitrange is not None:
-            plt.axvline(fitrange[0], color='k', linestyle=':')
-            plt.axvline(fitrange[1], color='k', linestyle=':')
-            xtmp = 0.5 * (fitrange[1] + fitrange[0])
-            xerr = xtmp - fitrange[0]
-            ytmp = fity.min() - 0.2 * fity.min()
-            plt.errorbar(xtmp, ytmp, xerr=xerr, ecolor="g", capsize=10)
-        plt.xlim(0, x_max)
-        plt.ylim(ymin, ymax)
-
-    # Return the parameters produced by the fit
-    print dpoly
-    return dpoly
-
-
-# -----------------------------------------------------------------------
-
-
-def trace_spectrum(data, mu0, sig0, dispaxis="x", stepsize=25, muorder=3,
-                   sigorder=4, fitrange=None, doplot=True, do_subplot=False):
-    """
-    Second step in the reduction process.
-    Fits a gaussian plus background to portions of the spectrum separated
-    by stepsize pixels (default is 25).
-    """
-
-    # Set the dispersion axis direction
-    if dispaxis == "y":
-        specaxis  = 0
-    else:
-        specaxis  = 1
-    xlength    = data.shape[specaxis]
-
-    # Define the slices through the 2D spectrum that will be used to find
-    #  the centroid and width of the object spectrum as it is traced down
-    #  the chip
-    xstep = np.arange(0, xlength-stepsize, stepsize)
-
-    # Set up containers for mu and sigma along the trace
-    mu = 0.0 * xstep
-    sigma = 0.0 * xstep
-    nsteps = np.arange(xstep.shape[0])
-
-    # Step through the data
-    print ""
-    print "Running fit_trace"
-    print "--------------------------------------------------------------- "
-    print "Finding the location and width of the peak at %d segments of " % \
-        nsteps.shape[0]
-    print"    the 2D spectrum..."
-    for i in nsteps:
-        if(specaxis == 0):
-            tmpdata = data[xstep[i]:xstep[i]+stepsize, :]
-        else:
-            tmpdata = data[:, xstep[i]:xstep[i]+stepsize]
-        ptmp = find_peak(tmpdata, dispaxis=dispaxis, showplot=False,
-                         verbose=False)
-        mu[i]     = ptmp[1]
-        sigma[i] = ptmp[2]
-    print "    Done"
-
-    # Fit a polynomial to the trace
-    if doplot:
-        if(do_subplot):
-            plt.subplot(222)
-        else:
-            plt.figure(2)
-            plt.clf()
-    print "Fitting a polynomial of order %d to the location of the trace" \
-        % muorder
-    mupoly = fit_poly_to_trace(xstep, mu, muorder, mu0, xlength, fitrange,
-                               doplot=doplot)
-
-    # Fit a polynomial to the width of the trace
-    if(do_subplot):
-        plt.subplot(223)
-    else:
-        plt.figure(3)
-        plt.clf()
-    print "Fitting a polynomial of order %d to the width of the trace" \
-        % sigorder
-    sigpoly = fit_poly_to_trace(xstep, sigma, sigorder, sig0, xlength,
-                                fitrange, markformat='go',
-                                title='Width of Peak',
-                                ylabel='Width of trace (Gaussian sigma)',
-                                doplot=doplot)
-
-    # Return the fitted parameters
-    return mupoly, sigpoly
-
-# -----------------------------------------------------------------------
-
-
 def resample_spec(w, spec, owave=None):
     """
     Given an input spectrum, represented by wavelength values (w) and fluxes
@@ -3267,39 +3094,6 @@ def calc_lineflux(wavelength, flux, bluemin, bluemax, redmin, redmax, var=None,
 # (relatively) new Spec2d and Spec1d classes.
 #
 # ===========================================================================
-
-# --------------------------------------------------------------------------
-
-
-def find_and_trace(data, dispaxis="x", apmin=-4., apmax=4., stepsize=25,
-                   muorder=3, sigorder=4, fitrange=None, doplot=True,
-                   do_subplot=False):
-
-    """
-    Combines the first two steps in the spectroscopy reduction process.
-    The find_and_trace function will:
-        1. Locate roughly where the target object is in the spatial direction
-            (usually the y axis is the spatial direction) by taking the
-            median in the spectral direction so the peak in the spatial
-            direction stands out.  This step provides the initial guesses
-            for the location (mu0) and width (sig0) of the peak that are
-            then used in the second step.
-        2. Once the rough location of the peak has been found, determines how
-            its location and width change in the spectral direction.
-            That is, this will find where the peak falls in each column.
-            It returns the position (pos) and width (width) of the peak as
-            a function of x location
-
-    This function accomplishes these tasks by calling first the find_trace
-    function and the the trace_spectrum function.
-    """
-
-    mu0, sig0 = find_trace(data, dispaxis, apmin, apmax, doplot, do_subplot)
-
-    pos, width = trace_spectrum(data, mu0, sig0, dispaxis, stepsize, muorder,
-                                sigorder, fitrange, doplot, do_subplot)
-
-    return pos, width
 
 # -----------------------------------------------------------------------
 
