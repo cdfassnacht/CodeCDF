@@ -58,7 +58,7 @@ def clear_all():
 # -----------------------------------------------------------------------
 
 
-class Spec1d():
+class Spec1d(df.Data1d):
     """
     A class to process and analyze 1-dimensional spectra.
     """
@@ -133,21 +133,23 @@ class Spec1d():
         """
 
         """ Initialize some variables """
-        self.wav = None
-        self.flux = None
-        self.var = None
-        self.sky = None
         self.varspec = None
         self.infile = None
         self.smoflux = None
         self.smovar = None
+        names0 = ['wav', 'flux', 'var']
+        wav0 = None
+        flux0 = None
+        var0 = None
+        sky0 = None
 
-        """ Check inputs """
         self.logwav = logwav
+
+        """ Read in the spectrum """
         if infile is not None:
             self.infile = infile
             try:
-                self.read_from_file(informat)
+                wav0, flux0, var0, sky0 = self.read_from_file(informat)
             except:
                 print ''
                 print 'Could not read input file %s' % infile
@@ -155,14 +157,14 @@ class Spec1d():
                 return None
         elif wav is not None and flux is not None:
             if self.logwav:
-                self.wav = 10.**wav
+                wav0 = 10.**wav
             else:
-                self.wav = wav
-            self.flux = flux
+                wav0 = wav
+            flux0 = flux
             if var is not None:
-                self.var = var
+                var0 = var
             if sky is not None:
-                self.sky = sky
+                sky0 = sky
         else:
             print ''
             print 'ERROR: Must provide either:'
@@ -176,91 +178,120 @@ class Spec1d():
             print ''
             return
 
+        """
+        Call the superclass initialization for useful Data1d attributes 
+        """
+        if var0 is not None:
+            df.Data1d.__init__(self, wav0, flux0, var0, names=names0)
+        else:
+            names = names0[:-1]
+            df.Data1d.__init__(self, wav0, flux0, names=names)
+
+        """ Add the sky vector to the Table structure if it is not none """
+        if sky0 is not None:
+            self['sky'] = sky0
+
         """ Read in the list that may be used for marking spectral lines """
         self.load_linelist()
 
     # -----------------------------------------------------------------------
 
     def read_from_file(self, informat, verbose=True):
+        """
+
+        Reads a 1-d spectrum from a file.  The file must have one of the
+        following formats, which is indicated by the informat parameter:
+          fits
+          fitstab
+          fitsflux
+          mwa
+          text (default)
+
+        """
+
         if verbose:
             print ""
             print "Reading spectrum from %s" % self.infile
             print "Input file has format: %s" % informat
 
+        """ Set default parameters """
+        wav = None
+        flux = None
+        var = None
+        sky = None
+
         """ Read in the input spectrum """
         if informat == 'fits':
             hdu = pf.open(self.infile)
-            # print hdu[1].data
             if self.logwav:
-                self.wav  = 10.**(hdu[1].data)
+                wav  = 10.**(hdu[1].data)
             else:
-                self.wav  = hdu[1].data.copy()
-            self.flux = hdu[2].data.copy()
+                wav  = hdu[1].data.copy()
+            flux = hdu[2].data.copy()
             if len(hdu) > 3:
-                self.var  = hdu[3].data.copy()
+                var  = hdu[3].data.copy()
             self.varspec = True
             if len(hdu) > 4:
-                self.sky = hdu[4].data.copy()
+                sky = hdu[4].data.copy()
             del hdu
         elif informat == 'fitstab':
             hdu = pf.open(self.infile)
-            # hdu.info()
             tdat = hdu[1].data
-            self.wav  = tdat.field(0)
-            self.flux = tdat.field(1)
+            wav  = tdat.field(0)
+            flux = tdat.field(1)
             if len(tdat[0]) > 2:
-                self.var = tdat.field(3)
+                var = tdat.field(3)
                 self.varspec = True
             del hdu
         elif informat == 'fitsflux':
             hdu = pf.open(self.infile)
-            self.flux = hdu[0].data.copy()
+            flux = hdu[0].data.copy()
             self.varspec = False
-            self.wav = np.arange(self.flux.size)
+            wav = np.arange(self.flux.size)
             hdr1 = hdu[0].header
             if self.logwav:
-                self.wav = 10.**(hdr1['crval1'] + self.wav * hdr1['cd1_1'])
+                wav = 10.**(hdr1['crval1'] + wav * hdr1['cd1_1'])
             else:
-                self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
+                wav = hdr1['crval1'] + wav*hdr1['cd1_1']
             del hdu
         elif informat == 'mwa':
             hdu = pf.open(self.infile)
-            self.flux = hdu[1].data.copy()
-            self.var  = hdu[3].data.copy()
+            flux = hdu[1].data.copy()
+            var  = hdu[3].data.copy()
             self.varspec = True
-            self.wav = np.arange(self.flux.size)
+            wav = np.arange(self.flux.size)
             hdr1 = hdu[1].header
             if self.logwav:
-                self.wav = hdr1['crval1'] + 10.**(self.wav*hdr1['cd1_1'])
+                wav = hdr1['crval1'] + 10.**(wav*hdr1['cd1_1'])
             else:
-                self.wav = hdr1['crval1'] + self.wav*hdr1['cd1_1']
+                wav = hdr1['crval1'] + wav*hdr1['cd1_1']
             del hdu
         else:
             spec = np.loadtxt(self.infile)
             if self.logwav:
-                self.wav  = 10.**(spec[:, 0])
+                wav  = 10.**(spec[:, 0])
             else:
-                self.wav  = spec[:, 0]
-            self.flux = spec[:, 1]
+                wav  = spec[:, 0]
+            flux = spec[:, 1]
             if spec.shape[1] > 2:
-                self.var = spec[:, 2]
+                var = spec[:, 2]
             if spec.shape[1] > 3:
-                self.sky = spec[:, 3]
+                sky = spec[:, 3]
             del spec
 
         """ Check for NaN's, which this code can't handle """
         if self.varspec:
-            mask = (np.isnan(self.flux)) | (np.isnan(self.var))
-            varmax = self.var[~mask].max()
-            self.var[mask] = varmax * 5.
+            mask = (np.isnan(flux)) | (np.isnan(var))
+            varmax = var[~mask].max()
+            var[mask] = varmax * 5.
         else:
-            mask = (np.isnan(self.flux))
-        self.flux[mask] = 0
-        disp0 = self.wav[1] - self.wav[0]
-        dispave = (self.wav[-1] - self.wav[0]) / (self.wav.size - 1)
+            mask = (np.isnan(flux))
+        flux[mask] = 0
+        disp0 = wav[1] - wav[0]
+        dispave = (wav[-1] - wav[0]) / (wav.size - 1)
         if verbose:
-            print " Spectrum Start: %8.2f" % self.wav[0]
-            print " Spectrum End:    %8.2f" % self.wav[-1]
+            print " Spectrum Start: %8.2f" % wav[0]
+            print " Spectrum End:    %8.2f" % wav[-1]
             if disp0 < 0.01:
                 print " Dispersion (1st pixel): %g" % disp0
             else:
@@ -270,6 +301,9 @@ class Spec1d():
             else:
                 print " Dispersion (average):    %6.2f" % dispave
             print ""
+
+        """ Return the data """
+        return wav, flux, var, sky
 
     # -----------------------------------------------------------------------
 
@@ -300,16 +334,20 @@ class Spec1d():
         """ Plot the spectrum """
         if usesmooth and self.smoflux is not None:
             flux = self.smoflux
-            var  = self.smovar
+            if self.smovar is not None:
+                var  = self.smovar
         else:
-            flux = self.flux
-            var  = self.var
+            flux = self['flux']
+            try:
+                var  = self['var']
+            except KeyError:
+                var = None
         ls = "steps%s" % linestyle
         if label is not None:
             plabel = label
         else:
             plabel = 'Flux'
-        plt.plot(self.wav, flux, color, linestyle=ls, label=plabel)
+        plt.plot(self['wav'], flux, color, linestyle=ls, label=plabel)
         plt.tick_params(labelsize=fontsize)
         plt.xlabel(xlabel, fontsize=fontsize)
 
@@ -324,25 +362,25 @@ class Spec1d():
             else:
                 rlinestyle = 'steps%s' % rmsls
             if docolor:
-                plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle,
+                plt.plot(self['wav'], rms, rmscolor, linestyle=rlinestyle,
                          label='RMS')
             else:
-                plt.plot(self.wav, rms, rmscolor, linestyle=rlinestyle,
+                plt.plot(self['wav'], rms, rmscolor, linestyle=rlinestyle,
                          label='RMS', lw=2)
 
         """ More plot labels """
         plt.ylabel(ylabel, fontsize=fontsize)
         if(title):
             plt.title(title)
-        if(self.wav[0] > self.wav[-1]):
-            plt.xlim([self.wav[-1], self.wav[0]])
+        if(self['wav'][0] > self['wav'][-1]):
+            plt.xlim([self['wav'][-1], self['wav'][0]])
         else:
-            plt.xlim([self.wav[0], self.wav[-1]])
-        # print self.wav[0], self.wav[-1]
+            plt.xlim([self['wav'][0], self['wav'][-1]])
+        # print self['wav'][0], self['wav'][-1]
 
         """ Plot the atmospheric transmission if requested """
         if add_atm_trans:
-            plot_atm_trans(self.wav, atmfwhm, self.flux, scale=atmscale,
+            plot_atm_trans(self['wav'], atmfwhm, self['flux'], scale=atmscale,
                            offset=atmoffset, linestyle=atmls)
 
     # -----------------------------------------------------------------------
@@ -361,10 +399,10 @@ class Spec1d():
         """
 
         """ Check to make sure that there is a spectrum to plot """
-        if self.sky is not None:
-            skyflux = self.sky
-        elif self.var is not None:
-            skyflux = np.sqrt(self.var)
+        if self['sky'] is not None:
+            skyflux = self['sky']
+        elif self['var'] is not None:
+            skyflux = np.sqrt(self['var'])
         else:
             if verbose:
                 print ''
@@ -381,7 +419,7 @@ class Spec1d():
             xlab = xlabel
 
         """ Plot the spectrum """
-        plt.plot(self.wav, skyflux, ls=ls, color=color)
+        plt.plot(self['wav'], skyflux, ls=ls, color=color)
         if title == 'default':
             plttitle = 'Sky Spectrum'
         else:
@@ -390,10 +428,10 @@ class Spec1d():
             plt.title(plttitle)
         plt.xlabel(xlab)
         plt.ylabel('Relative flux')
-        if(self.wav[0] > self.wav[-1]):
-            plt.xlim([self.wav[-1], self.wav[0]])
+        if(self['wav'][0] > self['wav'][-1]):
+            plt.xlim([self['wav'][-1], self['wav'][0]])
         else:
-            plt.xlim([self.wav[0], self.wav[-1]])
+            plt.xlim([self['wav'][0], self['wav'][-1]])
 
     # -----------------------------------------------------------------------
 
@@ -409,19 +447,19 @@ class Spec1d():
         """
 
         """ Set the weighting """
-        if self.var is not None:
+        if self['var'] is not None:
             print 'Weighting by the inverse variance'
-            wht = 1.0 / self.var
+            wht = 1.0 / self['var']
         else:
             print 'Uniform weighting'
-            wht = 0.0 * self.flux + 1.0
+            wht = 0.0 * self['flux'] + 1.0
 
         """ Smooth the spectrum and store results in smoflux and smovar """
-        yin = wht * self.flux
+        yin = wht * self['flux']
         smowht = ndimage.filters.uniform_filter(wht, filtwidth)
         self.smoflux = ndimage.filters.uniform_filter(yin, filtwidth)
         self.smoflux /= smowht
-        if self.var is not None:
+        if self['var'] is not None:
             self.smovar = 1.0 / (filtwidth * smowht)
 
         """ Plot the smoothed spectrum if desired """
@@ -463,8 +501,8 @@ class Spec1d():
         """
 
         """ Make the new wavelength vector """
-        x = np.arange(self.wav.size)
-        self.wav = lambda0 + dlambda * x
+        x = np.arange(self['wav'].size)
+        self['wav'] = lambda0 + dlambda * x
 
         """ Plot the spectrum if desired """
         if doplot:
@@ -557,19 +595,19 @@ class Spec1d():
             return
 
         """ Set the display limits """
-        lammin, lammax = self.wav.min(), self.wav.max()
-        # dlam = self.wav[1] - self.wav[0]
+        lammin, lammax = self['wav'].min(), self['wav'].max()
+        # dlam = self['wav'][1] - self['wav'][0]
         x0, x1 = plt.xlim()
         y0, y1 = plt.ylim()
         if x0 > lammin:
             lammin = x0
         if x1 < lammax:
             lammax = x1
-        # wmask = (self.wav >= x0) & (self.wav <= x1)
+        # wmask = (self['wav'] >= x0) & (self['wav'] <= x1)
         # if usesmooth:
         #     ff = self.smoflux[wmask]
         # else:
-        #     ff = self.flux[wmask]
+        #     ff = self['flux'][wmask]
         # fluxdiff = ff.max() - ff.min()
         xdiff = x1 - x0
         ydiff = y1 - y0
@@ -603,7 +641,7 @@ class Spec1d():
         if usesmooth:
             flux = self.smoflux
         else:
-            flux = self.flux
+            flux = self['flux']
 
         print ''
         if (len(tmplines) == 0):
@@ -617,7 +655,7 @@ class Spec1d():
         specflux = np.zeros(len(tmplines))
         for i in range(len(tmplines)):
             xarr[i] = tmplines['wavelength'][i] * (z + 1.0)
-            tmpmask = np.fabs(self.wav-xarr[i]) < dlocwin
+            tmpmask = np.fabs(self['wav']-xarr[i]) < dlocwin
             if linetype == 'em':
                 specflux[i] = flux[tmpmask].max()
             else:
@@ -678,33 +716,34 @@ class Spec1d():
             hdu  = pf.HDUList()
             phdu = pf.PrimaryHDU()
             hdu.append(phdu)
-            outwv    = pf.ImageHDU(self.wav, name='wavelength')
-            outflux = pf.ImageHDU(self.flux, name='flux')
+            outwv = pf.ImageHDU(self['wav'].data, name='wavelength')
+            outflux = pf.ImageHDU(self['flux'].data, name='flux')
             hdu.append(outwv)
             hdu.append(outflux)
-            if self.var is not None:
-                outvar  = pf.ImageHDU(self.var, name='variance')
+            if self['var'] is not None:
+                outvar  = pf.ImageHDU(self['var'].data, name='variance')
                 hdu.append(outvar)
-            if self.sky is not None:
-                outsky  = pf.ImageHDU(self.sky, name='sky')
+            if self['sky'] is not None:
+                outsky  = pf.ImageHDU(self['sky'].data, name='sky')
                 hdu.append(outsky)
             hdu.writeto(outfile, clobber=True)
 
         elif outformat == 'text':
-            if self.var is not None:
-                if self.sky is not None:
-                    outdata = np.zeros((self.wav.shape[0], 4))
+            # CONSIDER JUST USING THE WRITE() METHOD FOR THE TABLE HERE!
+            if self['var'] is not None:
+                if self['sky'] is not None:
+                    outdata = np.zeros((self['wav'].shape[0], 4))
                     fmtstring = '%7.2f %9.3f %10.4f %9.3f'
-                    outdata[:, 3] = self.sky
+                    outdata[:, 3] = self['sky']
                 else:
-                    outdata = np.zeros((self.wav.shape[0], 3))
+                    outdata = np.zeros((self['wav'].shape[0], 3))
                     fmtstring = '%7.2f %9.3f %10.4f'
-                outdata[:, 2] = self.var
+                outdata[:, 2] = self['var']
             else:
-                outdata = np.zeros((self.wav.shape[0], 2))
+                outdata = np.zeros((self['wav'].shape[0], 2))
                 fmtstring = '%7.2f %9.3f'
-            outdata[:, 0] = self.wav
-            outdata[:, 1] = self.flux
+            outdata[:, 0] = self['wav']
+            outdata[:, 1] = self['flux']
             print ""
             np.savetxt(outfile, outdata, fmt=fmtstring)
             del outdata
@@ -1066,7 +1105,7 @@ class Spec2d(imf.Image):
             self.sky1d = Spec1d(wav=pix, flux=tmp1d)
 
         """ Turn the 1-dimension sky spectrum into a 2-dimensional form """
-        sky2d = np.tile(self.sky1d.flux, (self.data.shape[spaceaxis], 1))
+        sky2d = np.tile(self.sky1d['flux'], (self.data.shape[spaceaxis], 1))
         skyhdu = pf.ImageHDU(sky2d, name='Sky')
         self.hdu.append(skyhdu)
         self.skyext = len(self.hdu) - 1
@@ -1126,8 +1165,8 @@ class Spec2d(imf.Image):
             self.display(hext=self.ssext)
 
             plt.subplot(212, sharex=ax1)
-            # print self.sky1d.wav
-            # print self.sky1d.flux
+            # print self.sky1d['wav']
+            # print self.sky1d['flux']
             self.sky1d.plot(title=None)
 
         """
@@ -1974,9 +2013,9 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
     """ Read in the spectra, including the scaling for the blue side """
     bspec = Spec1d(infile=bluefile, informat=informat)
     rspec = Spec1d(infile=redfile, informat=informat)
-    bspec.flux *= bscale
-    if bspec.var is not None:
-        bspec.var *= bscale
+    bspec['flux'] *= bscale
+    if bspec['var'] is not None:
+        bspec['var'] *= bscale
 
     """ Smooth the data """
     if smooth_width is None:
@@ -1994,9 +2033,9 @@ def plot_blue_and_red(bluefile, redfile, outfile=None, smooth_width=7,
     """ Mark the lines if the redshift is given """
     if z is not None:
         is_z_shown = False
-        w = np.concatenate((bspec.wav, rspec.wav))
+        w = np.concatenate((bspec['wav'], rspec['wav']))
         if smooth_width is None:
-            f = np.concatenate((bspec.flux, rspec.flux))
+            f = np.concatenate((bspec['flux'], rspec['flux']))
         else:
             f = np.concatenate((bspec.smoflux, rspec.smoflux))
         combspec = Spec1d(wav=w, flux=f)
@@ -2464,7 +2503,7 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
         inspec.append(tmpspec)
 
     """ Initialize """
-    nx = inspec[0].wav.size
+    nx = inspec[0]['wav'].size
     wtflux = np.zeros(nx)
     skysum = np.zeros(nx)
     wtsum  = np.zeros(nx)
@@ -2473,10 +2512,10 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
     print ""
     for spec in inspec:
         wt = np.zeros(nx)
-        wt[spec.var != 0] = 1.0 / spec.var
-        wtflux += wt * spec.flux
-        if spec.sky is not None:
-            skysum += spec.sky
+        wt[spec['var'] != 0] = 1.0 / spec['var']
+        wtflux += wt * spec['flux']
+        if spec['sky'] is not None:
+            skysum += spec['sky']
         wtsum += wt
         del wt
 
@@ -2495,7 +2534,8 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
         outsky = skysum / len(inspec)
 
     """ Create a Spec1d structure for the output spectrum """
-    outspec = Spec1d(wav=inspec[0].wav, flux=outflux, var=outvar, sky=outsky)
+    outspec = Spec1d(wav=inspec[0]['wav'], flux=outflux, var=outvar, 
+                     sky=outsky)
 
     """ Plot the combined spectrum """
     outspec.plot(title='Combined spectrum', xlabel=xlabel)
@@ -2548,7 +2588,7 @@ def make_sky_model(wavelength, smoothKernel=25., doplot=False, verbose=True):
     modspec = Spec1d(modfile, informat='fitstab')
     if modspec is None:
         return None
-    skymodel = (modspec.wav, modspec.flux, 3)
+    skymodel = (modspec['wav'], modspec['flux'], 3)
 
     """
     Resample and smooth the model spectrum.
@@ -2634,10 +2674,10 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
     spectrum
     """
 
-    deltamod = skymod.flux.max() - skymod.flux.min()
+    deltamod = skymod['flux'].max() - skymod['flux'].min()
     deltaobs = skyobs.max() - skyobs.min()
-    skymod.flux *= 0.75*deltaobs/deltamod
-    skymod.flux += skyobs.mean() - skymod.flux.mean()
+    skymod['flux'] *= 0.75*deltaobs/deltamod
+    skymod['flux'] += skyobs.mean() - skymod['flux'].mean()
 
     """ Make the plot """
     wrange = waveobs.max() - waveobs.min()
@@ -2934,12 +2974,12 @@ def atm_trans(w, fwhm=15., flux=None, scale=1., offset=0.0, modfile='default'):
         infile = '%s/Data/atm_trans_maunakea.fits' % moddir
     print "Loading atmospheric data from %s" % infile
     atm0 = Spec1d(infile, informat='fitstab')
-    atm0.wav *= 1.0e4
+    atm0['wav'] *= 1.0e4
 
     """ Only use the relevant part of the atmospheric transmission spectrum"""
-    mask = np.where((atm0.wav >= w.min()) & (atm0.wav <= w.max()))
-    watm = atm0.wav[mask]
-    trans = atm0.flux[mask]
+    mask = np.where((atm0['wav'] >= w.min()) & (atm0['wav'] <= w.max()))
+    watm = atm0['wav'][mask]
+    trans = atm0['flux'][mask]
     del atm0
 
     """ Smooth the spectrum """
@@ -3006,7 +3046,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
     wsky    = np.arange(wmin, wmax)
     atm     = atm_trans(wsky)
     skymod = make_sky_model(wsky)
-    skymod.flux /= skymod.flux.max()
+    skymod['flux'] /= skymod['flux'].max()
 
     """ Set limits to improve appearance of the plot """
     xscale = 0.02
@@ -3032,8 +3072,8 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
     if z is not None:
         print atm.mark_speclines('strongem', z, marktype='line')
     plt.xlim(xmin, xmax)
-    dy = 0.05 * skymod.flux.max()
-    plt.ylim(-dy, (skymod.flux.max()+dy))
+    dy = 0.05 * skymod['flux'].max()
+    plt.ylim(-dy, (skymod['flux'].max()+dy))
 
     """
     Plot the locations of bright emission features at the requested redshift
