@@ -91,7 +91,7 @@ for i in range(len(inlist)):
     noisei = imi.rms_clip
     noise = np.sqrt(noisei**2 + noisemed**2)
     diffi = (insci[i, :, :] - meddata) * newwhti
-    mask2 = diffi > (3 * noise)
+    mask2 = np.fabs(diffi) > (3 * noise)
 
     ''' Grow the masked region around the bad pixels '''
     tmpwht[mask2] = 0
