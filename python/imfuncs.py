@@ -1935,7 +1935,7 @@ class Image:
    # -----------------------------------------------------------------------
 
    def set_subim(self, hext=0, subimdef='xy', subimcent=None, subimsize=None,
-                 dispunits='pixels'):
+                 dispunits='pixels', verbose=False):
       """
       Sets the region of the image to be displayed
       """
@@ -1967,7 +1967,8 @@ class Image:
          else:
             xsize = subimsize[0]
             ysize = subimsize[1]
-         self.def_subim_radec(ra, dec, xsize, ysize, hext=hext)
+         self.def_subim_radec(ra, dec, xsize, ysize, hext=hext, 
+                              verbose=verbose)
 
       else:
          """
@@ -1993,7 +1994,7 @@ class Image:
       """
 
       """ Set the region of the image to be displayed """
-      self.set_subim(hext, subimdef, subimcent, subimsize)
+      self.set_subim(hext, subimdef, subimcent, subimsize, verbose=verbose)
 
       """ Set the displayed axes to be in WCS offsets, if requested """
       self.dispunits = dispunits
