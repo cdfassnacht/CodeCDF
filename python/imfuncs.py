@@ -54,16 +54,13 @@ from math import cos as mcos, sin as msin
 # class Image(pf.HDUList):#
 class Image:
 
-   def __init__(self, infile, mode='copyonwrite', verbose=True):
+   def __init__(self, infile, datahext=0, hdrhext=0, wcshext=0, verbose=True):
       """
       This method gets called when the user types something like
          myim = Image(infile)
 
       Inputs:
          infile - input file containing the fits image
-         mode   - mode in which to open the fits image.  The default value,
-                  'copyonwrite' is the standard read-only mode.  To enable
-                  modification in place, use mode='update'
       """
 
       """
@@ -74,7 +71,7 @@ class Image:
          print "Loading file %s" % infile
          print "-----------------------------------------------"
       try:
-         self.hdu = open_fits(infile, mode)
+         self.hdu = open_fits(infile)
       except:
          print "  ERROR. Problem in loading file %s" % infile
          print "  Check to make sure filename matches an existing file."
@@ -87,7 +84,10 @@ class Image:
 
       """ Set parameters related to image properties """
       self.infile = infile
-      self.fitsmode = mode
+
+      """ Set up pointers to the default data and header """
+      self.data = hdu[datahext].data
+      self.hdr = hdu[hdrhext].header
 
       """ Do an initial import of the WCS information from the header """
       self.found_wcs = False
@@ -96,9 +96,10 @@ class Image:
       self.dec = None
       self.pixscale = None
       try:
-         self.get_wcs(verbose=verbose)
+         self.get_wcs(hext=wcshext, verbose=verbose)
       except:
-         print 'Could not load WCS info for %s' % self.infile
+         if verbose:
+            print 'Could not load WCS info for %s' % self.infile
          self.found_wcs = False
 
       """ Initialize figures """
