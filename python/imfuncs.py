@@ -32,6 +32,7 @@ Stand-alone functions
                        positions of the catalog objects.
 """
 
+import os
 try:
    from astropy.io import fits as pf
 except:
@@ -70,24 +71,31 @@ class Image:
          print ""
          print "Loading file %s" % infile
          print "-----------------------------------------------"
-      try:
-         self.hdu = open_fits(infile)
-      except:
-         print "  ERROR. Problem in loading file %s" % infile
-         print "  Check to make sure filename matches an existing file."
-         print "  If it does, there may be something wrong with the fits " \
-             "header."
-         print ""
-         return
-      if verbose:
-         self.hdu.info()
+      if os.path.isfile(infile):
+         try:
+            self.hdu = open_fits(infile)
+         except:
+            print "  ERROR. Problem in loading file %s" % infile
+            print "  Check to make sure filename matches an existing file."
+            print "  If it does, there may be something wrong with the fits " \
+                "header."
+            print ""
+            return None
+         if verbose:
+            self.hdu.info()
+      else:
+         print('')
+         print('ERROR. File %s does not exist.  Please check directory' %
+               infile)
+         print('')
+         return None
 
       """ Set parameters related to image properties """
       self.infile = infile
 
       """ Set up pointers to the default data and header """
-      self.data = hdu[datahext].data
-      self.hdr = hdu[hdrhext].header
+      self.data = self.hdu[datahext].data
+      self.hdr = self.hdu[hdrhext].header
 
       """ Do an initial import of the WCS information from the header """
       self.found_wcs = False
@@ -520,7 +528,8 @@ class Image:
                                     self.wcsinfo.cdelt[0] * 3600.
             except:
                self.pixscale = abs(self.wcsinfo.wcs.cdelt[0]) * 3600.
-         print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
+         if verbose:
+            print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
          self.found_wcs = True
       else:
          print 'Warning: no WCS info in header %d' % hext
