@@ -100,8 +100,6 @@ class Image:
       """ Do an initial import of the WCS information from the header """
       self.found_wcs = False
       self.radec = None
-      self.ra  = None
-      self.dec = None
       self.pixscale = None
       try:
          self.get_wcs(hext=wcshext, verbose=verbose)
@@ -127,26 +125,26 @@ class Image:
       """
       self.found_rms = False     # Have clipped rms and mean been calculated?
       self.mean_clip = 0.0       # Value of the clipped mean
-      self.rms_clip  = 0.0       # Value of the clipped rms
-      self.fmin      = None      # Lower flux limit used in image display
-      self.fmax      = None      # Upper flux limit used in image display
-      self.fscale    = 'linear'  # Flux scaling for display
-      self.statsize  = 2048      # Region size for stats if image is too big
-      self.statsec   = None      # Region to use for pixel statistics
-      self.zoomsize  = 31        # Size of postage-stamp zoom
+      self.rms_clip = 0.0        # Value of the clipped rms
+      self.fmin = None           # Lower flux limit used in image display
+      self.fmax = None           # Upper flux limit used in image display
+      self.fscale = 'linear'     # Flux scaling for display
+      self.statsize = 2048       # Region size for stats if image is too big
+      self.statsec = None        # Region to use for pixel statistics
+      self.zoomsize = 31         # Size of postage-stamp zoom
       self.dispunits = 'radec'   # Default display units are arcsec offsets
-      self.extval    = None      # Just label the axes by pixels
-      self.cmap      = plt.cm.YlOrBr_r  # This corresponds to the 'gaia' cmap
+      self.extval = None         # Just label the axes by pixels
+      self.cmap = plt.cm.YlOrBr_r  # This corresponds to the 'gaia' cmap
 
       """ Initialize contouring parameters """
-      self.contbase   = sqrt(3.)
-      self.clevs      = None
+      self.contbase = sqrt(3.)
+      self.clevs = None
       self.overlay_im = None  # Not currently used
 
       """ Initialize radplot parameters """
-      self.radplot_center   = True
+      self.radplot_center = True
       self.radplot_maxshift = 5.
-      self.radplot_file     = None
+      self.radplot_file = None
 
       """ Initialize other parameters """
       self.reset_subim()
@@ -179,8 +177,8 @@ class Image:
       self.imex_data = None
 
       """ Initialize moment calculations """
-      self.imex_mux   = None
-      self.imex_muy   = None
+      self.imex_mux = None
+      self.imex_muy = None
       self.imex_sigxx = None
       self.imex_sigyy = None
       self.imex_sigxy = None
@@ -237,7 +235,7 @@ class Image:
                         subimage has been defined)
          mask    - If some of the input data are known to be bad, they can
                     be flagged before the inputs are computed by including
-                    a mask.  Clearly this mask must be set such that True
+                    a mask.  This mask must be set such that True
                     indicates good data and False indicates bad data
          hext    - Image HDU containing the data.  The default (hext=0) should
                     work for all single-extension fits files and may
@@ -275,7 +273,7 @@ class Image:
       mu0 = d.mean()
       sig0 = d.mean()
       if verbose:
-         print ''
+         print('')
          print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
 
       """ Iterate until convergence """
@@ -293,18 +291,76 @@ class Image:
             print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
          delta = size-d.size
       if clipError:
-         print ''
+         print('')
          print 'ERROR: sigma clipping failed, perhaps with rms=0.'
          print 'Setting mu and sig to their original, unclipped, values'
-         print ''
+         print('')
          mu = mu0
          sig = sig0
 
       """ Store the results and clean up """
       del data, d
       self.mean_clip = mu
-      self.rms_clip  = sig
+      self.rms_clip = sig
       return
+
+   # -----------------------------------------------------------------------
+
+   def make_var(self, objmask=None, returnvar=True, hext=0, verbose=True):
+      """
+      Make a variance image under the assumption that the data in the
+      current image is (1) in units of electrons, and (2) has not been
+      sky subtracted.  The basic procedure is as follows:
+        1. Find the clipped mean and clipped rms through a call to sigma_clip
+        2. Sanity check by comparing the clipped rms to the square root of
+           the clipped mean.
+        3. Set all pixels in the variance image to the square of the clipped
+           rms.
+        4. If an object mask is set, then set the pixels in the variance image
+           that within the mask to the pixel values in the input data (i.e.,
+           assume Poisson statistics here) as long as they are larger than
+           the clipped rms.
+           NOTE: The object mask is defined to have a value of 1 where the
+           objects are and 0 otherwise.
+      """
+
+      """ Convert the input mask into the format needed for sigma_clip """
+      if objmask is not None:
+         mask = objmask == 0
+      else:
+         mask = None
+
+      """ Get the clipped mean and rms """
+      self.sigma_clip(mask=mask, hext=hext)
+
+      """ Sanity check """
+      sqrtmean = sqrt(self.mean_clip)
+      check = sqrtmean / self.rms_clip
+      if check < 0.9 or check > 1.1:
+         print('Warning: %s - ratio of sqrt(mean) to rms is more than'
+               ' 10 percent from unity' % self.infile)
+         print(' sqrt(mean) = %7.2f, rms = %7.2f' % (sqrtmean, self.rms_clip))
+
+      """ Create the base variance image """
+      data = self.hdu[hext].data
+      varval = (self.rms_clip)**2
+      var = np.ones(data.shape) * varval
+
+      """
+      If an object mask exists, replace the pixel values in the variance image
+      with the values from the image data which, under the assumption of
+      Poisson statistics, should represent the associated pixel uncertainties.
+      Only do this replacement if the data values are greater than the
+      rms**2 values currently in the variance image
+      """
+      if objmask is not None:
+         omask = (objmask > 0) & (data > varval)
+         var[omask] = data[omask]
+
+      """ Store the variance map, and also return it if requested """
+      self.var = var
+      if returnvar:
+         return var
 
    # -----------------------------------------------------------------------
 
@@ -324,7 +380,7 @@ class Image:
       """
       Prints useful information about what the key presses do
       """
-      print ''
+      print('')
       print 'Actions available by pressing a key in the Figure 1 window'
       print '----------------------------------------------------------'
       print 'Key      Action'
@@ -333,7 +389,7 @@ class Image:
       print '   m     Mark the position of an object'
       print '   z     Zoom in at the position of the cursor'
       print '   q     Quit and close the window'
-      print ''
+      print('')
 
    # -----------------------------------------------------------------------
 
@@ -347,7 +403,7 @@ class Image:
       """
       self.xclick = event.xdata
       self.yclick = event.ydata
-      print ''
+      print('')
       print 'Mouse click x, y:   %7.1f %7.1f' % (self.xclick, self.yclick)
 
       """
@@ -361,7 +417,7 @@ class Image:
             pix[0, 0] = self.xclick
             pix[0, 1] = self.yclick
             radec = self.wcsinfo.wcs_pix2world(pix, 0)
-            self.raclick  = radec[0, 0]
+            self.raclick = radec[0, 0]
             self.decclick = radec[0, 1]
          else:
             """ For now use small-angle formula """
@@ -385,7 +441,7 @@ class Image:
          """
          Change the display range
          """
-         print ''
+         print('')
          self.set_display_limits(fmax=None, funits='abs')
 
       if event.key == 'm':
@@ -394,9 +450,9 @@ class Image:
          the xmark and ymark variables
          """
          global xmark, ymark
-         print ''
+         print('')
          print 'Marking position %8.2f %8.2f' % (event.xdata, event.ydata)
-         print ''
+         print('')
          self.xmark = event.xdata
          self.ymark = event.ydata
          subimsize = (self.zoomsize, self.zoomsize)
@@ -423,9 +479,9 @@ class Image:
          return
 
       if event.key == 'q':
-         print ''
+         print('')
          print 'Closing down'
-         print ''
+         print('')
          if self.fig1:
             self.fig1.canvas.mpl_disconnect(self.cid_mouse)
             self.fig1.canvas.mpl_disconnect(self.cid_keypress)
@@ -470,7 +526,8 @@ class Image:
       decfmt = u.deg
 
       """ Do the conversion """
-      self.radec = SkyCoord(ra, dec, unit=(rafmt, decfmt))
+      radec = SkyCoord(ra, dec, unit=(rafmt, decfmt))
+      return radec
 
    # -----------------------------------------------------------------------
 
@@ -514,7 +571,8 @@ class Image:
       imcent[0, 0] = xcent
       imcent[0, 1] = ycent
       imcentradec = self.wcsinfo.wcs_pix2world(imcent, 1)
-      self.radec_to_skycoord(imcentradec[0, 0], imcentradec[0, 1])
+      self.radec = self.radec_to_skycoord(imcentradec[0, 0],
+                                          imcentradec[0, 1])
 
       """ Calculate the pixel scale """
       if self.wcsinfo.wcs.ctype[0][0:2].upper() == 'RA':
@@ -542,7 +600,7 @@ class Image:
       Interactively set the pixel scale
       """
 
-      print ''
+      print('')
       self.pixscale = \
           float(raw_input('Enter the pixel scale for the image '
                           'in arcsec/pix: '))
@@ -644,7 +702,7 @@ class Image:
       exty2 -= dy
 
       """ Set the extval values, and also record the zerpos values used """
-      self.extval  = (extx1, extx2, exty1, exty2)
+      self.extval = (extx1, extx2, exty1, exty2)
       self.zeropos = (dx, dy)
 
    # -----------------------------------------------------------------------
@@ -683,13 +741,13 @@ class Image:
       y1, y2 = y0-rmax-1, y0+rmax+1
       pixmask = (x > x1) & (x < x2) & (y > y1) & (y < y2)
       if skytype is None:
-         f   = data[pixmask]
+         f = data[pixmask]
       else:
          if self.found_rms is False:
             self.sigma_clip(verbose=verbose)
             self.found_rms = True
          print self.mean_clip, self.rms_clip
-         f   = data[pixmask] - self.mean_clip
+         f = data[pixmask] - self.mean_clip
       self.imex_x = x[pixmask]
       self.imex_y = y[pixmask]
 
@@ -732,8 +790,8 @@ class Image:
 
       """ Unpack p """
       sigma = p[0]
-      amp   = p[1]
-      bkgd  = p[2]
+      amp = p[1]
+      bkgd = p[2]
 
       """
       Compute the difference between model and real values
@@ -758,7 +816,7 @@ class Image:
 
       """ Unpack p """
       sigma = p[0]
-      amp   = p[1]
+      amp = p[1]
 
       """
       Compute the difference between model and real values
@@ -790,15 +848,15 @@ class Image:
          p = [sig0, amp0, bkgd]
          p_out, ier = optimize.leastsq(self.eval_gauss_1d_r_plus_bkgd, p,
                                        (r, flux), maxfev=mf)
-         self.rprof_sig  = p_out[0]
-         self.rprof_amp  = p_out[1]
+         self.rprof_sig = p_out[0]
+         self.rprof_amp = p_out[1]
          self.rprof_bkgd = p_out[2]
       else:
          p = [sig0, amp0]
          p_out, ier = optimize.leastsq(self.eval_gauss_1d_r, p, (r, flux),
                                        maxfev=mf)
-         self.rprof_sig  = p_out[0]
-         self.rprof_amp  = p_out[1]
+         self.rprof_sig = p_out[0]
+         self.rprof_amp = p_out[1]
          self.rprof_bkgd = 0.
 
       self.rprof_mu = 0.
@@ -1223,7 +1281,7 @@ class Image:
 
       """ Print out useful information """
       if verbose:
-         print ''
+         print('')
          print "Cutout image center (x, y): (%d, %d)" % \
              (self.subcentx, self.subcenty)
          print "Cutout image size (x y): %dx%d" % \
@@ -1293,7 +1351,7 @@ class Image:
 
       """ Check to make sure that a subimage is even requested """
       if (ra is None or dec is None) and xsize is None:
-         self.subim    = self.hdu[hext].data.copy()
+         self.subim = self.hdu[hext].data.copy()
          self.subsizex = nx
          self.subsizey = ny
          return
@@ -1320,7 +1378,7 @@ class Image:
          The first step is to convert ra and dec into astropy.coordinates
           SkyCoord format
          """
-         self.radec_to_skycoord(ra, dec)
+         self.radec = self.radec_to_skycoord(ra, dec)
 
          """
          Calculate the (x, y) that is associated with the requested center
@@ -1348,7 +1406,7 @@ class Image:
 
       """ Summarize the request """
       if verbose:
-         print ''
+         print('')
          rastr = '%02d %02d %06.3f' % \
              (self.radec.ra.hms.h, self.radec.ra.hms.m, self.radec.ra.hms.s)
          decstr = '%+03d %02d %05.2f' % \
@@ -1459,7 +1517,7 @@ class Image:
       corners of the region
       """
       statsec = self.get_subim_bounds(centpos, size, hext)
-      print ''
+      print('')
       print statsec
 
       """ Get the pixel statistics """
@@ -1503,7 +1561,7 @@ class Image:
 
       """ Write to the output file if requested """
       if outfile:
-         print ''
+         print('')
          print 'Input file:  %s' % self.infile
          print 'Output file: %s' % outfile
          pf.PrimaryHDU(self.subim, self.subimhdr).writeto(outfile,
@@ -1743,11 +1801,11 @@ class Image:
       """
 
       if self.found_wcs is False:
-         print ''
+         print('')
          print('ERROR: Requested a FOV plot, but input image (%s)' %
                self.infile)
          print ' does not have WCS information in it.'
-         print ''
+         print('')
          exit()
 
       """ Set the rectangle size """
@@ -1977,7 +2035,7 @@ class Image:
          else:
             xsize = subimsize[0]
             ysize = subimsize[1]
-         self.def_subim_radec(ra, dec, xsize, ysize, hext=hext, 
+         self.def_subim_radec(ra, dec, xsize, ysize, hext=hext,
                               verbose=verbose)
 
       else:
@@ -1985,7 +2043,7 @@ class Image:
          If not requesting a (RA, dec) cutout, the code is simpler
          """
          self.poststamp_xy(subimcent, subimsize, hext=hext)
-      print ''
+      print('')
 
    # -----------------------------------------------------------------------
 
@@ -2010,10 +2068,10 @@ class Image:
       self.dispunits = dispunits
       if self.dispunits == 'radec':
          if not self.found_wcs:
-            print ''
+            print('')
             print "WARNING: dispunits='radec' but no WCS info in image header"
             print 'Using pixels instead'
-            print ''
+            print('')
             self.dispunits = 'pixels'
             self.extval = None
          else:
@@ -2094,7 +2152,7 @@ class Image:
          # data = self.subim.copy() - self.subim.min() + 1.
          # vmin = log10(self.fmin - self.subim.min() + 1.)
          # vmax = log10(self.fmax - self.subim.min() + 1.)
-         data = self.subim.copy()  - self.subim.min()
+         data = self.subim.copy() - self.subim.min()
          """ Now rescale from 1-255 in requested range """
          data[data >= 0] = ((bitscale - 1) * data[data >= 0] / fdiff) + 1.
          vmin = 0
@@ -2238,7 +2296,7 @@ def get_rms(infile, xcent, ycent, xsize, ysize=None, hext=0, outfile=None,
    im.sigma_clip()
    rms = im.rms_clip
    if verbose:
-      print ''
+      print('')
       print '%s: RMS in requested region is %f' % (infile, rms)
    del im
    return rms
@@ -2288,7 +2346,7 @@ def make_cutout(infile, ra, dec, imsize, scale, outfile, whtsuff=None,
    """ Make the weight file cutout, if requested """
    if whtsuff is not None:
       whtfile = infile.replace('.fits', '%s.fits' % whtsuff)
-      outwht  = outfile.replace('.fits', '%s.fits' % whtsuff)
+      outwht = outfile.replace('.fits', '%s.fits' % whtsuff)
       whtfits = Image(whtfile)
       whtfits.poststamp_radec(ra, dec, imsize, imsize, scale, outwht,
                               hext=hext, dext=dext, verbose=verbose)
@@ -2449,7 +2507,7 @@ def make_snr_image(infile, outcent=None, outsize=None, statcent=None,
                    outfile=outfile, hext=hext)
 
    if outfile is not None:
-      print ''
+      print('')
       return im.subim
 
 # ---------------------------------------------------------------------------
@@ -2514,14 +2572,14 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
    try:
       im1 = Image(infile1)
    except:
-      print ''
+      print('')
       print 'ERROR: Could not properly open %s' % infile1
       return
    print "   .... Done"
    try:
       im2 = Image(infile2)
    except:
-      print ''
+      print('')
       print 'ERROR: Could not properly open %s' % infile2
       return
    print "   .... Done"
@@ -2554,7 +2612,7 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
       try:
          im3 = Image(infile3)
       except:
-         print ''
+         print('')
          print 'ERROR: Could not properly open %s' % infile3
          return
       im3.def_subim_radec(ra, dec, imsize, outscale=pixscale)
