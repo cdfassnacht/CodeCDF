@@ -1,4 +1,3 @@
-import scipy
 import sys,os
 try:
    from astropy.io import fits as pyfits
@@ -11,10 +10,10 @@ else:
    dir = os.curdir
    files = os.listdir(dir)
 
-print \
-    "#   File           nx x ny         Object       t_exp    Instrument Filter  "
-print \
-    "#---------------  ---------  ----------------- --------- ---------- ---------"
+print('#   File            size           Object       t_exp    Instrument '
+      'Filter  ')
+print('#---------------  ---------  ----------------- --------- ---------- '
+      '---------')
 
 for f in files:
 
@@ -161,6 +160,12 @@ for f in files:
          cam = 'N/A'
       cam = cam[0:4]
       inst = "%s-%s" % (inst,cam)
+
+   """ Get rid of unwanted spaces """
+   if inst is not None:
+      inst = inst.replace(' ', '')
+   obj = obj.replace(' ', '')
+   filt = filt.replace(' ', '')
 
    # Print out final info
    fonly = fname.split('/')[-1]

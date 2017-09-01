@@ -28,7 +28,7 @@ except:
    import pyfits as pf
 import numpy as np
 from scipy.ndimage import filters
-from math import cos,sin,pi,sqrt,atan2
+from math import cos, sin, pi, sqrt, atan2
 import imfuncs as imf
 import wcs as wcsmwa
 import coords
