@@ -75,10 +75,10 @@ class Image:
             try:
                 self.hdu = open_fits(infile)
             except:
-                print "  ERROR. Problem in loading file %s" % infile
-                print "  Check to make sure filename matches an existing file."
-                print "  If it does, there may be something wrong with the fits " \
-                     "header."
+                print(' ERROR. Problem in loading file %s' % infile)
+                print(' Check to make sure filename matches an existing file')
+                print(' If it does, there may be something wrong with the '
+                      'fits header.')
                 print('')
                 return None
             if verbose:
@@ -86,7 +86,7 @@ class Image:
         else:
             print('')
             print('ERROR. File %s does not exist.  Please check directory' %
-                    infile)
+                  infile)
             print('')
             return None
 
@@ -196,7 +196,7 @@ class Image:
     # -----------------------------------------------------------------------
 
     def sigma_clip(self, nsig=3., statsec=None, mask=None, hext=0,
-                        verbose=False):
+                   verbose=False):
         """
         Runs a sigma-clipping on image data.  The code iterates over
         the following steps until it has converged:
@@ -216,33 +216,33 @@ class Image:
         exclude known bad pixels from the calculation.
 
         Optional inputs:
-            nsig     - Number of sigma from the mean beyond which points are
-                          rejected.  Default=3.
-            statsec - Region of the input image to be used to determine the
-                         image statistics, defined by the coordinates of its
-                         corners (x1, y1, x2, y2).
-                         If this variable is is None (the default value)
-                         then the image statistics will be determined from:
-                            - the subimage, if it has been set
-                            - else, the entire image.
-                         The format for statsec can be any of the following:
-                            1. A 4-element numpy array
-                            2. A 4-element list:  [x1, y1, x2, y2]
-                            3. A 4-element tuple: (x1, y1, x2, y2)
-                            4. statsec=None.  In this case, the region used for
-                                determining the pixel statistics defaults to either
-                                the subimage (if defined) or the full image (if no
-                                subimage has been defined)
-            mask     - If some of the input data are known to be bad, they can
-                          be flagged before the inputs are computed by including
-                          a mask.  This mask must be set such that True
-                          indicates good data and False indicates bad data
-            hext     - Image HDU containing the data.  The default (hext=0) should
-                          work for all single-extension fits files and may
-                          work for some multi-extension files.
-                          NOTE: hext is ignored if the subim variable is already set
-                          by, e.g., set_subim_xy or def_subim_radec
-            verbose - If False (the default) no information is printed
+          nsig    - Number of sigma from the mean beyond which points are
+                     rejected.  Default=3.
+          statsec - Region of the input image to be used to determine the
+                     image statistics, defined by the coordinates of its
+                     corners (x1, y1, x2, y2).
+                     If this variable is is None (the default value)
+                     then the image statistics will be determined from:
+                       - the subimage, if it has been set
+                       - else, the entire image.
+                     The format for statsec can be any of the following:
+                       1. A 4-element numpy array
+                       2. A 4-element list:  [x1, y1, x2, y2]
+                       3. A 4-element tuple: (x1, y1, x2, y2)
+                       4. statsec=None.  In this case, the region used for
+                          determining the pixel statistics defaults to either
+                          the subimage (if defined) or the full image (if no
+                          subimage has been defined)
+          mask    - If some of the input data are known to be bad, they can
+                      be flagged before the inputs are computed by including
+                      a mask.  This mask must be set such that True
+                      indicates good data and False indicates bad data
+          hext    - Image HDU containing the data.  The default (hext=0)
+                      should work for all single-extension fits files and may
+                      work for some multi-extension files.
+                      NOTE: hext is ignored if the subim variable is already
+                      set by, e.g., set_subim_xy or def_subim_radec
+          verbose - If False (the default) no information is printed
         """
 
         """ Determine what the input data set is """
@@ -368,9 +368,9 @@ class Image:
         self.xmark = None
         self.ymark = None
         self.cid_mouse = self.fig1.canvas.mpl_connect('button_press_event',
-                                                                     self.onclick)
+                                                      self.onclick)
         self.cid_keypress = self.fig1.canvas.mpl_connect('key_press_event',
-                                                                         self.keypress)
+                                                         self.keypress)
         self.keypress_info()
         return
 
@@ -423,11 +423,11 @@ class Image:
                 """ For now use small-angle formula """
                 cosdec = mcos(self.radec.dec.radian)
                 self.raclick = self.radec.ra.degree + \
-                     (self.xclick + self.zeropos[0]) / (3600. * cosdec)
+                    (self.xclick + self.zeropos[0]) / (3600. * cosdec)
                 self.decclick = self.radec.dec.degree + self.yclick/3600. + \
-                     self.zeropos[1]
+                    self.zeropos[1]
             print 'Mouse click ra, dec: %11.7f %+11.7f' % \
-                 (self.raclick, self.decclick)
+                (self.raclick, self.decclick)
         return
 
     # -----------------------------------------------------------------------
@@ -458,7 +458,7 @@ class Image:
             subimsize = (self.zoomsize, self.zoomsize)
             subimcent = (self.xmark, self.ymark)
             self.display(subimcent=subimcent, subimsize=subimsize,
-                             show_xyproj=True)
+                         show_xyproj=True)
 
         if event.key == 'z':
             """
@@ -498,26 +498,28 @@ class Image:
 
     def radec_to_skycoord(self, ra, dec):
         """
-        Converts a (RA, dec) pair into the astropy.coordinates SkyCoord format
+        Converts a (RA, dec) pair into the astropy.coordinates SkyCoord
+        format
 
         Required inputs:
-          ra    - RA in one of three formats:
-                     Decimal degrees:  ddd.ddddddd  (as many significant figures
-                        as desired)
-                     Sexigesimal:        hh mm ss.sss (as many significant figures
-                        as desired)
-                     Sexigesimal:        hh:mm:ss.sss (as many significant figures
-                        as desired)
-          dec  - Dec in one of three formats:
-                     Decimal degrees:  sddd.ddddddd, where "s" is + or -
-                     Sexigesimal:        sdd mm ss.sss (as many significant figures
-                        as desired)
-                     Sexigesimal:        sdd:mm:ss.sss (as many significant figures
-                        as desired)
+          ra  - RA in one of three formats:
+                 Decimal degrees: ddd.ddddddd  (as many significant figures
+                   as desired)
+                 Sexigesimal:     hh mm ss.sss (as many significant figures
+                   as desired)
+                 Sexigesimal:     hh:mm:ss.sss (as many significant figures
+                   as desired)
+          dec - Dec in one of three formats:
+                 Decimal degrees: sddd.ddddddd, where "s" is + or -
+                 Sexigesimal:     sdd mm ss.sss (as many significant figures
+                    as desired)
+                 Sexigesimal:     sdd:mm:ss.sss (as many significant figures
+                    as desired)
         """
 
         """ Get RA format """
-        if type(ra) == float or type(ra) == np.float32 or type(ra) == np.float64:
+        if type(ra) == float or type(ra) == np.float32 or \
+                type(ra) == np.float64:
             rafmt = u.deg
         else:
             rafmt = u.hourangle
@@ -572,18 +574,18 @@ class Image:
         imcent[0, 1] = ycent
         imcentradec = self.wcsinfo.wcs_pix2world(imcent, 1)
         self.radec = self.radec_to_skycoord(imcentradec[0, 0],
-                                                        imcentradec[0, 1])
+                                            imcentradec[0, 1])
 
         """ Calculate the pixel scale """
         if self.wcsinfo.wcs.ctype[0][0:2].upper() == 'RA':
             try:
                 self.pixscale = sqrt(self.wcsinfo.wcs.cd[0, 0]**2 +
-                                            self.wcsinfo.wcs.cd[1, 0]**2)*3600.
+                                     self.wcsinfo.wcs.cd[1, 0]**2)*3600.
             except:
                 try:
                     self.pixscale = sqrt(self.wcsinfo.wcs.pc[0, 0]**2 +
-                                                self.wcsinfo.wcs.pc[1, 0]**2) * \
-                                                self.wcsinfo.cdelt[0] * 3600.
+                                         self.wcsinfo.wcs.pc[1, 0]**2) * \
+                                         self.wcsinfo.cdelt[0] * 3600.
                 except:
                     self.pixscale = abs(self.wcsinfo.wcs.cdelt[0]) * 3600.
             if verbose:
@@ -602,8 +604,8 @@ class Image:
 
         print('')
         self.pixscale = \
-             float(raw_input('Enter the pixel scale for the image '
-                                  'in arcsec/pix: '))
+            float(raw_input('Enter the pixel scale for the image '
+                            'in arcsec/pix: '))
 
     # -----------------------------------------------------------------------
 
@@ -613,19 +615,19 @@ class Image:
         Makes a header with wcs information.
 
         Inputs:
-          radec     - The desired (RA, Dec) pair to be put into the CRVAL
-                         keywords.
-                         NOTE: This should be in the SkyCoord format defined in
-                          astropy.coordinates.  To convert a "normal" pair of
-                          numbers / sexigesimal strings to SkyCoord format, use the
-                          radec_to_skycoord method in this Image class.
+          radec    - The desired (RA, Dec) pair to be put into the CRVAL
+                      keywords.
+                      NOTE: This should be in the SkyCoord format defined in
+                       astropy.coordinates.  To convert a "normal" pair of
+                       numbers / sexigesimal strings to SkyCoord format, use
+                       the radec_to_skycoord method in this Image class.
           pixscale - Desired pixel scale in arcsec/pix
-          nx         - image size along the x-axis --or-- if the image is square
-                          (indicated by ny=None) then this is also the y-axis size
-          ny         - [OPTIONAL] y-axis size, if different from the x-axis size
-                          ny=None means that the two axes have the same size
-          rot        - [OPTIONAL] desired rotation angle, in degrees E of N.
-                         NOT IMPLEMENTED YET
+          nx       - image size along the x-axis --or-- if the image is square
+                       (indicated by ny=None) then this is also the y-axis size
+          ny       - [OPTIONAL] y-axis size, if different from the x-axis size
+                       ny=None means that the two axes have the same size
+          rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
+                       NOT IMPLEMENTED YET
         """
 
         """ Create a blank 2d WCS container """
@@ -663,18 +665,19 @@ class Image:
         This set_wcsextent method will use the WCS information in the fits
         header to properly set the extent parameter values and return them.
         These are put into the "extval" container, which is part of the Image
-        class.  extval is a four-element tuple containing the coordinates of the
-        lower left and upper right corners, in terms of RA and Dec offsets.
+        class.  extval is a four-element tuple containing the coordinates of
+        the lower left and upper right corners, in terms of RA and Dec
+        offsets.
 
         Optional inputs:
-            hext     - HDU containing the WCS info.  Default=0
-            zeropos - By default, which happens when zeropos=None, the (0, 0)
-                             point on the output image, as designated by the image
-                             axis labels, will be at the center of the image.
-                             However, you can shift the (0, 0) point to be somewhere
-                             else by setting zeropos.  For example, zeropos=(0.5, 0.3)
-                             will shift the origin to the point that would have been
-                             (0.5, 0.3) if the origin were at the center of the image
+          hext    - HDU containing the WCS info.  Default=0
+          zeropos - By default, which happens when zeropos=None, the (0, 0)
+                     point on the output image, as designated by the image
+                     axis labels, will be at the center of the image.
+                     However, you can shift the (0, 0) point to be somewhere
+                     else by setting zeropos.  For example, zeropos=(0.5, 0.3)
+                     will shift the origin to the point that would have been
+                     (0.5, 0.3) if the origin were at the center of the image
         """
 
         self.get_wcs(hext)
@@ -708,7 +711,7 @@ class Image:
     # -----------------------------------------------------------------------
 
     def im_moments(self, x0, y0, rmax=10., detect_thresh=3., skytype='global',
-                        hext=0, verbose=False):
+                   hext=0, verbose=False):
         """
         Given an initial guess of a centroid position, calculates the
         flux-weighted first and second moments within a square centered
@@ -717,17 +720,17 @@ class Image:
         light distribution within the square.
 
         Inputs:
-          x0        - initial guess for x centroid
-          y0        - initial guess for y centroid
-          rmax     - used to set size of image region probed, which will be a
-                         square with side = 2*rmax + 1. Default=10
+          x0      - initial guess for x centroid
+          y0      - initial guess for y centroid
+          rmax    - used to set size of image region probed, which will be a
+                     square with side = 2*rmax + 1. Default=10
           skytype - set how the sky/background level is set.  Three options:
-                          'global' - Use the clipped mean as determined by the
-                                         sigma_clip method.  This is the default.
-                          'local'  - Use a region that surrounds the source
-                                         NOT YET IMPLEMENTED
-                          None      - Don't do any sky/background subtraction
-          hext     - HDU extension that contains the data.  Default = 0
+                     'global' - Use the clipped mean as determined by the
+                                sigma_clip method.  This is the default.
+                     'local'  - Use a region that surrounds the source
+                                NOT YET IMPLEMENTED
+                     None     - Don't do any sky/background subtraction
+          hext    - HDU extension that contains the data.  Default = 0
         """
 
         """ Define the data and the coordinate arrays """
@@ -847,14 +850,14 @@ class Image:
         if bkgd is not None:
             p = [sig0, amp0, bkgd]
             p_out, ier = optimize.leastsq(self.eval_gauss_1d_r_plus_bkgd, p,
-                                                    (r, flux), maxfev=mf)
+                                          (r, flux), maxfev=mf)
             self.rprof_sig = p_out[0]
             self.rprof_amp = p_out[1]
             self.rprof_bkgd = p_out[2]
         else:
             p = [sig0, amp0]
             p_out, ier = optimize.leastsq(self.eval_gauss_1d_r, p, (r, flux),
-                                                    maxfev=mf)
+                                          maxfev=mf)
             self.rprof_sig = p_out[0]
             self.rprof_amp = p_out[1]
             self.rprof_bkgd = 0.
@@ -909,8 +912,9 @@ class Image:
     # -----------------------------------------------------------------------
 
     def radplot(self, x0, y0, rmax, center=True, imex_rmax=10., maxshift=5.,
-                    skylevel=0., zp=None, runit='pixel', logr=False, hext=0,
-                    doplot=True, normalize=False, outfile=None, outtype='radplot'):
+                skylevel=0., zp=None, runit='pixel', logr=False, hext=0,
+                doplot=True, normalize=False, outfile=None,
+                outtype='radplot'):
         """
         Given a position in the image file (the x0 and y0 parameters), makes
          a plot of image flux as a function of distance from that (x, y)
@@ -926,46 +930,49 @@ class Image:
           y0    - y coordinate
           rmax - maximum radius, in pixels, for the plot
         Optional inputs:
-          center     - If True (the default) then there will be a call to
-                            im_moments to re-calculate the center position based on
-                            the initial guess provided by x0 and y0.
+          center    - If True (the default) then there will be a call to
+                       im_moments to re-calculate the center position based on
+                       the initial guess provided by x0 and y0.
           imex_rmax - Maximum radius used for computing object moments in the
-                            call to im_moments
+                       call to im_moments
           maxshift  - Only used if center is True.  Maximum shift from the
-                            original(x0, y0) guess (in pixels) that is allowed.
-                            If im_moments returns a new central position that is more
-                            than maxshift from the original guess, then that new
-                            solution is rejected and the original guess is used
-                            instead.
-                            Default = 5 pixels
+                       original(x0, y0) guess (in pixels) that is allowed.
+                       If im_moments returns a new central position that is
+                       more than maxshift from the original guess, then that
+                       new solution is rejected and the original guess is used
+                       instead.
+                       Default = 5 pixels
           skylevel  - If the sky has not been subtracted from the data, then
-                            the integrated counts, surface brightness in
-                            mag/arcsec**2, and integrated magnitude will all be wrong.
-                            Set this parameter to the rough sky level to address these
-                            issues.
-                            The default (skylevel=0) is appropriate if the sky _has_
-                            been subtracted.
-          zp          - zero point.  If this parameter is set, then the output plot
-                            will be in magnitude units (i.e., surface brightness)
-                            rather than the default flux-like units (ADU, counts,
-                            counts/sec, etc.)
-          runit      - units for the x-axis of the plot.  The only options are
-                            'pixel' (the default) or 'arcsec'
-          logr        - If False (the default) then x-axis is linear. If true, then
-                            it is in log
-          hext        - HDU extension that contains the data.  Default = 0
-          doplot     - Sets whether a plot is made or not.  Default is doplot=True
+                       the integrated counts, surface brightness in
+                       mag/arcsec**2, and integrated magnitude will all be
+                       wrong.
+                       Set this parameter to the rough sky level to address
+                       these issues.
+                       The default (skylevel=0) is appropriate if the sky
+                       _has_ been subtracted.
+          zp        - zero point.  If this parameter is set, then the output
+                       plot will be in magnitude units (i.e., surface
+                       brightness) rather than the default flux-like units
+                       (ADU, counts, counts/sec, etc.)
+          runit     - units for the x-axis of the plot.  The only options are
+                       'pixel' (the default) or 'arcsec'
+          logr      - If False (the default) then x-axis is linear. If true,
+                       then it is in log
+          hext      - HDU extension that contains the data.  Default = 0
+          doplot    - Sets whether a plot is made or not.  Default is
+                       doplot=True
           normalize - Normalize so that central value of the profile is 1.0?
-                            Default is normalize=False
-          outfile    - Write radplot data to an output file if set. The default
-                            value (outfile=None) means that no output file will be
-                            written
-          outtype    - Output file data time.  The options are 'radplot' or
-                            'fcirc'.
-                            Choosing 'radplot' (the default) writes out
-                             the radial position and flux for all pixels with in
-                             the requested region.
-                            Choosing 'fcirc' writes out a circularly averaged profile.
+                       Default is normalize=False
+          outfile   - Write radplot data to an output file if set. The default
+                       value (outfile=None) means that no output file will be
+                       written
+          outtype   - Output file data time.  The options are 'radplot' or
+                       'fcirc'.
+                       Choosing 'radplot' (the default) writes out
+                        the radial position and flux for all pixels with in
+                        the requested region.
+                       Choosing 'fcirc' writes out a circularly averaged
+                       profile.
         """
 
         """ Define the data and the coordinate arrays """
@@ -1031,7 +1038,7 @@ class Image:
         self.circ_profile(rr, rflux)
         rfit = np.linspace(0, rmax, 500)
         ffit = self.rprof_bkgd + self.rprof_amp * \
-             np.exp(-0.5 * (rfit / self.rprof_sig)**2)
+            np.exp(-0.5 * (rfit / self.rprof_sig)**2)
         if normalize:
             rflux /= ffit[0]
             self.fcirc /= ffit[0]
@@ -1079,7 +1086,7 @@ class Image:
                     plt.plot(rr, ftot, '+')
             plt.xlim(0, rmax)
             plt.title('Integrated %s centered at (%6.1f, %6.1f)' %
-                         (ttype, xc, yc))
+                      (ttype, xc, yc))
             plt.xlabel(xlab)
             plt.ylabel(tlab)
 
@@ -1106,26 +1113,28 @@ class Image:
         The levels are set in terms of an rms, which is either passed
         explicitly via the optional rms parameter, or is determined from
         the properties of the data themselves (if rms=None).  The contours
-        are multiples of (1) the rms, and (2) the contour base level (contbase),
-        which has a default value of sqrt(3).  Thus:
+        are multiples of (1) the rms, and (2) the contour base level
+        (contbase), which has a default value of sqrt(3).  Thus:
 
-            clev = [-contbase**2, contbase**2, contbase**3, contbase**4,...] * rms
+         clev = [-contbase**2, contbase**2, contbase**3, contbase**4,...] * rms
 
         Optional inputs:
-            rms      - If rms is None (the default), then use the data to determine
-                          the rms.  If it is not None, then use the passed value.
-            hext     - Image HDU containing the data.  The default (hext=0) should
-                          work for all single-extension fits files and may
-                          work for some multi-extension files.
-                          NOTE: hext is ignored if the subim variable is already set
-                          by, e.g., set_subim_xy or def_subim_radec
-            verbose - Report contour levels if True (the default)
+         rms      - If rms is None (the default), then use the data to
+                     determine the rms.  If it is not None, then use the
+                     passed value.
+         hext     - Image HDU containing the data.  The default (hext=0)
+                     should work for all single-extension fits files and may
+                     work for some multi-extension files.
+                     NOTE: hext is ignored if the subim variable is already
+                     set by, e.g., set_subim_xy or def_subim_radec
+         verbose - Report contour levels if True (the default)
         """
 
         """
         Set the portion of the data to be used.  This may already have been
         set before calling set_contours.  If it has already been set, then
-        self.subim will contain the data and the hext parameter will be ignored.
+        self.subim will contain the data and the hext parameter will be
+        ignored.
         If it has not been set, i.e., if self.subim is None, then set the
         data to be the full image.
         """
@@ -1155,7 +1164,7 @@ class Image:
     # -----------------------------------------------------------------------
 
     def plot_contours(self, color='r', rms=None, hext=0, overlay=True,
-                            verbose=True):
+                      verbose=True):
         """
 
         Plots contours based on the flux (counts) in the image.
@@ -1168,10 +1177,11 @@ class Image:
 
         """ Plot the contours """
         if overlay:
-            plt.contour(self.subim, self.clevs, colors=color, extent=self.extval)
+            plt.contour(self.subim, self.clevs, colors=color,
+                        extent=self.extval)
         else:
-            plt.contour(self.subim, self.clevs, colors=color, extent=self.extval,
-                            origin='lower')
+            plt.contour(self.subim, self.clevs, colors=color,
+                        extent=self.extval, origin='lower')
 
     # -----------------------------------------------------------------------
 
@@ -1183,20 +1193,20 @@ class Image:
         corner (x2, y2).
 
         Inputs:
-            centpos - (x, y) coordinates of cutout center, in pixels
-                         centpos can take any of the following formats:
-                            1. A 2-element numpy array
-                            2. A 2-element list:  [xsize, ysize]
-                            3. A 2-element tuple: (xsize, ysize)
-                            4. centpos=None.  In this case, the center of the cutout
-                                is just the center of the full image
-            imsize  - size of cutout (postage stamp) image, in pixels
-                         imsize can take any of the following formats:
-                            1. A single number (which will produce a square image)
-                            2. A 2-element numpy array
-                            3. A 2-element list:  [xsize, ysize]
-                            4. A 2-element tuple: (xsize, ysize)
-                            5. imsize=None.  In this case, the full image is used
+          centpos - (x, y) coordinates of cutout center, in pixels
+                    centpos can take any of the following formats:
+                       1. A 2-element numpy array
+                       2. A 2-element list:  [xsize, ysize]
+                       3. A 2-element tuple: (xsize, ysize)
+                       4. centpos=None.  In this case, the center of the
+                          cutout is just the center of the full image
+          imsize  - size of cutout (postage stamp) image, in pixels
+                    imsize can take any of the following formats:
+                       1. A single number (which will produce a square image)
+                       2. A 2-element numpy array
+                       3. A 2-element list:  [xsize, ysize]
+                       4. A 2-element tuple: (xsize, ysize)
+                       5. imsize=None.  In this case, the full image is used
         """
 
         """ Get the full size of the image """
@@ -1226,7 +1236,7 @@ class Image:
         For now does not deal with regions partially outside the input file
         """
         if imsize is not None:
-            subxy = np.atleast_1d(imsize)  # Converts subimsize to a numpy array
+            subxy = np.atleast_1d(imsize)  # Converts subimsize to a np array
             subx = subxy[0]
             if subxy.size > 1:
                 suby = subxy[1]
@@ -1283,9 +1293,9 @@ class Image:
         if verbose:
             print('')
             print "Cutout image center (x, y): (%d, %d)" % \
-                 (self.subcentx, self.subcenty)
+                (self.subcentx, self.subcenty)
             print "Cutout image size (x y): %dx%d" % \
-                 (self.subsizex, self.subsizey)
+                (self.subsizex, self.subsizey)
 
         """
         Update the header info, including updating the CRPIXn values if they
@@ -1293,8 +1303,8 @@ class Image:
         """
         self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
         self.subimhdr['ORIG_REG'] = \
-             'Region in original image [xrange, yrange]: [%d:%d,%d:%d]' % \
-             (x1, x2, y1, y2)
+            'Region in original image [xrange, yrange]: [%d:%d,%d:%d]' % \
+            (x1, x2, y1, y2)
 
         """ Update the headers to reflect the cutout center"""
         try:
@@ -1313,7 +1323,7 @@ class Image:
     # -----------------------------------------------------------------------
 
     def def_subim_radec(self, ra, dec, xsize, ysize=None, outscale=None,
-                              docdmatx=True, hext=0, dext=0, verbose=True):
+                        docdmatx=True, hext=0, dext=0, verbose=True):
         """
         Selects the data in the subimage defined by ra, dec, xsize, and ysize.
 
@@ -1322,28 +1332,28 @@ class Image:
         Some modifications have been made by Chris Fassnacht.
 
         Inputs:
-            ra         - Central right ascension in decimal degrees
-            dec        - Central declination in decimal degrees
-            xsize     - Output image x size in arcsec
-            ysize     - Output image y size in arcsec
-                          If ysize is None (the default) then use the same size for
-                          y as is being used for x (i.e., ysize=xsize)
-            outscale - Output image pixel scale, in arcsec/pix.
-                          If outscale is None (the default) then the output image
-                          scale will be the same as the input image scale
-            docdmatx - If set to True (the default), then put the output image
-                          scale in terms of a CD matrix.  If False, then use the
-                          CDELT and PC matrix formalism instead.
-            hext      - Input file HDU number that contains the WCS info
-                          (default 0)
-            dext      - Input file HDU number that contains the image data
-                          (default 0)
-            verbose - Print out informational statements if True (default=True)
+          ra       - Central right ascension in decimal degrees
+          dec      - Central declination in decimal degrees
+          xsize    - Output image x size in arcsec
+          ysize    - Output image y size in arcsec
+                      If ysize is None (the default) then use the same size
+                      for y as is being used for x (i.e., ysize=xsize)
+          outscale - Output image pixel scale, in arcsec/pix.
+                      If outscale is None (the default) then the output image
+                      scale will be the same as the input image scale
+          docdmatx - If set to True (the default), then put the output image
+                      scale in terms of a CD matrix.  If False, then use the
+                      CDELT and PC matrix formalism instead.
+          hext     - Input file HDU number that contains the WCS info
+                        (default 0)
+          dext     - Input file HDU number that contains the image data
+                        (default 0)
+          verbose  - Print out informational statements if True (default=True)
         """
 
         """
-        The following assignments get used whether a subimage has been requested
-        or not
+        The following assignments get used whether a subimage has been
+        requested or not
         """
         self.subimhdr = self.hdu[hext].header.copy()
         nx = self.hdu[hext].data.shape[1]
@@ -1373,8 +1383,8 @@ class Image:
 
         else:
             """
-            We have to convert the requested (RA, dec) center into the associated
-             pixel values.
+            We have to convert the requested (RA, dec) center into the
+             associated pixel values.
             The first step is to convert ra and dec into astropy.coordinates
              SkyCoord format
             """
@@ -1391,9 +1401,9 @@ class Image:
             y = xy[1]
 
         """
-        Get rough image size in pixels for the segment of input image, since the
-        pixel scale for the output image does not necessarily match that of the
-        input image.
+        Get rough image size in pixels for the segment of input image, since
+        the pixel scale for the output image does not necessarily match that
+        of the input image.
         """
         if ysize is None:
             ysize = xsize
@@ -1408,17 +1418,19 @@ class Image:
         if verbose:
             print('')
             rastr = '%02d %02d %06.3f' % \
-                 (self.radec.ra.hms.h, self.radec.ra.hms.m, self.radec.ra.hms.s)
+                (self.radec.ra.hms.h, self.radec.ra.hms.m,
+                 self.radec.ra.hms.s)
             decstr = '%+03d %02d %05.2f' % \
-                 (self.radec.dec.dms.d, self.radec.dec.dms.m, self.radec.dec.dms.s)
+                (self.radec.dec.dms.d, self.radec.dec.dms.m,
+                 self.radec.dec.dms.s)
             print " Requested center (RA, dec): %11.7f    %+10.6f" % \
-                 (self.radec.ra.deg, self.radec.dec.deg)
+                (self.radec.ra.deg, self.radec.dec.deg)
             print " Requested center (RA, dec):  %s %s" % (rastr, decstr)
             print " Requested center (x, y):     %8.2f %8.2f" % (x, y)
             print " Requested image size (arcsec): %6.2f %6.2f" % \
-                 (xsize, ysize)
+                (xsize, ysize)
             print " Requested size in input pixels: %d %d" % \
-                 (inpixxsize, inpixysize)
+                (inpixxsize, inpixysize)
 
         # """
         # In order to account for rotations, etc., when cutting out the
@@ -1462,7 +1474,7 @@ class Image:
         else:
             data = self.hdu[dext].data.copy()
         outhdr = self.make_header(self.radec, outscale, self.subsizex,
-                                          self.subsizey)
+                                  self.subsizey)
         coords = np.indices((self.subsizey, self.subsizex)).astype(np.float32)
         skycoords = self.subim_wcs.wcs_pix2world(coords[1], coords[0], 0)
         ccdcoords = w.wcs_world2pix(skycoords[0], skycoords[1], 0)
@@ -1480,7 +1492,7 @@ class Image:
 
         """ Transform the coordinates """
         self.subim = ndimage.map_coordinates(data, coords, output=np.float64,
-                                                         order=5)
+                                             order=5)
         self.subimhdr = outhdr
 
         """ Clean up """
