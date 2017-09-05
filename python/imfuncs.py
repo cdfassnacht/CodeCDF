@@ -48,6 +48,7 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from math import log, log10, sqrt, pi, fabs
 from math import cos as mcos, sin as msin
+import datafuncs as df
 
 # -----------------------------------------------------------------------
 
@@ -250,56 +251,15 @@ class Image:
             x1, y1, x2, y2 = statsec
             data = self.hdu[hext].data[y1:y2, x1:x2]
         elif self.subim is not None:
-            if mask is not None:
-                data = self.subim[mask]
-            else:
-                data = self.subim
+            data = self.subim
         else:
-            if mask is not None:
-                data = self.hdu[hext].data[mask]
-            else:
-                data = self.hdu[hext].data
+            data = self.hdu[hext].data
 
-        """ Report the number of valid data points """
-        size = data[np.isfinite(data)].size
-        if verbose:
-            print " sigma_clip: Full size of data         = %d" % data.size
-            print " sigma_clip: Number of finite values = %d" % size
-
-        """ Reject the non-finite data points and compute the initial values """
-        d = data[np.isfinite(data)].flatten()
-        mu = d.mean()
-        sig = d.std()
-        mu0 = d.mean()
-        sig0 = d.mean()
-        if verbose:
-            print('')
-            print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
-
-        """ Iterate until convergence """
-        delta = 1
-        clipError = False
-        while delta:
-            size = d.size
-            if sig == 0.:
-                clipError = True
-                break
-            d = d[abs(d - mu) < nsig * sig]
-            mu = d.mean()
-            sig = d.std()
-            if verbose:
-                print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
-            delta = size-d.size
-        if clipError:
-            print('')
-            print 'ERROR: sigma clipping failed, perhaps with rms=0.'
-            print 'Setting mu and sig to their original, unclipped, values'
-            print('')
-            mu = mu0
-            sig = sig0
+        """ Find the clipped mean and rms """
+        mu, sig = df.sigclip(data, nsig=nsig, mask=mask, verbose=verbose)
 
         """ Store the results and clean up """
-        del data, d
+        del data
         self.mean_clip = mu
         self.rms_clip = sig
         return
