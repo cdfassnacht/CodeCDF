@@ -307,6 +307,9 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
                     between cats
       ddec2       - Offset in ARCSEC to add to dec2 in case of known shifts
                     between cats
+
+   Outputs: two catalogs that contain the input catalogs plus information
+            about any matched objects
    """
 
    """ Read inputs """
@@ -347,10 +350,10 @@ def find_match(catfile1, catfile2, rmatch, catformat1='ascii',
 #--------------------------------------------------------------------------
 
 def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
-              coloraxis='y', savematch=True, doplot=True):
+              coloraxis='y', savematch=True, starsonly=False, doplot=True):
    """
    Given catalogs that have been matched by the find_match function,
-   calculate the colors for the matched object
+   calculate the colors for the matched objects
 
    Inputs:
       cat1      - a Secat catalog produced by find_match 
@@ -365,15 +368,27 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
                   Set this to 'x' for a HR diagram.   Default='y'
       savematch - Set this to True (the default) to return the matched magnitude
                   vectors
+      starsonly - when this parameter is set to true, then use the
+                  starmask masks from each of the input catalogs to
+                  compare only stars.
+                  NOTE: this means that the set_starmask method has to have
+                  been run for each of the input catalogs.
+                  Default=False
       doplot    - set to True to make a plot.  Default=True
    """
 
    """ Compute the color """
-   mag1 = cat1.data[cat1.mask][magcol1]
-   mag2 = cat2.data[cat2.mask][magcol2]
+   if starsonly:
+      sm1 = cat1.starmask[cat1.mask]
+      sm2 = cat2.starmask[cat2.mask]
+      mag1 = cat1.data[sm1][magcol1]
+      mag2 = cat2.data[sm2][magcol2]
+   else:
+      mag1 = cat1.data[cat1.mask][magcol1]
+      mag2 = cat2.data[cat2.mask][magcol2]
 
    """ Get rid of crazy points """
-   mask = (mag1<35.) & (mag2<35.)
+   mask = (mag1<35.) & (mag2<35.) & (mag1 > 5) & (mag2 > 5)
    mag1 = mag1[mask]
    mag2 = mag2[mask]
    magdiff = mag1 - mag2
@@ -400,7 +415,7 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
 
 def find_zp(datacat, photcat, magcol1, magcol2, lab1='mag_data', lab2='mag_phot',
             magmin=12., magmax=23., diffmin=-5., diffmax=5.,
-            doplot=True, startfig=3):
+            doplot=True, startfig=3, starsonly=False):
    """
    Given an input catalog and a photometric catalog that have been matched by 
    position, find the magnitude offset between the matched objects.  This can
@@ -423,13 +438,18 @@ def find_zp(datacat, photcat, magcol1, magcol2, lab1='mag_data', lab2='mag_phot'
       doplot    - set to True to make a plot.  Default=True
       startfig  - two figures will be produced if doplot==True.  This
                   parameter sets the figure number for the first one
+      starsonly - when this parameter is set to true, then use the
+                  starmask masks from each of the input catalogs to
+                  compare only stars.
+                  NOTE: this means that the set_starmask method has to have
+                  been run for each of the input catalogs
    """
 
    """ Get the magnitude matches and plot them """
    if doplot:
       plt.figure(startfig)
    mdat,mphot = color_mag(datacat,photcat,magcol1,magcol2,lab1,lab2,
-                          doplot=doplot)
+                          doplot=doplot, starsonly=starsonly)
    plt.axhline(0.,color='r',lw=2,ls='--')
    mdiff = mdat - mphot
    if mphot.max() > 35.:

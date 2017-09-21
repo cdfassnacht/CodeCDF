@@ -72,6 +72,8 @@ class Secat:
 
       """ Set other default values """
       self.radec = None
+      self.rafield = None
+      self.decfield = None
 
       """
       Start by loading the catalog information
@@ -101,18 +103,30 @@ class Secat:
             read_success = False
 
       elif catformat == 'asciitab':
-         try:
-            self.data = ascii.read(infile,guess=False,format='commented_header')
-         except:
+         f = open(infile)
+         foo = f.readline()
+         f.close()
+         if foo[0] == '#':
+            try:
+               self.data = ascii.read(infile, guess=False,
+                                      format='commented_header')
+            except:
+               print('')
+               print('ERROR: Could not read data from %s' % infile)
+               print(' Tried using "commented_header" format but failed') 
+               print(' Please check input file.')
+               print('')
+               raise IOError
+         else:
             try:
                self.data = ascii.read(infile)
             except:
                print ''
                print 'ERROR: Could not properly read data from %s' % infile
-               print 'Tried both the automatic formatting and commented_header'
-               print ' format and neither worked.  Please check input file.'
+               print 'Tried using the automatic formatting but failed'
+               print ' Please check input file.'
                print ''
-               exit()
+               raise IOError
          ncols = len(self.data.colnames)
          nrows = len(self.data)
          """ Set the field names """
@@ -227,6 +241,7 @@ class Secat:
       self.catformat = catformat
       self.nrows = nrows
       self.ncols = ncols
+      self.starmask = np.zeros(nrows).astype(bool)
 
    #-----------------------------------------------------------------------
 
@@ -516,7 +531,7 @@ class Secat:
 
    #-----------------------------------------------------------------------
 
-   def plot_nhist(self, magcol='mag_auto', fwhmmin=0., fwhmcol='fwhm_image', 
+   def plot_nhist(self, magcol='MAG_AUTO', usestarmask=False,
                   magmin=15, magmax=28):
       """
       Plots a histogram of galaxy magnitudes (similar to a log N-log S plot)
@@ -525,18 +540,30 @@ class Secat:
       are likely to be galaxies, but this is not required.
 
       Inputs:
-         magcol  - column containing the magnitudes. Default = 'mag_auto'
-         fwhmmin - minimum FWHM to be used as a proxy for a star-galaxy
-                   separation.  The default (0.) selects all object in the
-                   catalog.
-         fwhmcol - column containing the fwhm info. Default = 'fwhm_image'
-         magmin  - minimum magnitude to use for the plot. Default=15
-         magmax  - maximum magnitude to use for the plot. Default=28
+         magcol      - column containing the magnitudes. Default = 'mag_auto'
+         usestarmask - when this parameter is set to True, then use the
+                       starmask mask to select the galaxies.
+                       NOTE: this means that the set_starmask method has to
+                       have been run for each of the input catalogs, or
+                       else all objects will be plotted
+                       Default=False
+         magmin      - minimum magnitude to use for the plot. Default=15
+         magmax      - maximum magnitude to use for the plot. Default=28
       """
 
       """ Get the magnitudes to be plotted """
-      if fwhmmin>0.:
-         mag = self.data[magcol][self.data[fwhmcol]>fwhmmin]
+      if usestarmask:
+         if self.starmask.sum() == 0:
+            print('')
+            print('WARNING: you have set usestarmask=True but there are')
+            print(' no stars selected by the starmask')
+            print('Please make sure that set_starmask has been run BEFORE'
+                  'runing plot_nhist')
+            print(' if you want to use this mask')
+            print('')
+            return
+         else:
+            mag = self.data[self.starmask==False][magcol]
       else:
          mag = self.data[magcol]
 
@@ -833,6 +860,22 @@ class Secat:
       """ Clean up """
       hdulist.close()
       del hdr,raa,deca,xa,ya,astmask
+
+   # -----------------------------------------------------------------------
+
+   def set_starmask(self, mask):
+      """
+      Takes the input mask and assigns it to an internal mask associated
+      with this instance of the Secat class.
+      The internal mask is called starmask and has values of True for objects
+      that have been identified as stars by the provided external mask.
+
+      The external mask will be based on some characteristics in the catalog.
+      Examples could be objects with a SExtractor CLASS_STAR value greater
+       than 0.7, or a FWHM_IMAGE less than a certain value, or ...
+      """
+
+      self.starmask = mask
 
 #------------------------------------------------------------------------------
 
