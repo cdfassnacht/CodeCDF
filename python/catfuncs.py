@@ -24,7 +24,7 @@ else:
 from astropy import units as u
 from astropy.io import ascii
 from astropy.table import Table
-import os,sys
+import os, sys
 
 #------------------------------------------------------------------------------
 
@@ -405,11 +405,11 @@ class Secat:
          snrmask = snr>snrgood
 
       """ Mask the input data if requested """
-      print 'Total objects in catalog:        %d' % len(self.radec)
+      print('Total objects in catalog:        %d' % len(self.radec))
       if mask is not None:
          radec  = self.radec[mask]
          selmask = mask
-         print 'Objects selected by mask:        %d' % len(radec)
+         print('Objects selected by mask:        %d' % len(radec))
       else:
          radec = self.radec
          selmask = np.ones(len(radec),dtype=bool)
@@ -444,8 +444,8 @@ class Secat:
       f = open(outfile,'w')
       f.write('global color=%s\n' % color)
       for i in range(ntot):
-         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n'% \
-                    (radeg[i],decdeg[i],rcirc))
+         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n' % 
+                 (radeg[i],decdeg[i],rcirc))
       if plot_high_snr and ngood>0:
          f.write('global color=red\n')
          for i in range(ngood):
