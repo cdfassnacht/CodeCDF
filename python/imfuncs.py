@@ -251,9 +251,9 @@ class Image:
             x1, y1, x2, y2 = statsec
             data = self.hdu[hext].data[y1:y2, x1:x2]
         elif self.subim is not None:
-            data = self.subim
+            data = self.subim.copy()
         else:
-            data = self.hdu[hext].data
+            data = self.hdu[hext].data.copy()
 
         """ Find the clipped mean and rms """
         mu, sig = df.sigclip(data, nsig=nsig, mask=mask, verbose=verbose)
@@ -1453,6 +1453,7 @@ class Image:
         """ Transform the coordinates """
         self.subim = ndimage.map_coordinates(data, coords, output=np.float64,
                                              order=5)
+        self.subim[np.isnan(self.subim)] = 0.
         self.subimhdr = outhdr
 
         """ Clean up """
@@ -1918,6 +1919,8 @@ class Image:
             if self.found_rms is False:
                 print "Calculating display limits"
                 print "--------------------------"
+                print self.subim.size
+                print self.subim.shape
                 self.sigma_clip(hext=hext, verbose=verbose)
                 self.found_rms = True
 
@@ -2060,7 +2063,7 @@ class Image:
             self.extval = None
 
         """ Set the image flux display limits """
-        self.set_display_limits(fmin, fmax, funits, hext=hext)
+        self.set_display_limits(fmin, fmax, funits, hext=hext, verbose=verbose)
         self.fscale = fscale
 
         """ Set the color map """

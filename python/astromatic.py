@@ -124,9 +124,15 @@ class fits2cat(imf.Image):
                    verbose=True, racol=None, deccol=None, fluxcol=None,
                    fluxerrcol='fluxerr_auto'):
 
-        """ Set up the configuration file """
+        """ Set up the input and output file names """
         if configfile == 'default':
             configfile = self.config
+        if whtfile == 'default':
+            whtfile = self.whtfile
+        if outcat == 'default':
+            outcat = self.outcat
+        if regfile == 'default':
+            regfile = self.regfile
 
         """
         Set up the gain and format of the output catalog (default is LDAC)
@@ -141,8 +147,6 @@ class fits2cat(imf.Image):
         satur_eff = satur * ncoadd
 
         """ Prepare the optional portions of the call to SExtractor """
-        if outcat == 'default':
-            outcat = self.outcat
         sopts = '-GAIN %f -CATALOG_NAME %s -CATALOG_TYPE %s ' \
             % (gain_eff, outcat, cattype)
         sopts += '-SATUR_LEVEL %f ' % satur_eff
@@ -158,8 +162,6 @@ class fits2cat(imf.Image):
         if whtfile is None:
             sopts += '-WEIGHT_TYPE NONE '
         else:
-            if whtfile == 'default':
-                whtfile = self.whtfile
             sopts += '-WEIGHT_TYPE %s -WEIGHT_IMAGE %s ' % \
                 (weight_type, whtfile)
         if weight_thresh is not None:
@@ -195,9 +197,10 @@ class fits2cat(imf.Image):
                 print ""
                 return
         if verbose:
-            print ""
-            print "Ran SExtractor on %s to produce output catalog %s" % \
-                (self.fitsfile, outcat)
+            print('')
+            print('Finished running SExtractor')
+            print(' Input:  %s' % self.fitsfile)
+            print(' Output: %s' % outcat)
 
         if regfile is not None:
             if catformat=='ascii':
@@ -210,8 +213,6 @@ class fits2cat(imf.Image):
             else:
                 tmpcat = cf.Secat(outcat, catformat)
 
-            if regfile == 'default':
-                regfile = self.regfile
             tmpcat.make_reg_file(regfile, 1.5, fluxcol=fluxcol,
                                  fluxerrcol=fluxerrcol)
         if verbose:

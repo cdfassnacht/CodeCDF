@@ -275,11 +275,11 @@ def matchcat(cat1, cat2, rmatch, dra2=0., ddec2=0., doplot=True):
       return
 
    """ Do the matching """
-   cat1.indmatch,cat1.nmatch,cat1.matchdx,cat1.matchdy = \
-       match_coords(cat1.ra,cat1.dec,cat2.ra,cat2.dec, \
-                    rmatch,dra2,ddec2,doplot)
+   cat1.indmatch, cat1.nmatch, cat1.matchdx, cat1.matchdy = \
+       match_coords(cat1.ra, cat1.dec, cat2.ra, cat2.dec, \
+                    rmatch, dra2, ddec2, doplot)
 
-   cat1.mask = cat1.indmatch>-1
+   cat1.mask = cat1.indmatch > -1
    cat2.mask = cat1.indmatch[cat1.mask]
 
 

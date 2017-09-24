@@ -26,7 +26,7 @@ from astropy.io import ascii
 from astropy.table import Table
 import os, sys
 
-#------------------------------------------------------------------------------
+# ===========================================================================
 
 class Secat:
 
@@ -532,7 +532,7 @@ class Secat:
    #-----------------------------------------------------------------------
 
    def plot_nhist(self, magcol='MAG_AUTO', usestarmask=False,
-                  magmin=15, magmax=28):
+                  magmin=15, magmax=28, color='b', alpha=1.):
       """
       Plots a histogram of galaxy magnitudes (similar to a log N-log S plot)
       that can be used to determine the magnitude to which the catalog is 
@@ -563,13 +563,18 @@ class Secat:
             print('')
             return
          else:
-            mag = self.data[self.starmask==False][magcol]
+            mag = (self.data[self.starmask==False][magcol]).copy()
       else:
-         mag = self.data[magcol]
+         mag = self.data[magcol].copy()
+
+      mag = mag[np.isfinite(mag)]
 
       """ Plot the histogram """
       nbins = int(2 * (magmax - magmin))
-      plt.hist(mag,range=(magmin,magmax),bins=nbins)
+      plt.hist(mag,range=(magmin, magmax), bins=nbins, color=color, 
+               alpha=alpha)
+
+      del(mag)
 
    #-----------------------------------------------------------------------
 
