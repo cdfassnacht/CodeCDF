@@ -45,7 +45,7 @@ class Secat:
 
    """
 
-   def __init__(self, infile, catformat='ldac', verbose=True, namecol=None,
+   def __init__(self, incat, catformat='ldac', verbose=True, namecol=None,
                 racol=None, deccol=None, rafield=None, decfield=None,
                 usecols=False):
       """
@@ -53,19 +53,19 @@ class Secat:
          secat = Secat(infile)
 
       Inputs:
-         infile    - input file containing the catalog
-         catformat - format of the input file.  Options:
+         incat     - input table data.  This can be in one of two forms:
+                       1. a file containing the catalog (most common)
+                       2. a Table instance containing the catalog data
+         catformat - format of the input file, if incat is a filename.  
+                     The options are:
                       ascii    - 
                       asciitab -
                       ldac     - 
                       sdssfits - 
                       secat    -
+                     NOTE: this parameter is not used if incat is a Table
+                      rather than the name of an input file
       """
-
-      """
-      Define a flag for successful reading of input catalog
-      """
-      read_success = True
 
       """ Set a flag showing whether the file has been modified """
       self.modified = False
@@ -78,23 +78,60 @@ class Secat:
       """
       Start by loading the catalog information
       """
+      incattype = (str(type(incat))).split('.')[-1]
+      if incattype[0:3] == 'Tab' or incattype[0:4] == 'FITS':
+         self.data = incat.copy()
+         if rafield:
+            self.rafield = rafield
+         if decfield:
+            self.decfield = decfield
+         self.nrows = len(incat)
+         self.ncols = len(incat.columns)
+         self.catformat = 'Table'
+
+      elif isinstance(incat, str):
+         self.load_from_file(incat, catformat=catformat, verbose=verbose,
+                             namecol=namecol, racol=racol, deccol=deccol,
+                             rafield=rafield, decfield=decfield,
+                             usecols=usecols)
+      else:
+         print('')
+         print('ERROR: input catalog must either be a filename or a Table')
+         print(' Input catalog type is' + str(type(incat)))
+         print('')
+         return None
+
+      self.starmask = np.zeros(self.nrows).astype(bool)
+
+   #-----------------------------------------------------------------------
+
+   def load_from_file(self, incat, catformat='ldac', verbose=True, namecol=None,
+                      racol=None, deccol=None, rafield=None, decfield=None,
+                      usecols=False):
+
       if verbose:
          print ""
-         print "Loading data from catalog file %s" % infile
+         print "Loading data from catalog file %s" % incat
          print "-----------------------------------------------"
          print "Expected catalog format: %s" % catformat
          print ""
 
+      """
+      Define a flag for successful reading of input catalog
+      """
+      read_success = True
+
+      """ Read in catalog in a manner appropriate to the catformat """
       if catformat == 'secat':
          try:
-            self.data = ascii.read(infile)
+            self.data = ascii.read(incat)
             ncols = len(self.data.colnames)
             nrows = len(self.data)
             """ Set the field names """
             self.rafield  = 'ALPHA_J2000'
             self.decfield = 'DELTA_J2000'
          except:
-            print "  ERROR. Problem in loading file %s" % infile
+            print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print ""
             print "  This also may have failed if the input file is in the"
@@ -103,26 +140,26 @@ class Secat:
             read_success = False
 
       elif catformat == 'asciitab':
-         f = open(infile)
+         f = open(incat)
          foo = f.readline()
          f.close()
          if foo[0] == '#':
             try:
-               self.data = ascii.read(infile, guess=False,
+               self.data = ascii.read(incat, guess=False,
                                       format='commented_header')
             except:
                print('')
-               print('ERROR: Could not read data from %s' % infile)
+               print('ERROR: Could not read data from %s' % incat)
                print(' Tried using "commented_header" format but failed') 
                print(' Please check input file.')
                print('')
                raise IOError
          else:
             try:
-               self.data = ascii.read(infile)
+               self.data = ascii.read(incat)
             except:
                print ''
-               print 'ERROR: Could not properly read data from %s' % infile
+               print 'ERROR: Could not properly read data from %s' % incat
                print 'Tried using the automatic formatting but failed'
                print ' Please check input file.'
                print ''
@@ -139,7 +176,7 @@ class Secat:
          """ ASCII format """
          try:
             """ Set up the data format in the catalog """
-            foo = np.loadtxt(infile,dtype='S30')
+            foo = np.loadtxt(incat,dtype='S30')
             ncols = foo.shape[1]
             del foo
             coltypes = np.ones(ncols,dtype='S3')
@@ -155,7 +192,7 @@ class Secat:
 
             """ Actually read in the data """
             self.informat = 'ascii'
-            self.data = np.loadtxt(infile,dtype=dt)
+            self.data = np.loadtxt(incat,dtype=dt)
             nrows = self.data.shape[0]
 
             """ Set the field names """
@@ -173,7 +210,7 @@ class Secat:
                self.namefield = None
 
          except:
-            print "  ERROR. Problem in loading file %s" % infile
+            print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print "  "
             print "  This may have failed if there is a string column in"
@@ -189,9 +226,9 @@ class Secat:
 
       elif catformat.lower()=='ldac' or read_success==False:
          try:
-            self.hdu = pf.open(infile,mode='update')
+            self.hdu = pf.open(incat,mode='update')
          except:
-            print "  ERROR. Problem in loading file %s" % infile
+            print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
@@ -207,9 +244,9 @@ class Secat:
 
       elif catformat.lower()=='sdssfits' or read_success==False:
          try:
-            self.hdu = pf.open(infile)
+            self.hdu = pf.open(incat)
          except:
-            print "  ERROR. Problem in loading file %s" % infile
+            print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
@@ -237,12 +274,11 @@ class Secat:
          if self.decfield is not None:
             print 'Dec field name: %s' % self.decfield
 
-      self.infile = infile
+      self.infile = incat
       self.catformat = catformat
       self.nrows = nrows
       self.ncols = ncols
-      self.starmask = np.zeros(nrows).astype(bool)
-
+      
    #-----------------------------------------------------------------------
 
    def close_ldac(self):
