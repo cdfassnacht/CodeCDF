@@ -7,12 +7,14 @@ necessarily have to.
 
 """
 
+import os, sys
 import numpy as np
 import imfuncs as imf
-from matplotlib import pyplot as plt
 from math import pi
-from astrom_simple import select_good_ast
 import astropy
+from astropy import units as u
+from astropy.io import ascii
+from astropy.table import Table
 try:
    from astropy.io import fits as pf
 except:
@@ -21,10 +23,8 @@ if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
-from astropy import units as u
-from astropy.io import ascii
-from astropy.table import Table
-import os, sys
+from matplotlib import pyplot as plt
+from astrom_simple import select_good_ast
 
 # ===========================================================================
 
@@ -243,18 +243,28 @@ class Secat:
          self.decfield = 'delta_j2000'
 
       elif catformat.lower()=='sdssfits' or read_success==False:
+         # try:
+         #    self.hdu = pf.open(incat)
+         # except:
+         #    print "  ERROR. Problem in loading file %s" % incat
+         #    print "  Check to make sure filename matches an existing file."
+         #    print "  "
+         #    return
+         # 
+         # self.informat = 'sdss'
+         # self.data = self.hdu[1].data
+         # ncols = self.hdu[1].header['tfields']
+         # nrows = len(self.hdu[1].data)
          try:
-            self.hdu = pf.open(incat)
+            self.data = Table.read(incat, format='fits', hdu=1)
          except:
             print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
-
          self.informat = 'sdss'
-         self.data = self.hdu[1].data
-         ncols = self.hdu[1].header['tfields']
-         nrows = len(self.hdu[1].data)
+         nrows = len(self.data)
+         ncols = len(self.data.columns)
 
          """ Set the field names """
          self.rafield = 'ra'
@@ -384,6 +394,48 @@ class Secat:
 
    #----------------------------------------------------------------------
 
+   def read_centpos(self, posfile, verbose=False):
+      """
+      Reads a position in from a file and converts it to an astropy SkyCoord
+      format.
+
+      NOTE: right now this is hard-wired to just read in a file in the 
+      standard Keck starlist format:
+
+          label rahr ramin rasec decdeg decamin decasec equinox
+
+      which matches the *.pos in CDF's Lenses/Data/* directories
+
+      Inputs:
+       posfile - file containing the RA and dec
+      """
+
+      """ Read the data from the file """
+      posinfo = ascii.read(posfile, 
+                           names=['object', 'rahr', 'ramin', 'rasec',
+                                  'decdeg', 'decamin', 'decasec', 'equinox'])
+
+      """ Convert to SkyCoord format """
+      i = posinfo[0]
+      ra  = '%d:%d:%f' % (i['rahr'], i['ramin'], i['rasec'])
+      dec = '%d:%d:%f' % (i['decdeg'], i['decamin'], i['decasec'])
+      radec = SkyCoord(ra, dec, unit=(u.hourangle, u.deg))
+
+      """ Print out information if requested """
+      if verbose:
+         print('')
+         print('Object: %s' % i['object'])
+         print('Coordinates: %s %s' % \
+                  (radec.ra.to_string(unit=u.hourangle, decimal=False,
+                                      sep=':', precision=3, pad=True),
+                   radec.dec.to_string(decimal=False, sep=':', precision=3,
+                                       alwayssign=True, pad=True)))
+
+      """ Save the output within the class """
+      self.centpos = radec
+
+   #----------------------------------------------------------------------
+
    def sort_by_pos(self, centpos):
       """
       Sorts the catalog in terms of distance from some central position, which
@@ -417,8 +469,8 @@ class Secat:
    #-----------------------------------------------------------------------
 
    def make_reg_file(self, outfile, rcirc, color='green', fluxcol=None, 
-                     fluxerrcol=None, labcol=None, plot_high_snr=False,
-                     mask=None, snrgood=10.):
+                     fluxerrcol=None, labcol=None, labdx=0.0012, labdy=0.0012,
+                     plot_high_snr=False, mask=None, snrgood=10.):
       """
       Uses the RA and Dec info in the catalog to make a region file that
       can be used with ds9.
@@ -505,19 +557,12 @@ class Secat:
 
       """ Add labels if requested """
       if labcol is not None:
-         if self.informat == 'ldac':
-            if type(labcol) is int:
-               lab0 = self.data.field(labcol)
-            else:
-               lab0 = self.data[labcol]
-         else:
-            lab0 = self.data['f%d' % labcol]
-         lab = lab0[selmask]
+         lab = self.data[labcol][selmask]
          cosdec = np.cos(pi * self.dec[selmask] / 180.)
-         xx = self.ra[selmask] + 0.0012 * cosdec
-         yy = self.dec[selmask] + 0.0012
+         xx = self.ra[selmask] + labdx * cosdec
+         yy = self.dec[selmask] + labdy
          f.write('global color=%s\n' % color)
-         for i in range(self.ra.size):
+         for i in range(ntot):
             f.write('fk5;text(%10.6f,%+10.6f) # text={%s}\n'% \
                        (xx[i],yy[i],str(lab[i])))
 
