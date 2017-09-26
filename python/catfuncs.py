@@ -74,6 +74,7 @@ class Secat:
       self.radec = None
       self.rafield = None
       self.decfield = None
+      self.centpos = None
 
       """
       Start by loading the catalog information
