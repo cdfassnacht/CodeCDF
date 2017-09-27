@@ -227,35 +227,21 @@ class Secat:
 
       elif catformat.lower()=='ldac' or read_success==False:
          try:
-            self.hdu = pf.open(incat,mode='update')
+            self.data = Table.read(incat, format='fits', hdu=2)
          except:
             print "  ERROR. Problem in loading file %s" % incat
             print "  Check to make sure filename matches an existing file."
             print "  "
             return
-
          self.informat = 'ldac'
-         self.data = self.hdu[2].data
-         ncols = self.hdu[2].header['tfields']
-         nrows = len(self.hdu[2].data)
+         nrows = len(self.data)
+         ncols = len(self.data.columns)
 
          """ Set the field names """
-         self.rafield = 'alpha_j2000'
-         self.decfield = 'delta_j2000'
+         self.rafield = 'ALPHA_J2000'
+         self.decfield = 'DELTA_J2000'
 
       elif catformat.lower()=='sdssfits' or read_success==False:
-         # try:
-         #    self.hdu = pf.open(incat)
-         # except:
-         #    print "  ERROR. Problem in loading file %s" % incat
-         #    print "  Check to make sure filename matches an existing file."
-         #    print "  "
-         #    return
-         # 
-         # self.informat = 'sdss'
-         # self.data = self.hdu[1].data
-         # ncols = self.hdu[1].header['tfields']
-         # nrows = len(self.hdu[1].data)
          try:
             self.data = Table.read(incat, format='fits', hdu=1)
          except:
