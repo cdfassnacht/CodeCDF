@@ -335,7 +335,7 @@ class Secat:
       elif mbright is None:
          self.magmask = mag <= mfaint
       else:
-         self.magmask = (mag>=mbright) & (mag<=mfaint)
+         self.magmask = (mag >= mbright) & (mag <= mfaint)
 
    #-----------------------------------------------------------------------
 

@@ -43,6 +43,10 @@ from astropy.table import Table
 
 def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    """
+
+   ***** NOTE: Need to switch the distance calculation to a call to 
+               astropy
+
    The main function to match coordinates (may be called by matchcat function).
 
    NOTE: the matchcat function below provides a simple input for match_coords
@@ -82,8 +86,8 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
 
    """ Loop over catalog1 """
    print ""
-   print "Searching for matches..."
-   print "------------------------------"
+   print "Searching for matches within %5.2f arcsec" % rmatch
+   print "-----------------------------------------"
    for i in range(len(ra1)):
       dx,dy = coords.sky_to_darcsec(ra1[i],dec1[i],ra2,dec2)
       dpos = n.sqrt(dx**2 + dy**2)
@@ -110,18 +114,6 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
    """ Plot up some offsets, if desired """
    if doplot:
       plt.figure(1)
-      plt.scatter(mdx,mdy)
-      plt.axis('scaled')
-      plt.xlabel(r'$\Delta \alpha$ (arcsec)')
-      plt.ylabel(r'$\Delta \delta$ (arcsec)')
-      plt.title('Offsets between matched sources (rmatch = %5.2f)' % rmatch)
-      plt.axvline(0.0,color='r')
-      plt.axhline(0.0,color='r')
-      plt.plot(n.array([mdx0]),n.array([mdy0]),'r*',ms=20)
-      plt.xlim(-1.1*rmatch,1.1*rmatch)
-      plt.ylim(-1.1*rmatch,1.1*rmatch)
-
-      plt.figure(2)
       #
       ax1 = plt.subplot(221)
       plt.scatter(mra,mdy)
@@ -146,6 +138,20 @@ def match_coords(ra1, dec1, ra2, dec2, rmatch, dra2=0., ddec2=0., doplot=True):
       plt.xlabel(r'$\delta$')
       plt.axhline(0.0,color='r')
       plt.setp(ax4.get_yticklabels(), visible=False)
+
+      #--------------------------------------------------
+
+      plt.figure(2)
+      plt.scatter(mdx,mdy)
+      plt.axis('scaled')
+      plt.xlabel(r'$\Delta \alpha$ (arcsec)')
+      plt.ylabel(r'$\Delta \delta$ (arcsec)')
+      plt.title('Offsets between matched sources (rmatch = %5.2f)' % rmatch)
+      plt.axvline(0.0,color='r')
+      plt.axhline(0.0,color='r')
+      plt.plot(n.array([mdx0]),n.array([mdy0]),'r*',ms=20)
+      plt.xlim(-1.1*rmatch,1.1*rmatch)
+      plt.ylim(-1.1*rmatch,1.1*rmatch)
 
       plt.show()
 
