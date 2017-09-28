@@ -29,6 +29,7 @@ Generic functions
 import os
 import numpy as n
 from astropy.io import fits as pf
+import astromatic_wrapper as aw
 import catfuncs as cf
 import imfuncs as imf
 
