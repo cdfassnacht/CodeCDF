@@ -563,7 +563,7 @@ class Secat:
    #def plot_radec(self, symb='bo'):
    #-----------------------------------------------------------------------
 
-   def plot_fwhm(self, fwhmcol='fwhm_image', magcol='mag_auto', 
+   def plot_fwhm(self, fwhmcol='FWHM_IMAGE', magcol='MAG_AUTO', 
                  xlim=(0,15), ylim=(28,16)):
       """
       Plots FWHM vs. magnitude.  This can be used to find the stellar locus
