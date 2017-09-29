@@ -517,20 +517,6 @@ class Secat:
          gdecdeg = radecgood.dec.degree
          
       """ Write the output region file """
-      #dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
-      #dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
-      #          'pa']
-      #outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
-      #outarr['id'] = self.dstab['id']
-      #outarr['ra'] = tmpra
-      #outarr['dec'] = tmpdec
-      #outarr['equinox'] += 2000.
-      #outarr = np.zeros((self.ra.size,3))
-      #outarr[:,0] = self.radec.ra.degree
-      #outarr[:,1] = self.radec.dec.degree
-      #outarr[:,2] += rcirc
-      #np.savetxt(outfile,outarr,fmt='fk5;circle(%10.6f,%+10.6f,%.1f")',
-      #          header='global color=%s'%color,comments='')
       f = open(outfile,'w')
       f.write('global color=%s\n' % color)
       for i in range(ntot):
