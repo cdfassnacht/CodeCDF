@@ -50,18 +50,19 @@ filestart = 3
 flat = None
 ra  = float(sys.argv[1])
 dec = float(sys.argv[2])
-if sys.argv[3] == '-flat' and len(sys.argv) >= 6:
-    filestart += 2
-    flatfile = sys.argv[4]
-    flat = pf.getdata(flatfile)
-    print('')
-    print('Using flat-field file: %s' % flatfile)
-else:
-    print('')
-    print('ERROR: -flat used but no flat-field file is given or no fits'
-          'files given')
-    print('')
-    exit()
+if sys.argv[3] == '-flat':
+    if len(sys.argv) >= 6:
+        filestart += 2
+        flatfile = sys.argv[4]
+        flat = pf.getdata(flatfile)
+        print('')
+        print('Using flat-field file: %s' % flatfile)
+    else:
+        print('')
+        print('ERROR: -flat used but no flat-field file is given or no fits'
+              'files given')
+        print('')
+        exit()
 
 if len(sys.argv) > filestart + 1:
    files = sys.argv[filestart:]
@@ -77,7 +78,7 @@ for i in range(len(files)):
     if flat is not None:
         im1.hdu[0].data /= flat
     im1.zoomsize = subimsize
-    im1.display(fmax=30.)
+    im1.display(fmax=10.)
     im1.keypress_info()
     im1.start_interactive()
     plt.show()
