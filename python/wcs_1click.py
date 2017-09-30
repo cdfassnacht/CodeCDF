@@ -17,6 +17,8 @@ Inputs:
        e.g.,  m13*fits
 """
 
+import sys
+import numpy as np
 try:
     from astropy.io import fits as pf
 except:
@@ -28,9 +30,7 @@ except:
         print ''
         exit()
 from matplotlib import pyplot as plt
-import numpy as n
 import imfuncs as imf
-import sys
 
 """ Check command line syntax """
 if len(sys.argv)<4:
@@ -46,19 +46,36 @@ if len(sys.argv)<4:
     exit()
 
 """ Set up variables for later use """
+filestart = 3
+flat = None
 ra  = float(sys.argv[1])
 dec = float(sys.argv[2])
-if len(sys.argv)>4:
-   files = sys.argv[3:]
+if sys.argv[3] == '-flat' and len(sys.argv) >= 6:
+    filestart += 2
+    flatfile = sys.argv[4]
+    flat = pf.getdata(flatfile)
+    print('')
+    print('Using flat-field file: %s' % flatfile)
 else:
-    files = [sys.argv[3],]
+    print('')
+    print('ERROR: -flat used but no flat-field file is given or no fits'
+          'files given')
+    print('')
+    exit()
+
+if len(sys.argv) > filestart + 1:
+   files = sys.argv[filestart:]
+else:
+    files = [sys.argv[filestart],]
 subimsize = 21
-crpix1 = n.zeros(len(files))
-crpix2 = n.zeros(len(files))
+crpix1 = np.zeros(len(files))
+crpix2 = np.zeros(len(files))
 
 """ Loop through the input files, marking the object in each one """
 for i in range(len(files)):
     im1 = imf.Image(files[i])
+    if flat is not None:
+        im1.hdu[0].data /= flat
     im1.zoomsize = subimsize
     im1.display(fmax=30.)
     im1.keypress_info()
@@ -68,6 +85,8 @@ for i in range(len(files)):
         crpix1[i] = im1.xmark
     if im1.ymark is not None:
         crpix2[i] = im1.ymark
+    im1.close()
+    del(im1)
 
 """ 
 Second pass through the fits files, assigning the RA and Dec to the
