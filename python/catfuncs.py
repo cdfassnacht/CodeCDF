@@ -438,6 +438,10 @@ class Secat:
 
       """ Otherwise, use the SkyCoords functionality to easily sort """
       sep   = self.radec.separation(centpos)
+      try:
+         offsets = self.radec.spherical_offsets_to(centpos)
+      except:
+         offsets = None
       ind   = np.argsort(sep.arcsec)
       if self.catformat == 'ascii':
          self.data = self.data[ind,:]
@@ -450,6 +454,12 @@ class Secat:
       self.ra      = self.ra[ind]
       self.dec     = self.ra[ind]
       self.sep     = sep[ind]
+      if offsets is None:
+         self.dx = None
+         self.dy = None
+      else:
+         self.dx = (offsets[0].arcsecond)[ind]
+         self.dy = (offsets[1].arcsecond)[ind]
       self.sortind = ind
 
 

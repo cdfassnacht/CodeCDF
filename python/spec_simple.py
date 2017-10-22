@@ -32,6 +32,7 @@ NOTE: More and more of the previous stand-alone functionality has been moved
 """
 
 from math import sqrt, pi
+import numpy as np
 from scipy import optimize, interpolate, ndimage
 from scipy.ndimage import filters
 import matplotlib.pyplot as plt
@@ -39,7 +40,6 @@ try:
     from astropy.io import fits as pf
 except:
     import pyfits as pf
-import numpy as np
 import imfuncs as imf
 import datafuncs as df
 
@@ -94,6 +94,11 @@ class Spec1d(df.Data1d):
                  CDELT1 (or CD1_1) keywords in the fits header.  This is
                  the format, for example, for the template stellar spectra
                  in the Indo-US set.
+              deimos: A multiextension fits file with the following setup:
+                 HDU1 - binary table with blue-side spectral info
+                 HDU2 - binary table with red-side spectral info
+                 In each table there are columns for wavelength, flux,
+                  variance, and sky (among many others)
               mwa:  A multi-extension fits file with wavelength info in
                  the fits header
                  Extension 1 is the extracted spectrum (flux)
@@ -254,6 +259,23 @@ class Spec1d(df.Data1d):
             else:
                 wav = hdr1['crval1'] + wav*hdr1['cd1_1']
             del hdu
+        elif informat == 'deimos':
+            hdu = pf.open(self.infile)
+            tab1 = hdu[1].data
+            tab2 = hdu[2].data
+            bwav = tab1['lambda'][0,:]
+            bflux = tab1['spec'][0,:]
+            bvar = 1. / tab1['ivar'][0,:]
+            bsky = tab1['skyspec'][0,:]
+            rwav = tab2['lambda'][0,:]
+            rflux = tab2['spec'][0,:]
+            rvar = 1. / tab2['ivar'][0,:]
+            rsky = tab2['skyspec'][0,:]
+            flux = np.concatenate((bflux, rflux))
+            wav = np.concatenate((bwav, rwav))
+            var = np.concatenate((bvar, rvar))
+            sky = np.concatenate((bsky, rsky))
+            self.varspec = True
         elif informat == 'mwa':
             hdu = pf.open(self.infile)
             flux = hdu[1].data.copy()
