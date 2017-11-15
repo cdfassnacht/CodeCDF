@@ -62,7 +62,7 @@ maxy = float(sys.argv[3])
 if old_3col:
    tot = gf.read_text(infile,2)
 else:
-   tot = gf.read_table(infile,colname)
+   tot = gf.read_table(infile, colname)
 
 if tot is None:
    print 'Could not plot histogram'

@@ -25,7 +25,11 @@ def read_table(infile, colname):
    """
 
    """ Read in the table """
-   tab = ascii.read(infile)
+   try:
+      tab = ascii.read(infile, guess=False, format='csv')
+   except:
+      tab = ascii.read(infile)
+   print(tab.colnames)
 
    """ Get the relevant information """
    try:
