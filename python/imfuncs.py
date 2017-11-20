@@ -56,43 +56,49 @@ import datafuncs as df
 # class Image(pf.HDUList):#
 class Image:
 
-    def __init__(self, infile, datahext=0, hdrhext=0, wcshext=0, verbose=True):
+    def __init__(self, indat, datahext=0, hdrhext=0, wcshext=0, verbose=True):
         """
         This method gets called when the user types something like
             myim = Image(infile)
 
-        Inputs:
-            infile - input file containing the fits image
+        Reads in the image data from an input fits file or a HDUList from a
+         previously loaded fits file (or [not yet implemented] a PrimaryHDU).
+        The image data is stored in a Image class container.
+
+        Required inputs:
+            indat - The input image data.  This can either be:
+                     1. a filename, the most common case
+                           - or -
+                     2. a HDU list. 
         """
 
-        """
-        Start by loading the hdu information
-        """
-        if verbose:
-            print('')
-            print "Loading file %s" % infile
-            print "-----------------------------------------------"
-        if os.path.isfile(infile):
-            try:
-                self.hdu = open_fits(infile)
-            except:
-                print(' ERROR. Problem in loading file %s' % infile)
-                print(' Check to make sure filename matches an existing file')
-                print(' If it does, there may be something wrong with the '
-                      'fits header.')
-                print('')
-                return None
-            if verbose:
-                self.hdu.info()
+        """ Check the format of the input image data """
+        if isinstance(indat, str):
+            informat = 'file'
+        elif isinstance(indat, pf.HDUList):
+            informat = 'hdulist'
         else:
             print('')
-            print('ERROR. File %s does not exist.  Please check directory' %
-                  infile)
+            print('ERROR: The input image data for the Image class must be'
+                  'one of the following:')
+            print('  1. A filename (i.e. a string)')
+            print('  2. A HDUList')
             print('')
-            return None
+            raise TypeError
 
-        """ Set parameters related to image properties """
-        self.infile = infile
+        """ Load the hdu information """
+        if informat == 'hdulist':
+            self.hdu = indat
+            self.infile = None
+
+        else:
+            try:
+                self.read_from_file(indat, verbose=verbose)
+            except IOError:
+                return None
+
+        if verbose:
+            self.hdu.info()
 
         """ Set up pointers to the default data and header """
         self.data = self.hdu[datahext].data
@@ -106,7 +112,7 @@ class Image:
             self.get_wcs(hext=wcshext, verbose=verbose)
         except:
             if verbose:
-                print 'Could not load WCS info for %s' % self.infile
+                print('Could not load WCS info')
             self.found_wcs = False
 
         """ Initialize figures """
@@ -150,6 +156,38 @@ class Image:
         """ Initialize other parameters """
         self.reset_subim()
         self.reset_imex()
+
+    # -----------------------------------------------------------------------
+
+    def read_from_file(self, infile, verbose=True):
+        """
+        Reads the image data from a file (as opposed to getting the data
+        directly from an input HDUList
+        """
+        if verbose:
+            print('')
+            print "Loading file %s" % infile
+            print "-----------------------------------------------"
+
+        if os.path.isfile(infile):
+            try:
+                self.hdu = open_fits(infile)
+            except:
+                print(' ERROR. Problem in loading file %s' % infile)
+                print(' Check to make sure filename matches an existing'
+                      'file')
+                print(' If it does, there may be something wrong with the'
+                      ' fits header.')
+                print('')
+                raise IOError
+        else:
+            print('')
+            print('ERROR. File %s does not exist.' % infile)
+            print('')
+            raise IOError
+
+        """ Set parameters related to image properties """
+        self.infile = infile
 
     # -----------------------------------------------------------------------
 
@@ -511,7 +549,7 @@ class Image:
             self.wcsinfo = wcs.WCS(hdr)
         except:
             if verbose:
-                print 'get_wcs: No WCS information in file header'
+                print('get_wcs: No WCS information in image header')
             self.found_wcs = False
             return
 
@@ -520,9 +558,23 @@ class Image:
         for example, pixel-based
         """
 
-        if self.wcsinfo.wcs.ctype[0][0:2] != 'RA':
+        rafound = False
+        decfound = False
+        count = 0
+        for ct in self.wcsinfo.wcs.ctype:
+            if ct[0:2] == 'RA':
+                rafound = True
+                raax = count
+                rakey = 'naxis%d' % (count + 1)
+            if ct[0:3] == 'DEC':
+                decfound = True
+                decax = count
+                deckey = 'naxis%d' % (count + 1)
+            count += 1
+        if rafound is False or decfound is False:
             if verbose:
-                print 'get_wcs: No valid WCS information in file header'
+                print('get_wcs: No valid WCS information in image header')
+                print('         RA and/or DEC information is missing')
             self.found_wcs = False
             return
 
@@ -1261,24 +1313,19 @@ class Image:
         Update the header info, including updating the CRPIXn values if they
         are present.
         """
-        self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
+        if self.infile:
+            self.subimhdr['ORIG_IM'] = 'Copied from %s' % self.infile
         self.subimhdr['ORIG_REG'] = \
             'Region in original image [xrange, yrange]: [%d:%d,%d:%d]' % \
             (x1, x2, y1, y2)
 
         """ Update the headers to reflect the cutout center"""
-        try:
+        if 'crpix1' in self.subimhdr.keys():
             self.subimhdr['CRPIX1'] -= self.x1
-        except:
-            if verbose:
-                print 'CRPIX1 header not found in %s' % self.infile
-            pass
-        try:
+
+        if 'crpix2' in self.subimhdr.keys():
             self.subimhdr['CRPIX2'] -= self.y1
-        except:
-            if verbose:
-                print 'CRPIX2 header not found in %s' % self.infile
-            pass
+
 
     # -----------------------------------------------------------------------
 
@@ -1538,7 +1585,8 @@ class Image:
         """ Write to the output file if requested """
         if outfile:
             print('')
-            print 'Input file:  %s' % self.infile
+            if self.infile:
+                print('Input file:  %s' % self.infile)
             print 'Output file: %s' % outfile
             pf.PrimaryHDU(self.subim, self.subimhdr).writeto(outfile,
                                                              clobber=True)
@@ -1593,7 +1641,8 @@ class Image:
 
         for i in wcskeys:
             newhdr.update(i, self.subimhdr[i])
-        newhdr.update('ORIG_IM', self.infile)
+        if self.infile:
+            newhdr.update('ORIG_IM', self.infile)
 
         """ Write the postage stamp to the output file """
         pf.PrimaryHDU(self.subim, newhdr).writeto(outfile, clobber=True)
@@ -1622,8 +1671,8 @@ class Image:
         xmax = inhdr["NAXIS1"]
         ymax = inhdr["NAXIS2"]
         print('')
-        print "imcopy: Input image %s has dimensions %d x %d" % \
-            (self.infile, xmax, ymax)
+        print "imcopy: Input image has dimensions %d x %d" % \
+            (xmax, ymax)
 
         """Check to make sure that requested corners are inside the image"""
 
@@ -1639,8 +1688,9 @@ class Image:
         print('imcopy: Cutting out region between ((%d,%d)) and ((%d,%d))' %
               (x1, y1, x2, y2))
         outdat = self.hdu[hext].data[y1:y2, x1:x2].copy()
-        inhdr['ORIG_IM'] = 'Copied from %s with region[%d:%d,%d:%d]' % \
-            (self.infile, x1, x2, y1, y2)
+        if self.infile:
+            inhdr['ORIG_IM'] = 'Copied from %s with region[%d:%d,%d:%d]' % \
+                (self.infile, x1, x2, y1, y2)
         print('')
         print "Updating CRPIXn header cards if they exist"
         print "------------------------------------------"
@@ -1780,9 +1830,8 @@ class Image:
 
         if self.found_wcs is False:
             print('')
-            print('ERROR: Requested a FOV plot, but input image (%s)' %
-                  self.infile)
-            print ' does not have WCS information in it.'
+            print('ERROR: Requested a FOV plot, but input image'
+                  ' does not have WCS information in it.')
             print('')
             exit()
 
@@ -2226,7 +2275,8 @@ class Image:
 
         """
         print('')
-        print "Input file:  %s" % self.infile
+        if self.infile:
+            print('Input file:  %s' % self.infile)
 
         """ Set up the parameters that will be needed to display the image """
         self.display_setup(hext=hext, cmap=cmap,

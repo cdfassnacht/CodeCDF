@@ -805,7 +805,7 @@ class Spec2d(imf.Image):
                  xtrim=None, ytrim=None, transpose=False, fixnans=True,
                  logwav=False, verbose=True):
         """
-        Reads in the 2-dimensional spectrum from a input fits file (or the
+        Reads in the 2-dimensional spectrum from an input fits file (or the
         HDUList from a previously loaded fits file) and
         stores it in a Spec2d class container.
 
