@@ -558,10 +558,11 @@ class Image:
         for example, pixel-based
         """
 
+        imwcs = self.wcsinfo.wcs
         rafound = False
         decfound = False
         count = 0
-        for ct in self.wcsinfo.wcs.ctype:
+        for ct in imwcs.ctype:
             if ct[0:2] == 'RA':
                 rafound = True
                 raax = count
@@ -579,33 +580,33 @@ class Image:
             return
 
         """ Get the RA and Dec of the center of the image """
-        xcent = hdr['naxis1'] / 2.
-        ycent = hdr['naxis2'] / 2.
+        xcent = hdr[rakey] / 2.
+        ycent = hdr[deckey] / 2.
         imcent = np.ones((1, hdr['naxis']))
-        imcent[0, 0] = xcent
-        imcent[0, 1] = ycent
+        imcent[0, raax] = xcent
+        imcent[0, decax] = ycent
         imcentradec = self.wcsinfo.wcs_pix2world(imcent, 1)
-        self.radec = self.radec_to_skycoord(imcentradec[0, 0],
-                                            imcentradec[0, 1])
+        self.radec = self.radec_to_skycoord(imcentradec[0, raax],
+                                            imcentradec[0, decax])
 
         """ Calculate the pixel scale """
-        if self.wcsinfo.wcs.ctype[0][0:2].upper() == 'RA':
-            try:
-                self.pixscale = sqrt(self.wcsinfo.wcs.cd[0, 0]**2 +
-                                     self.wcsinfo.wcs.cd[1, 0]**2)*3600.
-            except:
-                try:
-                    self.pixscale = sqrt(self.wcsinfo.wcs.pc[0, 0]**2 +
-                                         self.wcsinfo.wcs.pc[1, 0]**2) * \
-                                         self.wcsinfo.cdelt[0] * 3600.
-                except:
-                    self.pixscale = abs(self.wcsinfo.wcs.cdelt[0]) * 3600.
-            if verbose:
-                print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
-            self.found_wcs = True
+        
+        self.found_wcs = True
+        if imwcs.has_cd():
+            self.pixscale = sqrt(self.wcsinfo.wcs.cd[raax, raax]**2 +
+                                 self.wcsinfo.wcs.cd[decax, raax]**2)*3600.
+        elif imwcs.has_pc():
+            self.pixscale = sqrt(self.wcsinfo.wcs.pc[raax, raax]**2 +
+                                 self.wcsinfo.wcs.pc[decax, raax]**2) * \
+                                 self.wcsinfo.wcs.cdelt[raax] * 3600.
+        elif isinstance(imwcs.cdelt, np.ndarray):
+            self.pixscale = abs(self.wcsinfo.wcs.cdelt[raax]) * 3600.
         else:
             print 'Warning: no WCS info in header %d' % hext
             self.found_wcs = False
+
+        if self.found_wcs and verbose:
+            print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
 
     # -----------------------------------------------------------------------
 
