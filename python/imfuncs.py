@@ -191,6 +191,32 @@ class Image:
 
     # -----------------------------------------------------------------------
 
+    def set_data(self, imslice=0, raax=0, decax=1, specax=2, hext=0):
+        """
+        Sets the 2-dimension slice to use for the display functions.
+        For nearly all imaging data, there is only one image slice, and so
+        the default behavior is fine.  If, however, the input data are from
+        an IFU and so there is a real data cube, then the choice of which
+        image slice to use makes a difference.
+
+        Inputs:
+          imslice - which image slice to use.  The default value (imslice=0)
+                    is fine for nearly all standard imaging.  Only for, e.g.,
+                    IFU data, might you choose a different value.
+        """
+
+        """ Get the number of dimensions in the input image """
+        hdr = self.hdu[hext].header
+        if 'naxis' in hdr.keys():
+            ndim = hdr['naxis']
+        else:
+            raise KeyError
+
+        """ Select the image slice to use """
+
+
+    # -----------------------------------------------------------------------
+
     def reset_subim(self):
         """
         Returns the sub-image variables to their initial, unset, state
