@@ -479,9 +479,9 @@ class Image:
             print('')
             self.xmark = event.xdata
             self.ymark = event.ydata
-            subimsize = (self.zoomsize, self.zoomsize)
-            subimcent = (self.xmark, self.ymark)
-            self.display(subimcent=subimcent, subimsize=subimsize,
+            imsize = (self.zoomsize, self.zoomsize)
+            imcent = (self.xmark, self.ymark)
+            self.display(imcent=imcent, imsize=imsize,
                          show_xyproj=True)
 
         if event.key == 'z':
@@ -1275,7 +1275,7 @@ class Image:
         For now does not deal with regions partially outside the input file
         """
         if imsize is not None:
-            subxy = np.atleast_1d(imsize)  # Converts subimsize to a np array
+            subxy = np.atleast_1d(imsize)  # Converts imsize to a np array
             subx = subxy[0]
             if subxy.size > 1:
                 suby = subxy[1]
@@ -2060,7 +2060,7 @@ class Image:
 
     # -----------------------------------------------------------------------
 
-    def set_subim(self, hext=0, subimdef='xy', subimcent=None, subimsize=None,
+    def set_subim(self, hext=0, mode='xy', imcent=None, imsize=None,
                   dispunits='pixels', verbose=False):
         """
         Sets the region of the image to be displayed
@@ -2069,30 +2069,30 @@ class Image:
         """
         The definition of the subimage depends on whether the requested
         cutout is based on WCS coordinates (RA and Dec) or pixels (x and y),
-        where this choice is made through the subimdef parameter.
+        where this choice is made through the mode parameter.
         Treat each case appropriately.
         """
-        if subimdef == 'radec':
+        if mode == 'radec':
             """
             If requesting a (RA, dec) cutout, make the display units arcsec
             """
             self.dispunits = 'radec'
 
             """ Set the display center"""
-            if subimcent is None:
+            if imcent is None:
                 ra = None
                 dec = None
             else:
-                ra = subimcent[0]
-                dec = subimcent[1]
+                ra = imcent[0]
+                dec = imcent[1]
 
             """ Set the display size """
-            if subimsize is None:
+            if imsize is None:
                 xsize = None
                 ysize = None
             else:
-                xsize = subimsize[0]
-                ysize = subimsize[1]
+                xsize = imsize[0]
+                ysize = imsize[1]
             self.def_subim_radec(ra, dec, xsize, ysize, hext=hext,
                                  verbose=verbose)
 
@@ -2100,15 +2100,15 @@ class Image:
             """
             If not requesting a (RA, dec) cutout, the code is simpler
             """
-            self.poststamp_xy(subimcent, subimsize, hext=hext)
+            self.poststamp_xy(imcent, imsize, hext=hext)
         print('')
 
     # -----------------------------------------------------------------------
 
     def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
                       funits='sigma', fscale='linear', statsize=2048,
-                      title=None,  subimdef='xy', subimcent=None,
-                      subimsize=None, dispunits='pixels', zeropos=None,
+                      title=None,  mode='xy', imcent=None,
+                      imsize=None, dispunits='pixels', zeropos=None,
                       mask=None, show_xyproj=False, verbose=False):
         """
         Sets parameters within the Image class that will be used to actually
@@ -2120,7 +2120,6 @@ class Image:
         """
 
         """ Set the region of the image to be displayed """
-        self.set_subim(hext, subimdef, subimcent, subimsize, verbose=verbose)
 
         """ Set the displayed axes to be in WCS offsets, if requested """
         self.dispunits = dispunits
@@ -2150,40 +2149,20 @@ class Image:
 
     # -----------------------------------------------------------------------
 
-    def display_implot(self, show_xyproj=False, axlabel=True, fontsize=None):
+    def scale_data(self):
+        """
+        Sets the scaling for the display, which depends on the fmin and fmax
+        parameters _and_ the choice of scaling (for now either 'log' or
+        'linear', with 'linear' being the default).  Then, scale the data
+        appropriately if something besides 'linear' has been chosen
+
+        The method returns the scaled data and the values of vmin and vmax to
+        be used in the call to imshow.
         """
 
-        NOTE: DO NOT USE this routine/method unless you know exactly what
-        you are doing.  It is meant to be called from the display() method,
-        as well as in a few other specialized cases, and is NOT meant to
-        have stand-alone functionality.
-
-        Please see the help for the display method for more information.
-        """
-
-        """
-        Set up for displaying the image data
-         - If show_xyproj is False (the default), then just show self.subim
-         - If show_xyproj is True, then make a three panel plot, with
-             Panel 1: self.subim (i.e., what you would see in the default
-              behavior)
-             Panel 2: Projection of data in self.subim onto the x-axis
-             Panel 3: Projection of data in self.subim onto the x-axis
-          - Setting show_xyproj=True is most useful when evaluating, e.g., a
-             star in the image data.  The projections along the two axes of the
-             cutout can be useful for evaluating whether the object is a star
-             and/or whether it is saturated
-        """
-        if show_xyproj:
-            self.fig2 = plt.figure(figsize=(10, 3))
-            self.fig2.add_subplot(131)
-        else:
-            self.fig1 = plt.gcf()
-            self.ax1 = plt.gca()
-
-        """ Choose the scaling for the display """
         fdiff = fabs(self.fmax - self.fmin)
         bitscale = 255.  # For 8-bit display
+
         if self.fscale == 'log':
             """
             For the log scaling, some thought needs to go into this.
@@ -2221,15 +2200,57 @@ class Image:
             data = np.log10(data)
             print 'Using log scaling: vmin = %f, vmax = %f' % (vmin, vmax)
             print data.min(), data.max()
+
         else:
             """ Linear scaling is the default """
             data = self.subim
             vmin = self.fmin
             vmax = self.fmax
 
+        """ Return the values """
+        return data, vmin, vmax
+
+    # -----------------------------------------------------------------------
+
+    def display_implot(self, show_xyproj=False, axlabel=True, fontsize=None):
+        """
+
+        NOTE: DO NOT USE this routine/method unless you know exactly what
+        you are doing.  It is meant to be called from the display() method,
+        as well as in a few other specialized cases, and is NOT meant to
+        have stand-alone functionality.
+
+        Please see the help for the display method for more information.
+        """
+
+        """
+        Set up for displaying the image data
+         - If show_xyproj is False (the default), then just show self.subim
+         - If show_xyproj is True, then make a three panel plot, with
+             Panel 1: self.subim (i.e., what you would see in the default
+              behavior)
+             Panel 2: Projection of data in self.subim onto the x-axis
+             Panel 3: Projection of data in self.subim onto the x-axis
+          - Setting show_xyproj=True is most useful when evaluating, e.g., a
+             star in the image data.  The projections along the two axes of the
+             cutout can be useful for evaluating whether the object is a star
+             and/or whether it is saturated
+        """
+        if show_xyproj:
+            self.fig2 = plt.figure(figsize=(10, 3))
+            self.fig2.add_subplot(131)
+        else:
+            self.fig1 = plt.gcf()
+            self.ax1 = plt.gca()
+
+        """ Set the actual range for the display """
+        data, vmin, vmax = self.scale_data()
+
         """ Display the image data """
         plt.imshow(data, origin='lower', cmap=self.cmap, vmin=vmin,
                    vmax=vmax, interpolation='nearest', extent=self.extval)
+
+        """ Label the plot, if requested """
         if axlabel is True:
             if self.dispunits == 'radec':
                 if fontsize is not None:
@@ -2271,7 +2292,7 @@ class Image:
     def display(self, hext=0, cmap='gaia',
                 fmin=-1., fmax=10., funits='sigma', fscale='linear',
                 statsize=2048, title=None,
-                subimdef='xy', subimcent=None, subimsize=None,
+                mode='radec', imcent=None, imsize=None,
                 dispunits='pixels', zeropos=None, axlabel=True, fontsize=None,
                 mask=None, show_xyproj=False, verbose=False):
         """
@@ -2281,10 +2302,12 @@ class Image:
         or (x, y)
 
         Optional inputs:
-          subimsize - size of the subimage to be displayed, either in pixels
-                       (the default) or arcsec (if subimdef='radec').  The
-                       default, designated by subimsize=None, is to display
-                       the entire image.  The subimsize parameter can take
+          mode    - Either 'radec' (the default) or 'xy'.  Replaces the
+                    obsolete subimdef and dispunits parameters
+          imsize - size of the subimage to be displayed, either in pixels
+                       (the default) or arcsec (if mode='radec').  The
+                       default, designated by imsize=None, is to display
+                       the entire image.  The imsize parameter can take
                        any of the following formats:
                          1. A single number (which will produce a square image)
                          2. A 2-element numpy array
@@ -2300,16 +2323,25 @@ class Image:
                        to the point that would have been (0.5, 0.3) if the
                        origin were at the center of the image
 
+        Obsolete inputs [not used any more -- just kept for legacy purposes]
+          subimdef
+          dispunits
         """
         print('')
         if self.infile:
             print('Input file:  %s' % self.infile)
 
+        """
+        Select the region of the image to be displayed, which may be the
+        full input image
+        """
+        self.set_subim(hext, mode, imcent, imsize, verbose=verbose)
+        
         """ Set up the parameters that will be needed to display the image """
         self.display_setup(hext=hext, cmap=cmap,
                            fmin=fmin, fmax=fmax, funits=funits, fscale=fscale,
-                           statsize=statsize, title=title, subimdef=subimdef,
-                           subimcent=subimcent, subimsize=subimsize,
+                           statsize=statsize, title=title, mode=mode,
+                           imcent=imcent, imsize=imsize,
                            dispunits=dispunits, zeropos=zeropos,
                            mask=mask, show_xyproj=show_xyproj, verbose=verbose)
 
@@ -2656,8 +2688,8 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
     Make cutouts of the appropriate size for each of the input images
     For the first image this is done via a call to display
     """
-    im1.display(hext=hext1, cmap='gray_inv', subimdef='radec',
-                subimcent=(ra, dec), subimsize=(imsize, imsize),
+    im1.display(hext=hext1, cmap='gray_inv', mode='radec',
+                imcent=(ra, dec), imsize=(imsize, imsize),
                 dispunits='radec', fmax=fmax, zeropos=zeropos)
     im2.def_subim_radec(ra, dec, imsize, outscale=pixscale)
 
