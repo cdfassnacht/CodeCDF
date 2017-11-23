@@ -101,8 +101,8 @@ class Image:
             self.hdu.info()
 
         """ Set up pointers to the default data and header """
-        self.data = self.hdu[datahext].data
-        self.hdr = self.hdu[hdrhext].header
+        self.data = self.hdu[datahext].data.copy()
+        self.hdr = self.hdu[hdrhext].header.copy()
 
         """ Do an initial import of the WCS information from the header """
         self.found_wcs = False
@@ -139,7 +139,7 @@ class Image:
         self.statsize = 2048         # Region size for stats if image is too big
         self.statsec = None          # Region to use for pixel statistics
         self.zoomsize = 31            # Size of postage-stamp zoom
-        self.dispunits = 'radec'    # Default display units are arcsec offsets
+        self.mode = 'radec'          # Default display units are arcsec offsets
         self.extval = None            # Just label the axes by pixels
         self.cmap = plt.cm.YlOrBr_r  # This corresponds to the 'gaia' cmap
 
@@ -314,8 +314,8 @@ class Image:
         if statsec is not None:
             x1, y1, x2, y2 = statsec
             data = self.hdu[hext].data[y1:y2, x1:x2]
-        elif self.subim is not None:
-            data = self.subim.copy()
+        elif self.data is not None:
+            data = self.data.copy()
         else:
             data = self.hdu[hext].data.copy()
 
@@ -436,7 +436,7 @@ class Image:
          axes in pixels or in arcsec offsets
         """
         if self.found_wcs:
-            if self.dispunits == 'pixels':
+            if self.mode == 'xy':
                 pix = np.zeros((1, self.wcsinfo.naxis))
                 pix[0, 0] = self.xclick
                 pix[0, 1] = self.yclick
@@ -720,17 +720,16 @@ class Image:
         """
 
         self.get_wcs(hext)
-        coords = np.indices(self.subim.shape).astype(np.float32)
+        coords = np.indices(self.data.shape).astype(np.float32)
         pltc = np.zeros(coords.shape)
-        pltc[0] = (coords[0] - self.subim.shape[0]/2.)*self.pixscale
-        pltc[1] = (coords[1] - self.subim.shape[1]/2.)*self.pixscale
+        pltc[0] = (coords[0] - self.data.shape[0] / 2.) * self.pixscale
+        pltc[1] = (coords[1] - self.data.shape[1] / 2.) * self.pixscale
         pltc[1] *= -1.
-        maxi = np.atleast_1d(self.subim.shape) - 1
+        maxi = np.atleast_1d(self.data.shape) - 1
         extx1 = pltc[1][0, 0]
         exty1 = pltc[0][0, 0]
-        extx2 = pltc[1][maxi[1], maxi[1]]-self.pixscale
-        # *** IS THIS A BUG? SHOULD THE FF USE maxi[0]??? ***
-        exty2 = pltc[0][maxi[1], maxi[1]]+self.pixscale
+        extx2 = pltc[1][maxi[0], maxi[1]] - self.pixscale
+        exty2 = pltc[0][maxi[0], maxi[1]] + self.pixscale
 
         if zeropos is not None:
             dx = zeropos[0]
@@ -1172,12 +1171,12 @@ class Image:
         """
         Set the portion of the data to be used.  This may already have been
         set before calling set_contours.  If it has already been set, then
-        self.subim will contain the data and the hext parameter will be
+        self.data will contain the data and the hext parameter will be
         ignored.
-        If it has not been set, i.e., if self.subim is None, then set the
+        If it has not been set, i.e., if self.data is None, then set the
         data to be the full image.
         """
-        if self.subim is None:
+        if self.data is None:
             self.set_subim()
 
         """
@@ -1188,7 +1187,7 @@ class Image:
             rms = self.rms_clip
 
         """ Set the contours based on the rms and the contour base """
-        maxcont = int(log((self.subim.max()/rms), self.contbase))
+        maxcont = int(log((self.data.max() / rms), self.contbase))
         if maxcont < 3:
             self.clevs = np.array([-3., 3., self.contbase**3])
         else:
@@ -1216,10 +1215,10 @@ class Image:
 
         """ Plot the contours """
         if overlay:
-            plt.contour(self.subim, self.clevs, colors=color,
+            plt.contour(self.data, self.clevs, colors=color,
                         extent=self.extval)
         else:
-            plt.contour(self.subim, self.clevs, colors=color,
+            plt.contour(self.data, self.clevs, colors=color,
                         extent=self.extval, origin='lower')
 
     # -----------------------------------------------------------------------
@@ -1258,15 +1257,15 @@ class Image:
         center of the full data set
         """
         if centpos is None:
-            xcent = int((nx+1.)/2.)
-            ycent = int((ny+1.)/2.)
+            xcent = int((nx + 1.) / 2.)
+            ycent = int((ny + 1.) / 2.)
         else:
             if centpos[0] is None:
-                xcent = int((nx+1.)/2.)
+                xcent = int((nx + 1.) / 2.)
             else:
                 xcent = centpos[0]
             if centpos[1] is None:
-                ycent = int((ny+1.)/2.)
+                ycent = int((ny + 1.) / 2.)
             else:
                 ycent = centpos[1]
 
@@ -1320,10 +1319,10 @@ class Image:
         """
         hdr = self.hdu[hext].header
         if hdr['naxis'] == 4:
-            self.subim = self.hdu[hext].data[0, 0, y1:y2, x1:x2].copy()
+            self.data = self.hdu[hext].data[0, 0, y1:y2, x1:x2].copy()
         else:
-            self.subim = self.hdu[hext].data[y1:y2, x1:x2].copy()
-        self.subim[~np.isfinite(self.subim)] = 0.
+            self.data = self.hdu[hext].data[y1:y2, x1:x2].copy()
+        self.data[~np.isfinite(self.data)] = 0.
         self.subimhdr = self.hdu[hext].header.copy()
         self.subcentx = 0.5 * (x1 + x2)
         self.subcenty = 0.5 * (y1 + y2)
@@ -1331,10 +1330,10 @@ class Image:
         """ Print out useful information """
         if verbose:
             print('')
-            print "Cutout image center (x, y): (%d, %d)" % \
-                (self.subcentx, self.subcenty)
-            print "Cutout image size (x y): %dx%d" % \
-                (self.subsizex, self.subsizey)
+            print('Cutout image center (x, y): (%d, %d)' % 
+                  (self.subcentx, self.subcenty))
+            print('Cutout image size (x y): %dx%d' % 
+                  (self.subsizex, self.subsizey))
 
         """
         Update the header info, including updating the CRPIXn values if they
@@ -1395,7 +1394,7 @@ class Image:
 
         """ Check to make sure that a subimage is even requested """
         if (ra is None or dec is None) and xsize is None:
-            self.subim = self.hdu[hext].data.copy()
+            self.data = self.hdu[hext].data.copy()
             self.subsizex = nx
             self.subsizey = ny
             return
@@ -1525,9 +1524,9 @@ class Image:
         #  that are both large enough and have PA=0.
 
         """ Transform the coordinates """
-        self.subim = ndimage.map_coordinates(data, coords, output=np.float64,
+        self.data = ndimage.map_coordinates(data, coords, output=np.float64,
                                              order=5)
-        self.subim[np.isnan(self.subim)] = 0.
+        self.data[np.isnan(self.data)] = 0.
         self.subimhdr = outhdr
 
         """ Clean up """
@@ -1615,7 +1614,7 @@ class Image:
             if self.infile:
                 print('Input file:  %s' % self.infile)
             print 'Output file: %s' % outfile
-            pf.PrimaryHDU(self.subim, self.subimhdr).writeto(outfile,
+            pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
                                                              clobber=True)
             print "Wrote postage stamp cutout to %s" % outfile
 
@@ -1672,7 +1671,7 @@ class Image:
             newhdr.update('ORIG_IM', self.infile)
 
         """ Write the postage stamp to the output file """
-        pf.PrimaryHDU(self.subim, newhdr).writeto(outfile, clobber=True)
+        pf.PrimaryHDU(self.data, newhdr).writeto(outfile, clobber=True)
         print "Wrote postage stamp cutout to %s" % outfile
 
     # -----------------------------------------------------------------------
@@ -1815,11 +1814,11 @@ class Image:
         """ Now create the SNR image """
         self.poststamp_xy(centpos, imsize, hext=hext, outfile=None,
                           verbose=verbose)
-        self.subim /= imrms
+        self.data /= imrms
         if outfile is not None:
             if verbose:
                 print 'Output SNR file: %s' % outfile
-            pf.PrimaryHDU(self.subim, self.subimhdr).writeto(outfile,
+            pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
                                                              clobber=True)
 
     # -----------------------------------------------------------------------
@@ -1891,7 +1890,7 @@ class Image:
         dx = dx0 * cpa - dy0 * spa
         dy = dx0 * spa + dy0 * cpa
 
-        """ \
+        """
         Find the center point of the FOV.
         For now assume that it is close enough to the center point of the
          image that we can use the small-angle approximation to calculate
@@ -1995,8 +1994,8 @@ class Image:
             if self.found_rms is False:
                 print "Calculating display limits"
                 print "--------------------------"
-                print self.subim.size
-                print self.subim.shape
+                print self.data.size
+                print self.data.shape
                 self.sigma_clip(hext=hext, verbose=verbose)
                 self.found_rms = True
 
@@ -2061,10 +2060,18 @@ class Image:
     # -----------------------------------------------------------------------
 
     def set_subim(self, hext=0, mode='xy', imcent=None, imsize=None,
-                  dispunits='pixels', verbose=False):
+                  verbose=False):
         """
         Sets the region of the image to be displayed
         """
+
+        """ First check to see if any modification needs to be made """
+        if imcent is None and imsize is None:
+            if self.data is None:
+                # NOTE: fix this to use set_data once that method is written
+                self.data = self.hdu[hext].data.copy()
+            else:
+                return
 
         """
         The definition of the subimage depends on whether the requested
@@ -2073,10 +2080,7 @@ class Image:
         Treat each case appropriately.
         """
         if mode == 'radec':
-            """
-            If requesting a (RA, dec) cutout, make the display units arcsec
-            """
-            self.dispunits = 'radec'
+            # NOTE: need to check to see if found_wcs is True
 
             """ Set the display center"""
             if imcent is None:
@@ -2107,9 +2111,7 @@ class Image:
 
     def display_setup(self, hext=0, cmap='gaia', fmin=-1., fmax=10.,
                       funits='sigma', fscale='linear', statsize=2048,
-                      title=None,  mode='xy', imcent=None,
-                      imsize=None, dispunits='pixels', zeropos=None,
-                      mask=None, show_xyproj=False, verbose=False):
+                      title=None,  mode='xy', zeropos=None, verbose=False):
         """
         Sets parameters within the Image class that will be used to actually
          display the image or the requested part of it.
@@ -2119,18 +2121,16 @@ class Image:
          help information for the display method.
         """
 
-        """ Set the region of the image to be displayed """
-
         """ Set the displayed axes to be in WCS offsets, if requested """
-        self.dispunits = dispunits
-        if self.dispunits == 'radec':
+        self.mode = mode
+        if self.mode == 'radec':
             if not self.found_wcs:
                 print('')
-                print("WARNING: dispunits='radec' but no WCS info in image"
+                print("WARNING: mode='radec' but no WCS info in image"
                       "header")
                 print 'Using pixels instead'
                 print('')
-                self.dispunits = 'pixels'
+                self.mode = 'xy'
                 self.extval = None
             else:
                 self.set_wcsextent(hext, zeropos)
@@ -2188,10 +2188,9 @@ class Image:
              units are counts/s or e-/s, and should more closely match the
              display behavior that the user wants.
             """
-            # data = self.subim.copy() - self.subim.min() + 1.
-            # vmin = log10(self.fmin - self.subim.min() + 1.)
-            # vmax = log10(self.fmax - self.subim.min() + 1.)
-            data = self.subim.copy() - self.subim.min()
+            # data = self.subim.copy() - self.subim.min()
+            data = self.data.copy() - self.data.min()
+
             """ Now rescale from 1-255 in requested range """
             data[data >= 0] = ((bitscale - 1) * data[data >= 0] / fdiff) + 1.
             vmin = 0
@@ -2203,7 +2202,8 @@ class Image:
 
         else:
             """ Linear scaling is the default """
-            data = self.subim
+            # data = self.subim
+            data = self.data
             vmin = self.fmin
             vmax = self.fmax
 
@@ -2225,12 +2225,12 @@ class Image:
 
         """
         Set up for displaying the image data
-         - If show_xyproj is False (the default), then just show self.subim
+         - If show_xyproj is False (the default), then just show self.data
          - If show_xyproj is True, then make a three panel plot, with
-             Panel 1: self.subim (i.e., what you would see in the default
+             Panel 1: self.data (i.e., what you would see in the default
               behavior)
-             Panel 2: Projection of data in self.subim onto the x-axis
-             Panel 3: Projection of data in self.subim onto the x-axis
+             Panel 2: Projection of data in self.data onto the x-axis
+             Panel 3: Projection of data in self.data onto the x-axis
           - Setting show_xyproj=True is most useful when evaluating, e.g., a
              star in the image data.  The projections along the two axes of the
              cutout can be useful for evaluating whether the object is a star
@@ -2248,24 +2248,35 @@ class Image:
 
         """ Display the image data """
         plt.imshow(data, origin='lower', cmap=self.cmap, vmin=vmin,
-                   vmax=vmax, interpolation='nearest', extent=self.extval)
+                   vmax=vmax, interpolation='nearest', extent=self.extval,
+                   aspect='equal')
 
         """ Label the plot, if requested """
         if axlabel is True:
-            if self.dispunits == 'radec':
-                if fontsize is not None:
-                    plt.xlabel(r"$\Delta \alpha$ (arcsec)", fontsize=fontsize)
-                    plt.ylabel(r"$\Delta \delta$ (arcsec)", fontsize=fontsize)
-                else:
-                    plt.xlabel(r"$\Delta \alpha$ (arcsec)")
-                    plt.ylabel(r"$\Delta \delta$ (arcsec)")
+            if self.mode == 'radec':
+                xlabel = 'Offset (arcsec)'
+                ylabel = 'Offset (arcsec)'
+                # if fontsize is not None:
+                #     plt.xlabel(r"$\Delta \alpha$ (arcsec)", fontsize=fontsize)
+                #     plt.ylabel(r"$\Delta \delta$ (arcsec)", fontsize=fontsize)
+                # else:
+                #     plt.xlabel(r"$\Delta \alpha$ (arcsec)")
+                #     plt.ylabel(r"$\Delta \delta$ (arcsec)")
             else:
-                if fontsize is not None:
-                    plt.xlabel('x (pix)', fontsize=fontsize)
-                    plt.ylabel('y (pix)', fontsize=fontsize)
-                else:
-                    plt.xlabel('x (pix)')
-                    plt.ylabel('y (pix)')
+                xlabel = 'x (pix)'
+                ylabel = 'y (pix)'
+                # if fontsize is not None:
+                #     plt.xlabel('x (pix)', fontsize=fontsize)
+                #     plt.ylabel('y (pix)', fontsize=fontsize)
+                # else:
+                #     plt.xlabel('x (pix)')
+                #     plt.ylabel('y (pix)')
+            if fontsize is not None:
+                plt.xlabel(xlabel, fontsize=fontsize)
+                plt.ylabel(ylabel, fontsize=fontsize)
+            else:
+                plt.xlabel(xlabel)
+                plt.ylabel(ylabel)
         if self.title is not None:
             plt.title(self.title)
 
@@ -2275,11 +2286,11 @@ class Image:
         """
         if show_xyproj:
             self.fig2.add_subplot(132)
-            xsum = self.subim.sum(axis=0)
+            xsum = self.data.sum(axis=0)
             plt.plot(xsum)
             plt.xlabel('Relative x Coord')
             self.fig2.add_subplot(133)
-            ysum = self.subim.sum(axis=1)
+            ysum = self.data.sum(axis=1)
             plt.plot(ysum)
             plt.xlabel('Relative y Coord')
             self.cid_keypress2 = \
@@ -2293,7 +2304,7 @@ class Image:
                 fmin=-1., fmax=10., funits='sigma', fscale='linear',
                 statsize=2048, title=None,
                 mode='radec', imcent=None, imsize=None,
-                dispunits='pixels', zeropos=None, axlabel=True, fontsize=None,
+                zeropos=None, axlabel=True, fontsize=None,
                 mask=None, show_xyproj=False, verbose=False):
         """
         The main way to display the image data contained in the Image class.
@@ -2313,7 +2324,7 @@ class Image:
                          2. A 2-element numpy array
                          3. A 2-element list:  [xsize, ysize]
                          4. A 2-element tuple: (xsize, ysize)
-          zeropos   - NOTE: Only used if dispunits='radec'
+          zeropos   - NOTE: Only used if mode='radec'
                        By default, which happens when zeropos=None, the (0, 0)
                        point on the output image, as designated by the image
                        axis labels, will be at the center of the image.
@@ -2341,9 +2352,7 @@ class Image:
         self.display_setup(hext=hext, cmap=cmap,
                            fmin=fmin, fmax=fmax, funits=funits, fscale=fscale,
                            statsize=statsize, title=title, mode=mode,
-                           imcent=imcent, imsize=imsize,
-                           dispunits=dispunits, zeropos=zeropos,
-                           mask=mask, show_xyproj=show_xyproj, verbose=verbose)
+                           zeropos=zeropos, verbose=verbose)
 
         """ Now display the data """
         self.display_implot(show_xyproj, axlabel, fontsize)
@@ -2690,7 +2699,7 @@ def overlay_contours(infile1, infile2, ra, dec, imsize, pixscale=None,
     """
     im1.display(hext=hext1, cmap='gray_inv', mode='radec',
                 imcent=(ra, dec), imsize=(imsize, imsize),
-                dispunits='radec', fmax=fmax, zeropos=zeropos)
+                fmax=fmax, zeropos=zeropos)
     im2.def_subim_radec(ra, dec, imsize, outscale=pixscale)
 
     """ Set contour levels for the second image """
