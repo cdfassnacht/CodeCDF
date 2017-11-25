@@ -33,6 +33,8 @@ Stand-alone functions
 """
 
 import os
+from math import log, log10, sqrt, pi, fabs, atan2, atan
+from math import cos as mcos, sin as msin
 try:
     from astropy.io import fits as pf
 except:
@@ -46,8 +48,6 @@ from astropy import units as u
 import numpy as np
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from math import log, log10, sqrt, pi, fabs
-from math import cos as mcos, sin as msin
 import datafuncs as df
 
 # -----------------------------------------------------------------------
@@ -615,24 +615,48 @@ class Image:
         self.radec = self.radec_to_skycoord(imcentradec[0, raax],
                                             imcentradec[0, decax])
 
-        """ Calculate the pixel scale """
-        
+        """ Calculate the pixel scale and image PA (E of N) """
         self.found_wcs = True
+        w = self.wcsinfo.wcs
+        rad2deg = 180. / pi
         if imwcs.has_cd():
-            self.pixscale = sqrt(self.wcsinfo.wcs.cd[raax, raax]**2 +
-                                 self.wcsinfo.wcs.cd[decax, raax]**2)*3600.
+            self.pixscale = sqrt(w.cd[raax, raax]**2 +
+                                 w.cd[decax, raax]**2) * 3600.
+            rot1 = atan(-1. * w.cd[raax, decax] / w.cd[decax, decax])
+            rot2 = atan(w.cd[decax, raax] / w.cd[raax, raax])
         elif imwcs.has_pc():
-            self.pixscale = sqrt(self.wcsinfo.wcs.pc[raax, raax]**2 +
-                                 self.wcsinfo.wcs.pc[decax, raax]**2) * \
-                                 self.wcsinfo.wcs.cdelt[raax] * 3600.
+            self.pixscale = sqrt(w.pc[raax, raax]**2 +
+                                 w.pc[decax, raax]**2) * \
+                                 w.cdelt[raax] * 3600.
+            rot1 = atan(-1. * w.cdelt[raax] * w.pc[raax, decax] / \
+                             (w.cdelt[decax] * w.pc[decax, decax]))
+            rot2 = atan(w.cdelt[decax] * w.pc[decax, raax] / \
+                            (w.cdelt[raax] * w.pc[raax, raax]))
         elif isinstance(imwcs.cdelt, np.ndarray):
-            self.pixscale = abs(self.wcsinfo.wcs.cdelt[raax]) * 3600.
+            self.pixscale = abs(w.cdelt[raax]) * 3600.
+            rot = 0.
         else:
             print 'Warning: no WCS info in header %d' % hext
             self.found_wcs = False
 
+        """ Save the PA information """
+        rot1 *= rad2deg
+        rot2 *= rad2deg
+        if fabs(rot1 - rot2) < 1.:
+            self.instpa = (rot1 + rot2) / 2.
+        else:
+            self.instpa = np.array([rot1, rot2])
+
         if self.found_wcs and verbose:
-            print 'Pixel scale: %7.3f arcsec/pix' % self.pixscale
+            print('Pixel scale: %7.3f arcsec/pix' % self.pixscale)
+            print('Instrument FOV (arcsec): %7.1f %7.1f' % 
+                  (self.pixscale * hdr[rakey], self.pixscale * hdr[deckey]))
+            if isinstance(self.instpa, np.ndarray):
+                print('Instrument position angles (E of N): %+7.2f %+7.2f' % 
+                      (self.instpa[0], self.instpa[1]))
+            else:
+                print('Instrument position angle (E of N): %+7.2f' %
+                      self.instpa)
 
     # -----------------------------------------------------------------------
 
