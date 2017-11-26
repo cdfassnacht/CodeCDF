@@ -191,10 +191,13 @@ class Spec1d(df.Data1d):
         else:
             names = names0[:-1]
             df.Data1d.__init__(self, wav0, flux0, names=names)
+            self['var'] = None
 
         """ Add the sky vector to the Table structure if it is not none """
         if sky0 is not None:
             self['sky'] = sky0
+        else:
+            self['sky'] = None
 
         """ Read in the list that may be used for marking spectral lines """
         self.load_linelist()

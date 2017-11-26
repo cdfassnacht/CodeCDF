@@ -206,11 +206,11 @@ class Image:
         """
 
         """ Get the number of dimensions in the input image """
-        hdr = self.hdu[hext].header
-        if 'naxis' in hdr.keys():
-            ndim = hdr['naxis']
-        else:
-            raise KeyError
+        # hdr = self.hdu[hext].header
+        # if 'naxis' in hdr.keys():
+        #     ndim = hdr['naxis']
+        # else:
+        #     raise KeyError
 
         """ Select the image slice to use """
 
