@@ -544,7 +544,7 @@ class Spec1d(df.Data1d):
         linefmt = [('name', 'S10'), ('wavelength', float), ('label', 'S10'),
                    ('dxlab', float), ('type', int), ('plot', bool)]
         self.lineinfo = np.array([
-                ("Ly-alpha",     1216.,     r"Ly $\alpha$", 0.0, 4, True),
+                ("Ly-alpha",     1216.,     r"Ly$\alpha$", 0.0, 4, True),
                 ("C IV",          1549.,     "C IV",            0.0, 4, True),
                 ("C III]",        1909.,     "C III]",         0.0, 4, True),
                 ("Mg II",         2800.,     "Mg II",          0.0, 3, True),
