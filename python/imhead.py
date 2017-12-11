@@ -1,4 +1,4 @@
-import sys,os
+import sys, os
 try:
    from astropy.io import fits as pyfits
 except:
@@ -55,6 +55,7 @@ for f in files:
    texpname2 = 'exptime'
    filtname  = 'filter'
    coaddname = 'coadds'
+   tscale    = 1.0
 
    # Set instrument-specific parameter value
    if inst is not None:
@@ -81,6 +82,11 @@ for f in files:
          inst = 'LRIS'
          texpname = 'ttime'
          filtname = 'redfilt'
+      elif inst == 'OSIRIS':
+         usecoadd = True
+         texpname = 'itime'
+         tscale = 1000.0
+         filtname = 'sfilter'
       elif inst == 'NIRC2':
          usecoadd = True
          texpname = 'itime'
@@ -124,10 +130,10 @@ for f in files:
 
    # Get exposure time, possibly including coadds
    try:
-      exptime = hdr[texpname]
+      exptime = hdr[texpname] / tscale
    except:
       try:
-         exptime = hdr[texpname2]
+         exptime = hdr[texpname2] / tscale
       except:
          exptime = float('NaN')
    if usecoadd:
