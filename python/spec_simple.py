@@ -3079,7 +3079,7 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
     xmax = wmax + xscale*wrange
 
     """ Get rid of the space between the subplots"""
-    plt.figure(1)
+    # plt.figure(1)
     plt.subplots_adjust(hspace=0.001)
 
     """ Plot the atmospheric transmission spectrum """

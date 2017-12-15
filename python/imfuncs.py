@@ -405,14 +405,15 @@ class Image:
         Prints useful information about what the key presses do
         """
         print('')
-        print 'Actions available by pressing a key in the Figure 1 window'
-        print '----------------------------------------------------------'
-        print 'Key        Action'
-        print '-------  ---------------------------------'
-        print '[click]  Report (x, y) position, and (RA, dec) if file has WCS'
-        print '    m      Mark the position of an object'
-        print '    z      Zoom in at the position of the cursor'
-        print '    q      Quit and close the window'
+        print('Actions available by pressing a key in the Figure 1 window')
+        print('----------------------------------------------------------')
+        print('Key        Action')
+        print('-------  ---------------------------------')
+        print('[click]  Report (x, y) position, and (RA, dec) if file has WCS')
+        print('    m      Mark the position of an object')
+        print('    z      Zoom in at the position of the cursor')
+        print('    q      Quit and close the window')
+        print('    x      Quit but do not close the window')
         print('')
 
     # -----------------------------------------------------------------------
@@ -475,14 +476,13 @@ class Image:
             """
             global xmark, ymark
             print('')
-            print 'Marking position %8.2f %8.2f' % (event.xdata, event.ydata)
+            print('Marking position %8.2f %8.2f' % (event.xdata, event.ydata))
             print('')
             self.xmark = event.xdata
             self.ymark = event.ydata
             imsize = (self.zoomsize, self.zoomsize)
             imcent = (self.xmark, self.ymark)
-            self.display(imcent=imcent, imsize=imsize,
-                         show_xyproj=True)
+            self.display(imcent=imcent, imsize=imsize, show_xyproj=True)
 
         if event.key == 'z':
             """
@@ -500,6 +500,17 @@ class Image:
             self.ax1.set_xlim(xz1, xz2)
             self.ax1.set_ylim(yz1, yz2)
             self.fig1.show()
+            return
+
+        if event.key == 'x':
+            print('')
+            print('Stopping interactive mode')
+            print('')
+            if self.fig1:
+                self.fig1.canvas.mpl_disconnect(self.cid_mouse)
+                self.fig1.canvas.mpl_disconnect(self.cid_keypress)
+            if self.fig2:
+                self.fig2.canvas.mpl_disconnect(self.cid_keypress2)
             return
 
         if event.key == 'q':
