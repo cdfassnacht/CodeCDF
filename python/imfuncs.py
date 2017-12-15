@@ -1650,7 +1650,7 @@ class Image:
                 print('Input file:  %s' % self.infile)
             print 'Output file: %s' % outfile
             pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
-                                                             clobber=True)
+                                                             overwrite=True)
             print "Wrote postage stamp cutout to %s" % outfile
 
     # -----------------------------------------------------------------------
@@ -1706,7 +1706,7 @@ class Image:
             newhdr.update('ORIG_IM', self.infile)
 
         """ Write the postage stamp to the output file """
-        pf.PrimaryHDU(self.data, newhdr).writeto(outfile, clobber=True)
+        pf.PrimaryHDU(self.data, newhdr).writeto(outfile, overwrite=True)
         print "Wrote postage stamp cutout to %s" % outfile
 
     # -----------------------------------------------------------------------
@@ -1782,7 +1782,7 @@ class Image:
         outhdu = pf.PrimaryHDU(data=outdat, header=inhdr)
         outhdu.verify('fix')
         print "imcopy: Writing to output file %s" % outfile
-        outhdu.writeto(outfile, clobber=True)
+        outhdu.writeto(outfile, overwrite=True)
         del outdat
 
     # -----------------------------------------------------------------------
@@ -1854,7 +1854,7 @@ class Image:
             if verbose:
                 print 'Output SNR file: %s' % outfile
             pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
-                                                             clobber=True)
+                                                             overwrite=True)
 
     # -----------------------------------------------------------------------
 
@@ -2600,7 +2600,7 @@ def imcopy(infile, x1, x2, y1, y2, outfile):
     outhdu = pf.PrimaryHDU(data=outdat, header=inhdr)
     outhdu.verify('fix')
     print "imcopy: Writing to output file %s" % outfile
-    outhdu.writeto(outfile, clobber=True)
+    outhdu.writeto(outfile, overwrite=True)
 
     return
 
