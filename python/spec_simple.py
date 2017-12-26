@@ -138,7 +138,7 @@ class Spec1d(df.Data1d):
         """
 
         """ Initialize some variables """
-        self.var = False
+        self.hasvar = False
         self.sky = False
         self.infile = None
         self.smoflux = None
@@ -169,7 +169,7 @@ class Spec1d(df.Data1d):
             flux0 = flux
             if var is not None:
                 var0 = var
-                self.var = True
+                self.hasvar = True
             if sky is not None:
                 sky0 = sky
                 self.sky = True
@@ -237,7 +237,7 @@ class Spec1d(df.Data1d):
             flux = hdu[2].data.copy()
             if len(hdu) > 3:
                 var  = hdu[3].data.copy()
-            self.var = True
+            self.hasvar = True
             if len(hdu) > 4:
                 sky = hdu[4].data.copy()
             del hdu
@@ -248,12 +248,12 @@ class Spec1d(df.Data1d):
             flux = tdat.field(1)
             if len(tdat[0]) > 2:
                 var = tdat.field(3)
-                self.var = True
+                self.hasvar = True
             del hdu
         elif informat == 'fitsflux':
             hdu = pf.open(self.infile)
             flux = hdu[0].data.copy()
-            self.var = False
+            self.hasvar = False
             wav = np.arange(self.flux.size)
             hdr1 = hdu[0].header
             if self.logwav:
@@ -261,7 +261,7 @@ class Spec1d(df.Data1d):
             else:
                 wav = hdr1['crval1'] + wav*hdr1['cd1_1']
             del hdu
-        elif informat == 'deimos':
+        elif informat.lower() == 'deimos':
             hdu = pf.open(self.infile)
             tab1 = hdu[1].data
             tab2 = hdu[2].data
@@ -277,12 +277,19 @@ class Spec1d(df.Data1d):
             wav = np.concatenate((bwav, rwav))
             var = np.concatenate((bvar, rvar))
             sky = np.concatenate((bsky, rsky))
-            self.var = True
+            self.hasvar = True
+        elif informat.lower() == 'esi':
+            hdu = pf.open(self.infile)
+            wav  = 10.**(hdu[1].data)
+            flux = hdu[2].data.copy()
+            var  = hdu[3].data.copy()
+            self.hasvar = True
+            del hdu
         elif informat == 'mwa':
             hdu = pf.open(self.infile)
             flux = hdu[1].data.copy()
             var  = hdu[3].data.copy()
-            self.var = True
+            self.hasvar = True
             wav = np.arange(self.flux.size)
             hdr1 = hdu[1].header
             if self.logwav:
@@ -304,7 +311,7 @@ class Spec1d(df.Data1d):
             del spec
 
         """ Check for NaN's, which this code can't handle """
-        if self.var:
+        if self.hasvar:
             mask = (np.isnan(flux)) | (np.isnan(var))
             varmax = var[~mask].max()
             var[mask] = varmax * 5.
@@ -425,7 +432,7 @@ class Spec1d(df.Data1d):
         """ Check to make sure that there is a spectrum to plot """
         if self.sky:
             skyflux = self['sky']
-        elif self.var:
+        elif self.hasvar:
             skyflux = np.sqrt(self['var'])
         else:
             if verbose:
@@ -471,7 +478,7 @@ class Spec1d(df.Data1d):
         """
 
         """ Set the weighting """
-        if self.var:
+        if self.hasvar:
             print 'Weighting by the inverse variance'
             wht = 1.0 / self['var']
         else:
@@ -483,7 +490,7 @@ class Spec1d(df.Data1d):
         smowht = ndimage.filters.uniform_filter(wht, filtwidth)
         self.smoflux = ndimage.filters.uniform_filter(yin, filtwidth)
         self.smoflux /= smowht
-        if self.var:
+        if self.hasvar:
             self.smovar = 1.0 / (filtwidth * smowht)
 
         """ Plot the smoothed spectrum if desired """
@@ -744,7 +751,7 @@ class Spec1d(df.Data1d):
             outflux = pf.ImageHDU(self['flux'].data, name='flux')
             hdu.append(outwv)
             hdu.append(outflux)
-            if self.var:
+            if self.hasvar:
                 outvar  = pf.ImageHDU(self['var'].data, name='variance')
                 hdu.append(outvar)
             if self.sky:
@@ -754,7 +761,7 @@ class Spec1d(df.Data1d):
 
         elif outformat == 'text':
             # CONSIDER JUST USING THE WRITE() METHOD FOR THE TABLE HERE!
-            if self.var:
+            if self.hasvar:
                 if self.sky:
                     outdata = np.zeros((self['wav'].shape[0], 4))
                     fmtstring = '%7.2f %9.3f %10.4f %9.3f'
