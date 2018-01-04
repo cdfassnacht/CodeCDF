@@ -482,7 +482,8 @@ class Image:
             self.ymark = event.ydata
             imsize = (self.zoomsize, self.zoomsize)
             imcent = (self.xmark, self.ymark)
-            self.display(imcent=imcent, imsize=imsize, show_xyproj=True)
+            self.display(imcent=imcent, imsize=imsize, mode=self.mode,
+                         show_xyproj=True)
 
         if event.key == 'z':
             """
@@ -2381,6 +2382,7 @@ class Image:
         Select the region of the image to be displayed, which may be the
         full input image
         """
+        self.mode = mode
         self.set_subim(hext, mode, imcent, imsize, verbose=verbose)
         
         """ Set up the parameters that will be needed to display the image """

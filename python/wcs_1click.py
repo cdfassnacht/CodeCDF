@@ -78,8 +78,7 @@ for i in range(len(files)):
     if flat is not None:
         im1.hdu[0].data /= flat
     im1.zoomsize = subimsize
-    im1.display(fmax=10.)
-    im1.keypress_info()
+    im1.display(fmax=10., mode='xy', title=im1.infile)
     im1.start_interactive()
     plt.show()
     if im1.xmark is not None:
