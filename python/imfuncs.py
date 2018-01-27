@@ -33,7 +33,7 @@ Stand-alone functions
 """
 
 import os
-from math import log, log10, sqrt, pi, fabs, atan2, atan
+from math import log, log10, sqrt, pi, fabs, atan
 from math import cos as mcos, sin as msin
 try:
     from astropy.io import fits as pf
@@ -69,7 +69,7 @@ class Image:
             indat - The input image data.  This can either be:
                      1. a filename, the most common case
                            - or -
-                     2. a HDU list. 
+                     2. a HDU list.
         """
 
         """ Check the format of the input image data """
@@ -123,24 +123,24 @@ class Image:
         Initialize default display parameters
 
          - The scale for the display (i.e., the data values that correspond
-            to full black and full white on a greyscale display) are (by default)
-            set in terms of the "clipped mean" and "clipped rms".  Those values
-            are the mean and rms of the data after a sigma clipping algorithm
-            has been applied to reject outliers.
+            to full black and full white on a greyscale display) are
+            (by default) set in terms of the "clipped mean" and "clipped rms".
+            Those values are the mean and rms of the data after a sigma
+            clipping algorithm has been applied to reject outliers.
          - The display min and max values are stored as self.fmin and self.fmax
          - For more information see the set_display_limits method
         """
-        self.found_rms = False      # Have clipped rms and mean been calculated?
+        self.found_rms = False       # Have clipped rms / mean been calculated?
         self.mean_clip = 0.0         # Value of the clipped mean
         self.rms_clip = 0.0          # Value of the clipped rms
-        self.fmin = None              # Lower flux limit used in image display
-        self.fmax = None              # Upper flux limit used in image display
-        self.fscale = 'linear'      # Flux scaling for display
-        self.statsize = 2048         # Region size for stats if image is too big
+        self.fmin = None             # Lower flux limit used in image display
+        self.fmax = None             # Upper flux limit used in image display
+        self.fscale = 'linear'       # Flux scaling for display
+        self.statsize = 2048         # Stats region size if image is too big
         self.statsec = None          # Region to use for pixel statistics
-        self.zoomsize = 31            # Size of postage-stamp zoom
+        self.zoomsize = 31           # Size of postage-stamp zoom
         self.mode = 'radec'          # Default display units are arcsec offsets
-        self.extval = None            # Just label the axes by pixels
+        self.extval = None           # Just label the axes by pixels
         self.cmap = plt.cm.YlOrBr_r  # This corresponds to the 'gaia' cmap
 
         """ Initialize contouring parameters """
@@ -213,7 +213,6 @@ class Image:
         #     raise KeyError
 
         """ Select the image slice to use """
-
 
     # -----------------------------------------------------------------------
 
@@ -340,10 +339,10 @@ class Image:
               the clipped mean.
           3. Set all pixels in the variance image to the square of the clipped
               rms.
-          4. If an object mask is set, then set the pixels in the variance image
-              that within the mask to the pixel values in the input data (i.e.,
-              assume Poisson statistics here) as long as they are larger than
-              the clipped rms.
+          4. If an object mask is set, then set the pixels in the variance
+              image that within the mask to the pixel values in the input data
+              (i.e., assume Poisson statistics here) as long as they are larger
+              than the clipped rms.
               NOTE: The object mask is defined to have a value of 1 where the
               objects are and 0 otherwise.
         """
@@ -362,8 +361,9 @@ class Image:
         check = sqrtmean / self.rms_clip
         if check < 0.9 or check > 1.1:
             print('Warning: %s - ratio of sqrt(mean) to rms is more than'
-                    ' 10 percent from unity' % self.infile)
-            print(' sqrt(mean) = %7.2f, rms = %7.2f' % (sqrtmean, self.rms_clip))
+                  ' 10 percent from unity' % self.infile)
+            print(' sqrt(mean) = %7.2f, rms = %7.2f' %
+                  (sqrtmean, self.rms_clip))
 
         """ Create the base variance image """
         data = self.hdu[hext].data
@@ -371,9 +371,10 @@ class Image:
         var = np.ones(data.shape) * varval
 
         """
-        If an object mask exists, replace the pixel values in the variance image
-        with the values from the image data which, under the assumption of
-        Poisson statistics, should represent the associated pixel uncertainties.
+        If an object mask exists, replace the pixel values in the variance
+        image with the values from the image data which, under the assumption
+        of Poisson statistics, should represent the associated pixel
+        uncertainties.
         Only do this replacement if the data values are greater than the
         rms**2 values currently in the variance image
         """
@@ -432,7 +433,8 @@ class Image:
         print 'Mouse click x, y:    %7.1f %7.1f' % (self.xclick, self.yclick)
 
         """
-        Also show the (RA, dec) of the clicked position if the input file has WCS
+        Also show the (RA, dec) of the clicked position if the input file has
+         a WCS solution
         NOTE: This needs to be handled differently if the displayed image has
          axes in pixels or in arcsec offsets
         """
@@ -637,16 +639,14 @@ class Image:
             rot1 = atan(-1. * w.cd[raax, decax] / w.cd[decax, decax])
             rot2 = atan(w.cd[decax, raax] / w.cd[raax, raax])
         elif imwcs.has_pc():
-            self.pixscale = sqrt(w.pc[raax, raax]**2 +
-                                 w.pc[decax, raax]**2) * \
-                                 w.cdelt[raax] * 3600.
-            rot1 = atan(-1. * w.cdelt[raax] * w.pc[raax, decax] / \
-                             (w.cdelt[decax] * w.pc[decax, decax]))
-            rot2 = atan(w.cdelt[decax] * w.pc[decax, raax] / \
-                            (w.cdelt[raax] * w.pc[raax, raax]))
+            self.pixscale = sqrt(w.pc[raax, raax]**2 + w.pc[decax, raax]**2) *\
+                w.cdelt[raax] * 3600.
+            rot1 = atan(-1. * w.cdelt[raax] * w.pc[raax, decax] /
+                        (w.cdelt[decax] * w.pc[decax, decax]))
+            rot2 = atan(w.cdelt[decax] * w.pc[decax, raax] /
+                        (w.cdelt[raax] * w.pc[raax, raax]))
         elif isinstance(imwcs.cdelt, np.ndarray):
             self.pixscale = abs(w.cdelt[raax]) * 3600.
-            rot = 0.
         else:
             print 'Warning: no WCS info in header %d' % hext
             self.found_wcs = False
@@ -661,10 +661,10 @@ class Image:
 
         if self.found_wcs and verbose:
             print('Pixel scale: %7.3f arcsec/pix' % self.pixscale)
-            print('Instrument FOV (arcsec): %7.1f %7.1f' % 
+            print('Instrument FOV (arcsec): %7.1f %7.1f' %
                   (self.pixscale * hdr[rakey], self.pixscale * hdr[deckey]))
             if isinstance(self.instpa, np.ndarray):
-                print('Instrument position angles (E of N): %+7.2f %+7.2f' % 
+                print('Instrument position angles (E of N): %+7.2f %+7.2f' %
                       (self.instpa[0], self.instpa[1]))
             else:
                 print('Instrument position angle (E of N): %+7.2f' %
@@ -1366,9 +1366,9 @@ class Image:
         """ Print out useful information """
         if verbose:
             print('')
-            print('Cutout image center (x, y): (%d, %d)' % 
+            print('Cutout image center (x, y): (%d, %d)' %
                   (self.subcentx, self.subcenty))
-            print('Cutout image size (x y): %dx%d' % 
+            print('Cutout image size (x y): %dx%d' %
                   (self.subsizex, self.subsizey))
 
         """
@@ -1387,7 +1387,6 @@ class Image:
 
         if 'crpix2' in self.subimhdr.keys():
             self.subimhdr['CRPIX2'] -= self.y1
-
 
     # -----------------------------------------------------------------------
 
@@ -1561,7 +1560,7 @@ class Image:
 
         """ Transform the coordinates """
         self.data = ndimage.map_coordinates(data, coords, output=np.float64,
-                                             order=5)
+                                            order=5)
         self.data[np.isnan(self.data)] = 0.
         self.subimhdr = outhdr
 
@@ -1651,7 +1650,7 @@ class Image:
                 print('Input file:  %s' % self.infile)
             print 'Output file: %s' % outfile
             pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
-                                                             overwrite=True)
+                                                            overwrite=True)
             print "Wrote postage stamp cutout to %s" % outfile
 
     # -----------------------------------------------------------------------
@@ -1855,7 +1854,7 @@ class Image:
             if verbose:
                 print 'Output SNR file: %s' % outfile
             pf.PrimaryHDU(self.data, self.subimhdr).writeto(outfile,
-                                                             overwrite=True)
+                                                            overwrite=True)
 
     # -----------------------------------------------------------------------
 
@@ -2293,8 +2292,10 @@ class Image:
                 xlabel = 'Offset (arcsec)'
                 ylabel = 'Offset (arcsec)'
                 # if fontsize is not None:
-                #     plt.xlabel(r"$\Delta \alpha$ (arcsec)", fontsize=fontsize)
-                #     plt.ylabel(r"$\Delta \delta$ (arcsec)", fontsize=fontsize)
+                #     plt.xlabel(r"$\Delta \alpha$ (arcsec)",
+                #         fontsize=fontsize)
+                #     plt.ylabel(r"$\Delta \delta$ (arcsec)",
+                #         fontsize=fontsize)
                 # else:
                 #     plt.xlabel(r"$\Delta \alpha$ (arcsec)")
                 #     plt.ylabel(r"$\Delta \delta$ (arcsec)")
@@ -2384,7 +2385,7 @@ class Image:
         """
         self.mode = mode
         self.set_subim(hext, mode, imcent, imsize, verbose=verbose)
-        
+
         """ Set up the parameters that will be needed to display the image """
         self.display_setup(hext=hext, cmap=cmap,
                            fmin=fmin, fmax=fmax, funits=funits, fscale=fscale,

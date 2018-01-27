@@ -187,7 +187,7 @@ class Spec1d(df.Data1d):
             return
 
         """
-        Call the superclass initialization for useful Data1d attributes 
+        Call the superclass initialization for useful Data1d attributes
         """
         if var0 is not None:
             df.Data1d.__init__(self, wav0, flux0, var0, names=names0)
@@ -231,12 +231,12 @@ class Spec1d(df.Data1d):
         if informat == 'fits':
             hdu = pf.open(self.infile)
             if self.logwav:
-                wav  = 10.**(hdu[1].data)
+                wav = 10.**(hdu[1].data)
             else:
-                wav  = hdu[1].data.copy()
+                wav = hdu[1].data.copy()
             flux = hdu[2].data.copy()
             if len(hdu) > 3:
-                var  = hdu[3].data.copy()
+                var = hdu[3].data.copy()
             self.hasvar = True
             if len(hdu) > 4:
                 sky = hdu[4].data.copy()
@@ -244,7 +244,7 @@ class Spec1d(df.Data1d):
         elif informat == 'fitstab':
             hdu = pf.open(self.infile)
             tdat = hdu[1].data
-            wav  = tdat.field(0)
+            wav = tdat.field(0)
             flux = tdat.field(1)
             if len(tdat[0]) > 2:
                 var = tdat.field(3)
@@ -265,14 +265,14 @@ class Spec1d(df.Data1d):
             hdu = pf.open(self.infile)
             tab1 = hdu[1].data
             tab2 = hdu[2].data
-            bwav = tab1['lambda'][0,:]
-            bflux = tab1['spec'][0,:]
-            bvar = 1. / tab1['ivar'][0,:]
-            bsky = tab1['skyspec'][0,:]
-            rwav = tab2['lambda'][0,:]
-            rflux = tab2['spec'][0,:]
-            rvar = 1. / tab2['ivar'][0,:]
-            rsky = tab2['skyspec'][0,:]
+            bwav = tab1['lambda'][0, :]
+            bflux = tab1['spec'][0, :]
+            bvar = 1. / tab1['ivar'][0, :]
+            bsky = tab1['skyspec'][0, :]
+            rwav = tab2['lambda'][0, :]
+            rflux = tab2['spec'][0, :]
+            rvar = 1. / tab2['ivar'][0, :]
+            rsky = tab2['skyspec'][0, :]
             flux = np.concatenate((bflux, rflux))
             wav = np.concatenate((bwav, rwav))
             var = np.concatenate((bvar, rvar))
@@ -280,15 +280,15 @@ class Spec1d(df.Data1d):
             self.hasvar = True
         elif informat.lower() == 'esi':
             hdu = pf.open(self.infile)
-            wav  = 10.**(hdu[1].data)
+            wav = 10.**(hdu[1].data)
             flux = hdu[2].data.copy()
-            var  = hdu[3].data.copy()
+            var = hdu[3].data.copy()
             self.hasvar = True
             del hdu
         elif informat == 'mwa':
             hdu = pf.open(self.infile)
             flux = hdu[1].data.copy()
-            var  = hdu[3].data.copy()
+            var = hdu[3].data.copy()
             self.hasvar = True
             wav = np.arange(self.flux.size)
             hdr1 = hdu[1].header
@@ -300,9 +300,9 @@ class Spec1d(df.Data1d):
         else:
             spec = np.loadtxt(self.infile)
             if self.logwav:
-                wav  = 10.**(spec[:, 0])
+                wav = 10.**(spec[:, 0])
             else:
-                wav  = spec[:, 0]
+                wav = spec[:, 0]
             flux = spec[:, 1]
             if spec.shape[1] > 2:
                 var = spec[:, 2]
@@ -357,7 +357,7 @@ class Spec1d(df.Data1d):
         """ Override color assignments if docolor is False"""
         if not docolor:
             color = 'k'
-            rmscolor  = 'k'
+            rmscolor = 'k'
 
         """ Draw the flux=0 line"""
         plt.axhline(color='k')
@@ -366,7 +366,7 @@ class Spec1d(df.Data1d):
         if usesmooth and self.smoflux is not None:
             flux = self.smoflux
             if self.smovar is not None:
-                var  = self.smovar
+                var = self.smovar
         else:
             flux = self['flux']
             try:
@@ -701,7 +701,7 @@ class Spec1d(df.Data1d):
             if marktype == 'tick':
                 tickstart = specflux[i] + pm * tickfac*ticklen
                 tickend = tickstart + pm * ticklen
-                labstart  = tickstart + pm * 1.5*ticklen
+                labstart = tickstart + pm * 1.5*ticklen
                 plt.plot([xarr[i], xarr[i]], [tickstart, tickend], 'k')
                 if info['plot']:
                     plt.text(xarr[i] + info['dxlab'], labstart, info['label'],
@@ -744,7 +744,7 @@ class Spec1d(df.Data1d):
         """
 
         if outformat == 'fits':
-            hdu  = pf.HDUList()
+            hdu = pf.HDUList()
             phdu = pf.PrimaryHDU()
             hdu.append(phdu)
             outwv = pf.ImageHDU(self['wav'].data, name='wavelength')
@@ -752,10 +752,10 @@ class Spec1d(df.Data1d):
             hdu.append(outwv)
             hdu.append(outflux)
             if self.hasvar:
-                outvar  = pf.ImageHDU(self['var'].data, name='variance')
+                outvar = pf.ImageHDU(self['var'].data, name='variance')
                 hdu.append(outvar)
             if self.sky:
-                outsky  = pf.ImageHDU(self['sky'].data, name='sky')
+                outsky = pf.ImageHDU(self['sky'].data, name='sky')
                 hdu.append(outsky)
             hdu.writeto(outfile, clobber=True)
 
@@ -860,8 +860,8 @@ class Spec2d(imf.Image):
         """
 
         """ Initialize some variables """
-        self.dispaxis  = 'x'
-        self.specaxis  = 1
+        self.dispaxis = 'x'
+        self.specaxis = 1
         self.spaceaxis = 0
         self.extvar = None
         self.sky1d = None
@@ -870,7 +870,7 @@ class Spec2d(imf.Image):
         self.skysub = None
         self.ssext = None
         self.spec1d = None
-        self.fitrange  = None
+        self.fitrange = None
         self.apmin = -4.
         self.apmax = 4.
         self.muorder = 3
@@ -975,7 +975,7 @@ class Spec2d(imf.Image):
         showing the current value of the dispaxis variable, either 'x' or 'y'
         """
 
-        self.npix  = self.data.shape[self.specaxis]
+        self.npix = self.data.shape[self.specaxis]
         self.nspat = self.data.shape[self.spaceaxis]
         if verbose:
             print ''
@@ -1006,10 +1006,10 @@ class Spec2d(imf.Image):
         if dispaxis == 'x' or dispaxis == 'y':
             self.dispaxis = dispaxis
             if self.dispaxis == "y":
-                self.specaxis  = 0
+                self.specaxis = 0
                 self.spaceaxis = 1
             else:
-                self.specaxis  = 1
+                self.specaxis = 1
                 self.spaceaxis = 0
             print ''
             print 'Old value of dispaxis: %s' % oldval
@@ -1405,7 +1405,7 @@ class Spec2d(imf.Image):
                 return np.nan
             fixstr[fixvec == 1] = 'Yes'
         fitmask = fixvec == 0
-        fitind  = np.arange(nparam)[fitmask]
+        fitind = np.arange(nparam)[fitmask]
 
         """ Fit a Gaussian plus a background to the compressed spectrum """
         mf = 100000
@@ -1478,11 +1478,11 @@ class Spec2d(imf.Image):
             tmpfitdat = data[fitmask]
         dmu, dsig = df.sigclip(tmpfitdat, nsig=nsig)
         goodmask = np.absolute(data - dmu) < nsig * dsig
-        badmask  = np.absolute(data - dmu) >= nsig * dsig
-        dgood     = data[goodmask]
-        dbad      = data[badmask]
-        xgood     = x[goodmask]
-        xbad      = x[badmask]
+        badmask = np.absolute(data - dmu) >= nsig * dsig
+        dgood = data[goodmask]
+        dbad = data[badmask]
+        xgood = x[goodmask]
+        xbad = x[badmask]
 
         """ Fit a polynomial to the trace """
 
@@ -1491,8 +1491,8 @@ class Spec2d(imf.Image):
             dpoly = dgood
         else:
             fitmask = np.logical_and(xgood >= fitrange[0], xgood < fitrange[1])
-            xpoly  = xgood[fitmask]
-            dpoly  = dgood[fitmask]
+            xpoly = xgood[fitmask]
+            dpoly = dgood[fitmask]
 
         if fitorder == -1:
             polyorder = 0
@@ -1507,8 +1507,8 @@ class Spec2d(imf.Image):
         Calculate the fitted function
         REPLACE THIS WITH np.polyval
         """
-        fitx  = np.arange(self.npix).astype(np.float32)
-        fity  = 0.0 * fitx
+        fitx = np.arange(self.npix).astype(np.float32)
+        fity = 0.0 * fitx
         for i in range(dpoly.size):
             fity += dpoly[i] * fitx**(dpoly.size - 1 - i)
 
@@ -1581,7 +1581,7 @@ class Spec2d(imf.Image):
         If that is the case, then we can skip the fitting entirely for
         that parameter
         """
-        fitmu  = True
+        fitmu = True
         fitsig = True
         if muorder == -1:
             self.mu = np.ones(self.npix) * self.p0[1]
@@ -1598,9 +1598,9 @@ class Spec2d(imf.Image):
         xstep = np.arange(0, self.npix-stepsize, stepsize)
 
         """ Set up containers for mu and sigma along the trace """
-        mustep  = np.zeros((xstep.size, ngauss))
+        mustep = np.zeros((xstep.size, ngauss))
         sigstep = mustep.copy()
-        nsteps  = np.arange(xstep.shape[0])
+        nsteps = np.arange(xstep.shape[0])
 
         if fitmu or fitsig:
             """ Step through the data """
@@ -1615,7 +1615,7 @@ class Spec2d(imf.Image):
                 p = self.locate_trace(pixrange=pixrange, showplot=False,
                                       verbose=False)
                 for j in range(ngauss):
-                    mustep[i, j]  = p[j*3+1]
+                    mustep[i, j] = p[j*3+1]
                     sigstep[i, j] = p[j*3+2]
             print "    Done"
 
@@ -1806,8 +1806,8 @@ class Spec2d(imf.Image):
             varspec = (gain * self.data + rdnoise**2) / gain**2
 
         """ Check for NaNs """
-        nansci  = np.isnan(self.data)
-        nanvar  = np.isnan(varspec)
+        nansci = np.isnan(self.data)
+        nanvar = np.isnan(varspec)
         nanmask = np.logical_or(np.isnan(self.data), np.isnan(varspec))
         # nnans = nansci.sum()
         # nnanv = nanvar.sum()
@@ -1833,9 +1833,9 @@ class Spec2d(imf.Image):
         vmask = varspec <= 0.
         varspec[vmask] = 1.e8
         varspec[nanvar] = 1.e8
-        self.extwt[apmask]  = self.profile[apmask] / (varspec[apmask])
+        self.extwt[apmask] = self.profile[apmask] / (varspec[apmask])
         self.extwt[nanmask] = 0.
-        self.extwt[vmask]    = 0.
+        self.extwt[vmask] = 0.
         wtdenom = (self.profile * self.extwt).sum(axis=self.spaceaxis)
         # wtdenom *= apmask.sum(axis=self.spaceaxis)
 
@@ -1977,7 +1977,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
     if informat == "mwa":
         hdulist = pf.open(filename)
         flux = hdulist[1].data.copy()
-        var  = hdulist[3].data.copy()
+        var = hdulist[3].data.copy()
         varspec = True
         wavelength = np.arange(flux.size)
         hdr1 = hdulist[1].header
@@ -1986,7 +1986,7 @@ def read_spectrum(filename, informat='text', varspec=True, verbose=True):
     else:
         spec = np.loadtxt(filename)
         wavelength = spec[:, 0]
-        flux         = spec[:, 1]
+        flux = spec[:, 1]
         if varspec:
             if spec.shape[1] < 3:
                 print ''
@@ -2280,7 +2280,7 @@ def fit_gpb_fixmu(p, x, y, mu):
 
     """ Unpack p """
     bkgd = p[0]
-    amp  = p[1]
+    amp = p[1]
     sigma = p[2]
     if len(p) > 3:
         nps = (len(p)-1)/2
@@ -2363,7 +2363,7 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False,
     else:
         if mu0 is None:
             i = cdat.argsort()
-            mu0     = 1.0 * i[i.shape[0]-1]
+            mu0 = 1.0 * i[i.shape[0]-1]
         fixmunote = " "
     if fixsig:
         if sig0 is None:
@@ -2376,16 +2376,16 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False,
         if sig0 is None:
             sig0 = 3.0
         fixsignote = " "
-    amp0  = cdat.max()
+    amp0 = cdat.max()
     bkgd0 = np.median(data, axis=None)
     if(verbose):
         print ""
         print "Initial guesses for Gaussian plus background fit"
         print "------------------------------------------------"
-        print " mu         = %7.2f%s"    % (mu0, fixmunote)
+        print " mu         = %7.2f%s" % (mu0, fixmunote)
         print " sigma      =    %5.2f%s" % (sig0, fixsignote)
-        print " amplitude  = %f"         % amp0
-        print " background = %f"         % bkgd0
+        print " amplitude  = %f" % amp0
+        print " background = %f" % bkgd0
         print "Parameters marked with a ** are held fixed during the fit"
         print ""
 
@@ -2408,10 +2408,10 @@ def find_peak(data, dispaxis="x", mu0=None, sig0=None, fixmu=False,
     if(verbose):
         print "Fitted values for Gaussian plus background fit"
         print "----------------------------------------------"
-        print " mu            = %7.2f%s"    % (p_out[1], fixmunote)
+        print " mu            = %7.2f%s" % (p_out[1], fixmunote)
         print " sigma        =    %5.2f%s" % (p_out[2], fixsignote)
-        print " amplitude  = %f"          % p_out[3]
-        print " background = %f"          % p_out[0]
+        print " amplitude  = %f" % p_out[3]
+        print " background = %f" % p_out[0]
         print "Parameters marked with a ** are held fixed during the fit"
         print ""
 
@@ -2537,7 +2537,7 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
     nx = inspec[0]['wav'].size
     wtflux = np.zeros(nx)
     skysum = np.zeros(nx)
-    wtsum  = np.zeros(nx)
+    wtsum = np.zeros(nx)
 
     """ Create the weighted sum """
     print ""
@@ -2558,14 +2558,14 @@ def combine_spectra(file_list, outfile, informat='text', xlabel='Pixels'):
     wtflux[wtsum == 0] = 0
     wtsum[wtsum == 0] = 1
     outflux = wtflux / wtsum
-    outvar  = 1.0 / wtsum
+    outvar = 1.0 / wtsum
     if inspec[0].sky is None:
         outsky = None
     else:
         outsky = skysum / len(inspec)
 
     """ Create a Spec1d structure for the output spectrum """
-    outspec = Spec1d(wav=inspec[0]['wav'], flux=outflux, var=outvar, 
+    outspec = Spec1d(wav=inspec[0]['wav'], flux=outflux, var=outvar,
                      sky=outsky)
 
     """ Plot the combined spectrum """
@@ -2671,19 +2671,19 @@ def check_wavecal(infile, informat='text', modsmoothkernel=25.):
     if informat == 'fits':
         hdulist = pf.open(infile)
         varspec = hdulist[1].data.copy()
-        skyobs  = np.sqrt(np.median(varspec, axis=0))
-        skylab  = "RMS Spectrum"
+        skyobs = np.sqrt(np.median(varspec, axis=0))
+        skylab = "RMS Spectrum"
         hdr = hdulist[0].header
-        crval1  = hdr['crval1']
-        cd11     = hdr['cd1_1']
+        crval1 = hdr['crval1']
+        cd11 = hdr['cd1_1']
         waveobs = 1.0 * np.arange(varspec.shape[1])
         waveobs *= cd11
         waveobs += crval1
     elif informat == 'fitsold':
         hdulist = pf.open(infile)
         waveobs = hdulist[1].data.copy()
-        skyobs  = hdulist[2].data.copy()
-        skylab  = "Observed Sky"
+        skyobs = hdulist[2].data.copy()
+        skylab = "Observed Sky"
     else:
         try:
             waveobs, varspec = np.loadtxt(infile, unpack=True, usecols=(0, 2))
@@ -3074,8 +3074,8 @@ def plot_model_sky_ir(z=None, wmin=10000., wmax=25651.):
     Create the transmission and night-sky emission line spectra over the
     requested wavelength range
     """
-    wsky    = np.arange(wmin, wmax)
-    atm     = atm_trans(wsky)
+    wsky = np.arange(wmin, wmax)
+    atm = atm_trans(wsky)
     skymod = make_sky_model(wsky)
     skymod['flux'] /= skymod['flux'].max()
 
