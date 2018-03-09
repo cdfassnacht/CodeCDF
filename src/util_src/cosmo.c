@@ -320,7 +320,7 @@ Cosdist calc_cosdist(double z1, double z2, Cosmo cosmo)
  *
  *   E(z) = sqrt[omega_m*(1+z)^3 + omega_k*(1+z)^2 + omega_DE*(1+z)^{3*(1+w)}]
  *
- *     where omega_r = 1 - (omega_m + omega_lam)
+ *     where omega_k = 1 - (omega_m + omega_lam)
  *
  * Inputs: double z              redshift
  *         Cosmo cosmo           cosmological world model

@@ -20,6 +20,7 @@ echo
 echo Running unison on directory: $1
 echo
 #unison -ui text $1 ssh://glorfindel.physics.ucdavis.edu/$1
-unison -ui text $1 ssh://efirst.physics.ucdavis.edu/$1
+#unison -ui text $1 ssh://efirst.physics.ucdavis.edu/$1
+unison -ui text $1 ssh://perseus.physics.ucdavis.edu/$1
 echo
 echo ------------------------------------------------
