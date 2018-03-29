@@ -2,20 +2,17 @@
 Takes a SDSS catalog that is stored in a binary fits table format and converts
 it to a ds9 region file.  This type of catalog is produced by selecting the
 FITS output option from the SDSS imaging query web site
+
+
+NOTE: This should really incorporate the code in catfuncs.py, which already
+does this.
+
 """
 
-import astropy
-from astropy import units as u
-if astropy.__version__[:3] == '0.3':
-   from astropy.coordinates import ICRS as SkyCoord
-else:
-   from astropy.coordinates import SkyCoord
-try:
-    from astropy.io import fits as pf
-except:
-    import pyfits as pf
-import numpy as np
 import sys
+import numpy as np
+from astropy.table import Table
+import catfuncs as cf
 
 """ Test the command line for proper number of arguments """
 if len(sys.argv)<4:
@@ -29,29 +26,32 @@ infile  = sys.argv[1]
 outfile = sys.argv[2]
 rcirc   = float(sys.argv[3])
 
-""" Get the table data """
-try:
-    hdu = pf.open(infile)
-except:
-    print ''
-    print 'ERROR: Could not read input file %s' % infile
-    print ''
-    exit()
-tdat = hdu[1].data
+""" Read in the data """
+scat = cf.Secat(infile, catformat='sdssfits')
+tdat = scat.data
 
 """ Get the ra and dec information from the catalog """
-ra  = tdat['ra']
-dec = tdat['dec']
-#radec = SkyCoord(gra,gdec,unit=(u.deg,u.deg))
+ragal  = tdat['ra'][scat.galmask]
+decgal = tdat['dec'][scat.galmask]
+if scat.starmask is not None:
+   rastar  = tdat['ra'][scat.starmask]
+   decstar = tdat['dec'][scat.starmask]
 
 """ Write the output region file """
 f = open(outfile,'w')
 f.write('global color=green\n')
-for i in range(ra.size):
-    f.write('fk5;circle(%f,%f,%.1f")\n' % (ra[i],dec[i],rcirc))
+for i in range(ragal.size):
+   f.write('fk5;circle(%f,%f,%.1f")\n' % (ragal[i], decgal[i], rcirc))
+if scat.starmask is not None:
+   f.write('global color=red\n')
+   for i in range(rastar.size):
+      f.write('fk5;box(%f,%f,%.1f",%.1f",45d)\n' % \
+                 (rastar[i], decstar[i], 1.4*rcirc, 1.4*rcirc))
 f.close()
 
 """ Clean up and exit """
-hdu.close()
-del ra,dec
+del(ragal, decgal)
+if scat.starmask is not None:
+   del(rastar, decstar)
+
 #del radec

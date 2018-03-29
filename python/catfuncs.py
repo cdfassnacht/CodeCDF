@@ -3,7 +3,7 @@ catfuncs.py
 
 A library containing functions that are useful for working with catalogs
 of objects.  These will primarily be produced by SExtractor, but do not
-necessarily have to.
+necessarily have to be.
 
 """
 
@@ -75,6 +75,8 @@ class Secat:
       self.rafield = None
       self.decfield = None
       self.centpos = None
+      self.galmask = None
+      self.starmask = None
 
       """
       Start by loading the catalog information
@@ -101,8 +103,6 @@ class Secat:
          print(' Input catalog type is' + str(type(incat)))
          print('')
          return None
-
-      self.starmask = np.zeros(self.nrows).astype(bool)
 
    #-----------------------------------------------------------------------
 
@@ -256,6 +256,29 @@ class Secat:
          """ Set the field names """
          self.rafield = 'ra'
          self.decfield = 'dec'
+
+         """
+         Split the stars from the galaxies, according to the SDSS 
+         classification.
+         In the SDSS scheme, type=3 is a galaxy and type=6 is a star
+         """
+         if 'type' in self.data.colnames:
+            oclass = self.data['type']
+         elif 'type_r' in self.data.colnames:
+            oclass = self.data['type_r']
+         else:
+            oclass = None
+   
+         if oclass is not None:
+            self.galmask = oclass == 3
+            self.starmask = oclass == 6
+         else:
+            self.galmask = np.ones(dtype=bool)
+            self.starmask = None
+         print('Read SDSS catalog from %s' % incat)
+         print('Number of galaxies: %5d' % self.galmask.sum())
+         if self.starmask is not None:
+            print('Number of stars:    %5d' % self.starmask.sum())
 
       else:
          print ''
@@ -512,7 +535,7 @@ class Secat:
          print('Objects selected by mask:        %d' % len(radec))
       else:
          radec = self.radec
-         selmask = np.ones(len(radec),dtype=bool)
+         selmask = np.ones(len(radec), dtype=bool)
       ntot   = len(radec)
       radeg  = radec.ra.degree
       decdeg = radec.dec.degree
@@ -617,7 +640,7 @@ class Secat:
 
       """ Get the magnitudes to be plotted """
       if usestarmask:
-         if self.starmask.sum() == 0:
+         if self.starmask is None:
             print('')
             print('WARNING: you have set usestarmask=True but there are')
             print(' no stars selected by the starmask')
