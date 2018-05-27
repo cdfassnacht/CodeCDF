@@ -31,7 +31,10 @@ import numpy as n
 from astropy.io import fits as pf
 import astromatic_wrapper as aw
 import catfuncs as cf
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 
 # =======================================================================
 
@@ -916,10 +919,8 @@ def remove_nans(infile, outfile, replaceval=999999., hext=0):
         hext         - HDU containing data
     """
 
-    import imfuncs as im
-
     """ Get data from input file """
-    hdulist = im.open_fits(infile)
+    hdulist = imf.open_fits(infile)
     if hdulist is None:
         print ""
         print "ERROR.  Could not open input file %s" % infile
@@ -1011,8 +1012,7 @@ def import_ascii_header(fitsfile, headfile, hext=0):
     """
 
     """ Read the input fits file """
-    import imfuncs as im
-    hdulist = im.open_fits(fitsfile, 'update')
+    hdulist = imf.open_fits(fitsfile, 'update')
     if hdulist is None:
         return
     hdr = hdulist[hext].header

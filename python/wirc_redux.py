@@ -9,10 +9,16 @@ on the Palomar 200-Inch Telescope.
 """
 
 import numpy as n
-import pyfits as pf
-import imfuncs as im
-import astrom_scamp as ast
 import coords, os
+try:
+   from astropy.io import fits as pf
+except ImportError:
+   import pyfits as pf
+try:
+   from SpecIm import imfuncs as imf
+except ImportError:
+   import imfuncs as imf
+import astrom_scamp as ast
 import wcs as wcsmwa
 
 def wcs_clean(infiles):
@@ -35,7 +41,7 @@ def wcs_clean(infiles):
 
    print ""
    for f in infiles:
-      hdulist = im.open_fits(f,"update")
+      hdulist = imf.open_fits(f,"update")
       hdr = hdulist[0].header
 
       """ Get useful header information """
@@ -202,7 +208,7 @@ def fixphot(inlist, photcat, edgedist=50., dpixmax=6.):
             matchmag[ii] = compmag[ii] - mag[dind[0]]
 
       medzp = stats.stats.nanmedian(matchmag)
-      hdulist = im.open_fits(f,'update')
+      hdulist = imf.open_fits(f,'update')
       hdr = hdulist[0].header
       hdr.update('seeing',goodfwhm,'Median FWHM in arcsec')
       hdr.update('magnum',magnum,'Number of 2MASS stars in image')

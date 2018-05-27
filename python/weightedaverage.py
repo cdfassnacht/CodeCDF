@@ -4,7 +4,10 @@ from astropy.io import fits as pf
 from scipy.ndimage.filters import minimum_filter
 import glob
 from math import sqrt as msqrt
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 import ccdredux as ccd
 
 """ Get command line parameters """

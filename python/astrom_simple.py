@@ -15,16 +15,19 @@ Generic functions
 """
 
 import numpy as n
-import imfuncs as im
+from math import pi
+from matplotlib import pyplot as plt
+try:
+   from SpecIm import imfuncs as imf
+except ImportError:
+   import imfuncs as imf
 try:
    from astropy.io import fits as pf
-except:
+except ImportError:
    import pyfits as pf
 import wcs as wcsmwa
 import coords 
 from ccdredux import sigma_clip
-from matplotlib import pyplot as plt
-from math import pi
 
 #------------------------------------------------------------------------------
 
@@ -159,7 +162,7 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
    Start by opening the fits file and reading the appropriate columns from
    the catalogs
    """
-   hdulist = im.open_fits(fitsfile)
+   hdulist = imf.open_fits(fitsfile)
    if verbose:
       print ""
    hdulist.info()
@@ -278,9 +281,9 @@ def fit_trans(update_wcs, fitsfile, fitscat, astcat, racol_ast=1, deccol_ast=2,
    the catalogs
    """
    if update_wcs:
-      hdulist = im.open_fits(fitsfile,'update')
+      hdulist = imf.open_fits(fitsfile,'update')
    else:
-      hdulist = im.open_fits(fitsfile)
+      hdulist = imf.open_fits(fitsfile)
    print ""
    hdulist.info()
    hdr         = hdulist[imhdu].header
@@ -326,7 +329,7 @@ def plot_astcat(infile, astcat, rmarker=10., racol=0, deccol=1, hext=0):
    plt.ion()
 
    """ Load fits file """
-   fitsim = im.Image(infile)
+   fitsim = imf.Image(infile)
    hdr = fitsim.hdulist[hext].header
 
    """ Select astrometric objects within the FOV of the detector """

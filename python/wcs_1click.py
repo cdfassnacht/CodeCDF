@@ -30,7 +30,10 @@ except:
         print ''
         exit()
 from matplotlib import pyplot as plt
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 
 """ Check command line syntax """
 if len(sys.argv)<4:

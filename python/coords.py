@@ -7,6 +7,10 @@ functions that act as wrappers for functions in MWA's wcs.py
 
 import numpy as n
 from math import pi,sin,cos,atan2,sqrt
+try:
+   from SpecIm import imfuncs as imf
+except ImportError:
+   import imfuncs as imf
 
 #-----------------------------------------------------------------------
 
@@ -113,8 +117,7 @@ def update_cdmatrix(fitsfile, pixscale, rot, pixscale2=0.0,
    """
 
    """ Open the input file """
-   import imfuncs as im
-   hdulist = im.open_fits(fitsfile,'update')
+   hdulist = imf.open_fits(fitsfile,'update')
    hdr = hdulist[hext].header
 
    """ Generate a CD matrix based on the inputs """

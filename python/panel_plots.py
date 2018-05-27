@@ -8,7 +8,10 @@ import sys
 from astropy.io import fits as pf
 from astropy.table import Table
 from matplotlib import pyplot as plt
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 
 # ===========================================================================
 

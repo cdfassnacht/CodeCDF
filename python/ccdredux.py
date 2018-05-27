@@ -22,17 +22,23 @@ Low-level Functions:
    sigma_clip        - sigma-clips a data array
 """
 
+import numpy as np
+from scipy.ndimage import filters
+from math import cos, sin, pi, sqrt, atan2
 try:
     from astropy.io import fits as pf
 except:
     import pyfits as pf
-import numpy as np
-from scipy.ndimage import filters
-from math import cos, sin, pi, sqrt, atan2
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 import wcs as wcsmwa
 import coords
-import datafuncs as df
+try:
+    from CDFutils import datafuncs as df
+except ImportError:
+    import datafuncs as df
 
 # ===========================================================================
 
@@ -1342,9 +1348,6 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
                             median-stacked image (medfile) and replace '.fits' with
                             '_wht.fits'
     """
-
-    import imfuncs as imf
-    from math import sqrt
 
     """ Make sure that the input is either a list or a single file """
 

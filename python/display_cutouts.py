@@ -27,9 +27,12 @@ Usage:
 """
 
 import sys
-import imfuncs as imf
-import catfuncs as cf
 from matplotlib import pyplot as plt
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
+import catfuncs as cf
 
 """ Parse the command line """
 if len(sys.argv) < 4:

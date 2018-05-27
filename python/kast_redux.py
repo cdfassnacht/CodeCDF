@@ -2,10 +2,16 @@
 A quick-look reduction script for Kast data
 """
 
-import numpy as n
-import imfuncs as imf
-import spec_simple as ss
+import numpy as np
 from matplotlib import pyplot as plt
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
+try:
+    from SpecIm import spec_simple as ss
+except ImportError:
+    import spec_simple as ss
 
 def redux_all(infile, cam, redrange=[50,211], bluerange=[920,1216],
               muorder=3, sigorder=3, fitrange=None, apmin=-4., apmax=4.,
@@ -41,8 +47,8 @@ def redux_all(infile, cam, redrange=[50,211], bluerange=[920,1216],
     spec2d.display()
 
     """ Plot the 2D spectrum with rough sky subtraction """
-    tmpsky1d = n.median(dat2,axis=0)
-    tmpsky = n.tile(tmpsky1d,(dat2.shape[0],1))
+    tmpsky1d = np.median(dat2,axis=0)
+    tmpsky = np.tile(tmpsky1d,(dat2.shape[0],1))
     ss2 = dat2 - tmpsky
     spec2d.hdu[3].data = ss2
     hdr3 = spec2d.hdu[3].header

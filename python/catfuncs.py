@@ -9,8 +9,8 @@ necessarily have to be.
 
 import os, sys
 import numpy as np
-import imfuncs as imf
 from math import pi
+from matplotlib import pyplot as plt
 import astropy
 from astropy import units as u
 from astropy.io import ascii
@@ -23,7 +23,10 @@ if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
-from matplotlib import pyplot as plt
+try:
+   from SpecIm import imfuncs as imf
+except ImportError:
+   import imfuncs as imf
 from astrom_simple import select_good_ast
 
 # ===========================================================================

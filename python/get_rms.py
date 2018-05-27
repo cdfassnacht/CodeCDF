@@ -18,7 +18,10 @@ Usage: python get_rms.py [filename] [xcent] [ycent] [xsize] [ysize]
 import sys
 import numpy as np
 from astropy.io import ascii
-import imfuncs as imf
+try:
+    from SpecIm import imfuncs as imf
+except ImportError:
+    import imfuncs as imf
 
 # """ Check the command line syntax """
 # if len(sys.argv)<6:
