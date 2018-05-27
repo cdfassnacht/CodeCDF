@@ -621,18 +621,18 @@ def make_bias(infiles, outfile="Bias.fits", x1=0, x2=0, y1=0, y2=0,
               hdu0only=False):
     """ 
 
-         This function takes an input list of dark frames (either true darks, 
-         or bias frames) and median-combines them to create a master dark/bias
+    This function takes an input list of dark frames (either true darks, 
+    or bias frames) and median-combines them to create a master dark/bias
 
-         Required inputs:
-          infiles      - a list of input files
+    Required inputs:
+      infiles      - a list of input files
 
-         Optional inputs:
-          outfile      - output filename (default="masterdark.fits")
-          x1             - to set a trim section that is smaller than the full frame
-          x2             - to set a trim section that is smaller than the full frame
-          y1             - to set a trim section that is smaller than the full frame
-          y2             - to set a trim section that is smaller than the full frame
+    Optional inputs:
+      outfile - output filename (default="masterdark.fits")
+      x1      - to set a trim section that is smaller than the full frame
+      x2      - to set a trim section that is smaller than the full frame
+      y1      - to set a trim section that is smaller than the full frame
+      y2      - to set a trim section that is smaller than the full frame
 
     """
 
@@ -644,22 +644,22 @@ def make_bias_frames(bias_frames, raw_prefix, rawdir="../Raw", rawext='.fits',
                      outfile="Bias.fits", x1=0,x2=0,y1=0,y2=0,hdu0only=False):
     """ 
 
-         This function takes as input the frame numbers of the
-         dark frames (either true darks, or bias frames) and
-         median-combines them to create a master dark
+    This function takes as input the frame numbers of the
+    dark frames (either true darks, or bias frames) and
+    median-combines them to create a master dark
 
-         Required inputs:
-          dark_frames - an array of frame numbers (e.g., [101,102,103,105])
-          raw_prefix  - prefix for frame numbers (e.g., "lred0")
+    Required inputs:
+      dark_frames - an array of frame numbers (e.g., [101,102,103,105])
+      raw_prefix  - prefix for frame numbers (e.g., "lred0")
 
-         Optional inputs:
-          rawdir        - directory with raw files (default="../Raw")
-          rawext        - extension for raw filenames (default = 'fits')
-          outfile      - output filename (default="masterdark.fits")
-          x1             - to set a trim section that is smaller than the full frame
-          x2             - to set a trim section that is smaller than the full frame
-          y1             - to set a trim section that is smaller than the full frame
-          y2             - to set a trim section that is smaller than the full frame
+    Optional inputs:
+      rawdir  - directory with raw files (default="../Raw")
+      rawext  - extension for raw filenames (default = 'fits')
+      outfile - output filename (default="masterdark.fits")
+      x1      - to set a trim section that is smaller than the full frame
+      x2      - to set a trim section that is smaller than the full frame
+      y1      - to set a trim section that is smaller than the full frame
+      y2      - to set a trim section that is smaller than the full frame
 
     """
 
