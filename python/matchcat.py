@@ -14,11 +14,14 @@ Top-level functions
 """
 
 import numpy as n
-import coords
-from matplotlib import pyplot as plt
 from math import sqrt
+from matplotlib import pyplot as plt
 from astropy.io import ascii
 from astropy.table import Table
+try:
+    from CDFutils import coords
+except ImportError:
+    import coords
 
 #------------------------------------------------------------------------------
 

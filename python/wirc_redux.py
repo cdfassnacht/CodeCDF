@@ -9,7 +9,7 @@ on the Palomar 200-Inch Telescope.
 """
 
 import numpy as n
-import coords, os
+import os
 try:
    from astropy.io import fits as pf
 except ImportError:
@@ -18,6 +18,10 @@ try:
    from SpecIm import imfuncs as imf
 except ImportError:
    import imfuncs as imf
+try:
+    from CDFutils import coords
+except ImportError:
+    import coords
 import astrom_scamp as ast
 import wcs as wcsmwa
 
