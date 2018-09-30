@@ -21,10 +21,10 @@ import sys
 import numpy as np
 try:
     from astropy.io import fits as pf
-except:
+except ImportError:
     try:
         import pyfits as pf
-    except:
+    except ImportError:
         print ''
         print 'ERROR: Could not import pyfits or astropy.io.fits'
         print ''
@@ -37,43 +37,76 @@ except ImportError:
 
 """ Check command line syntax """
 if len(sys.argv)<4:
-    print ''
-    print 'Usage: python wcs_1click.py [ra] [dec] [fitsfile(s)]'
-    print ''
-    print 'Inputs:'
-    print '  1. ra  - RA in decimal degrees'
-    print '  2. dec - Dec in decimal degrees'
-    print '  3. fitsfile(s) - Either a single filename or a wildcard expression'
-    print '     e.g.,  m13*fits'
-    print ''
+    print('')
+    print('Usage:')
+    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) [fitsfile(s)]')
+    print('              --- or ---')
+    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) -f [flatfile]'
+          ' [fitsfile(s)]')
+    print('')
+    print('Inputs:')
+    print(' ra  - RA in decimal degrees')
+    print(' dec - Dec in decimal degrees')
+    print(' pixscale [OPTIONAL] - pixel scale in arcsec/pix')
+    print(' flatfile [OPTIONAL] - flat-field file to be applied to the input'
+          ' fits files')
+    print(' fitsfile(s) - Either a single filename or a wildcard expression')
+    print('  e.g.,  m13*fits')
+    print('')
     exit()
 
 """ Set up variables for later use """
 filestart = 3
+pixscale = None
 flat = None
+flatfile = None
+start_files = False
+subimsize = 21
+no_error = True
+
+""" Parse the command line """
 ra  = float(sys.argv[1])
 dec = float(sys.argv[2])
-if sys.argv[3] == '-flat':
-    if len(sys.argv) >= 6:
+while start_files is False and no_error:
+    if sys.argv[filestart] == '-p':
+        try:
+            pixscale = float(sys.argv[filestart+1])
+        except ValueError:
+            msg = 'ERROR: pixel scale is not a floating point number'
+            no_error = False
+        except IndexError:
+            msg = 'ERROR: -p used but no pixel scale given'
+            no_error = False
         filestart += 2
-        flatfile = sys.argv[4]
-        flat = pf.getdata(flatfile)
-        print('')
-        print('Using flat-field file: %s' % flatfile)
+    elif sys.argv[filestart] == '-flat':
+        try:
+            flatfile = sys.argv[filestart+1]
+        except IndexError:
+            msg = 'ERROR: -flat used but no flat-field file is given'
+            no_error = False
+        filestart += 2
     else:
-        print('')
-        print('ERROR: -flat used but no flat-field file is given or no fits'
-              'files given')
-        print('')
-        exit()
+        start_files = True
 
+if no_error is not True:
+    print('')
+    print('%s' % msg)
+    print('')
+    exit()
+
+""" Create the input file list """
 if len(sys.argv) > filestart + 1:
    files = sys.argv[filestart:]
 else:
     files = [sys.argv[filestart],]
-subimsize = 21
 crpix1 = np.zeros(len(files))
 crpix2 = np.zeros(len(files))
+
+""" Read in the flat-field data """
+if flatfile is not None:
+    flat = pf.getdata(flatfile)
+    print('')
+    print('Using flat-field file: %s' % flatfile)
 
 """ Loop through the input files, marking the object in each one """
 for i in range(len(files)):
@@ -99,7 +132,7 @@ print ''
 print 'File                        CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
 print '------------------------- ----------- ----------- -------- --------'
 for i in range(len(files)):
-    hdu = pf.open(files[i],mode='update')
+    hdu = pf.open(files[i], mode='update')
     hdr = hdu[0].header
     hdr['crval1'] = ra
     hdr['crval2'] = dec
