@@ -8,13 +8,20 @@ not quite agree.  An object that is in all of the images with know (RA,Dec)
 coordinates is selected and the user interactively marks the position
 of the star in each file.
 
-Usage: python wcs_1click [ra] [dec] [fitsfile(s)]
+Usage: python wcs_1click [ra] [dec] (-p [pixscale]) [fitsfile(s)]
 
-Inputs:
-    1. ra  - RA in decimal degrees
-    2. dec - Dec in decimal degrees
-    3. fitsfile(s) - Either a single filename or a wildcard expression
-       e.g.,  m13*fits
+             -- or --
+
+   python wcs_1click.py [ra] [dec] (-p [pixscale]) -f [flatfile] [fitsfile(s)]
+
+Input parameters:
+    ra          - RA in decimal degrees
+    dec         - Dec in decimal degrees
+    pixscale    - [OPTIONAL] pixel scale in arcsec/pix
+    flatfile    - [OPTIONAL] flat-field file to apply to the file(s) before
+                   displaying it
+    fitsfile(s) - Either a single filename or a wildcard expression
+                   e.g.,  m13*fits
 """
 
 import sys
@@ -126,8 +133,10 @@ for i in range(len(files)):
 
 """ 
 Second pass through the fits files, assigning the RA and Dec to the
-appropriate CRPIX
+appropriate CRPIX, and setting the pixel scale if requested
 """
+if pixscale is not None:
+    pixscale /= 3600.
 print ''
 print 'File                        CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
 print '------------------------- ----------- ----------- -------- --------'
