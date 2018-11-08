@@ -38,7 +38,7 @@ except ImportError:
         exit()
 from matplotlib import pyplot as plt
 try:
-    from SpecIm import imfuncs as imf
+    from specim import imfuncs as imf
 except ImportError:
     import imfuncs as imf
 
@@ -48,7 +48,7 @@ if len(sys.argv)<4:
     print('Usage:')
     print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) [fitsfile(s)]')
     print('              --- or ---')
-    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) -f [flatfile]'
+    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) -flat [flatfile]'
           ' [fitsfile(s)]')
     print('')
     print('Inputs:')
