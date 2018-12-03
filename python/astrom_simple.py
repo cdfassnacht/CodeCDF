@@ -26,7 +26,7 @@ try:
 except ImportError:
    import pyfits as pf
 import wcs as wcsmwa
-import coords 
+from CDFutils import coords 
 from ccdredux import sigma_clip
 
 #------------------------------------------------------------------------------
