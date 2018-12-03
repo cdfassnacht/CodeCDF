@@ -30,7 +30,7 @@ try:
 except:
     import pyfits as pf
 try:
-    from SpecIm import imfuncs as imf
+    from specim import imfuncs as imf
 except ImportError:
     import imfuncs as imf
 import wcs as wcsmwa
