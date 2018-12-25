@@ -35,11 +35,11 @@ except ImportError:
     import imfuncs as imf
 import wcs as wcsmwa
 try:
-    from CDFutils import datafuncs as df
+    from cdfutils import datafuncs as df
 except ImportError:
     import datafuncs as df
 try:
-    from CDFutils import coords
+    from cdfutils import coords
 except ImportError:
     import coords
 
