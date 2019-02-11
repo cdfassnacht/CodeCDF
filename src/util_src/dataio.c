@@ -1854,14 +1854,14 @@ int print_offsets(Skypos cent, Skypos *skypos, Pos *offsets, int noffsets,
      */
 
     if(ofp) {
-      fprintf(ofp,"%11s  %02d %02d %07.4f  %+03d %02d %06.3f ",
+      fprintf(ofp,"%-11s  %02d %02d %07.4f  %+03d %02d %06.3f ",
 	      sptr->label,sptr->hr,sptr->min,sptr->sec,
 	      sptr->deg,sptr->amin,sptr->asec);
       fprintf(ofp,"%8.2f %1s %8.2f %1s %8.2f  %+6.1f\n",
 	      fabs(optr->x),ew,fabs(optr->y),ns,r,theta);
     }
     else {
-      printf("%11s  %02d %02d %07.4f  %+03d %02d %06.3f ",
+      printf("%-11s  %02d %02d %07.4f  %+03d %02d %06.3f ",
 	      sptr->label,sptr->hr,sptr->min,sptr->sec,
 	      sptr->deg,sptr->amin,sptr->asec);
       printf("%8.2f %1s %8.2f %1s %8.2f  %+6.1f\n",
