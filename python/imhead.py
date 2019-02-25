@@ -87,7 +87,7 @@ for f in files:
          texpname = 'itime'
          tscale = 1000.0
          filtname = 'sfilter'
-      elif inst == 'NIRC2':
+      elif inst == 'NIRC2' or inst == 'NIRES':
          usecoadd = True
          texpname = 'itime'
       elif inst == 'NIRSPEC':
