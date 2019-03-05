@@ -63,7 +63,7 @@ NOTE: For now assume data are in HDU 0
 """
 
 indat = imf.Image(infits)
-indat.blkavg(3, outfile=outfits)
+indat.blkavg(blkfact, outfile=outfits)
 
 
 """ Clean up, and exit """
