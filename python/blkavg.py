@@ -67,5 +67,5 @@ indat.blkavg(blkfact, outfile=outfits)
 
 
 """ Clean up, and exit """
-indat.close()
+# indat.close()
 del indat
