@@ -330,7 +330,7 @@ def subtract_images(a,b,output,hexta=0,hextb=0):
         hdub = pf.open(b)[hextb]
     except:
         hdub = pf.open(b,ignore_missing_end=True)[hextb]
-    hdu = pf.PrimaryHDU(hdua.data - hdub.data)
+    hdu = pf.PrimaryHDU(1.*hdua.data - 1.*hdub.data)
     hdu.writeto(output,output_verify='ignore',clobber=True)
 
 # -----------------------------------------------------------------------
