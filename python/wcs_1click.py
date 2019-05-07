@@ -46,17 +46,19 @@ except ImportError:
 if len(sys.argv)<4:
     print('')
     print('Usage:')
-    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) [fitsfile(s)]')
-    print('              --- or ---')
-    print(' python wcs_1click.py [ra] [dec] (-p [pixscale]) -flat [flatfile]'
-          ' [fitsfile(s)]')
+    print(' python wcs_1click.py [ra] [dec] (flag1 flag1val'
+          ' flag2 flag2val...) [fitsfile(s)]')
     print('')
     print('Inputs:')
     print(' ra  - RA in decimal degrees')
     print(' dec - Dec in decimal degrees')
-    print(' pixscale [OPTIONAL] - pixel scale in arcsec/pix')
-    print(' flatfile [OPTIONAL] - flat-field file to be applied to the input'
+    print(' OPTIONAL FLAGS and associated parameters')
+    print('   -p [pixscale]    - pixel scale in arcsec/pix')
+    print('   -flat [flatfile] - flat-field file to be applied to the input'
           ' fits files')
+    print('   -fmax [fmax]     - maximum flux value, in sigma above mean,'
+          ' for display')
+    print('                      Default value: 10')
     print(' fitsfile(s) - Either a single filename or a wildcard expression')
     print('  e.g.,  m13*fits')
     print('')
@@ -65,6 +67,7 @@ if len(sys.argv)<4:
 """ Set up variables for later use """
 filestart = 3
 pixscale = None
+fmax = 10.
 flat = None
 flatfile = None
 start_files = False
@@ -90,6 +93,16 @@ while start_files is False and no_error:
             flatfile = sys.argv[filestart+1]
         except IndexError:
             msg = 'ERROR: -flat used but no flat-field file is given'
+            no_error = False
+        filestart += 2
+    elif sys.argv[filestart] == '-fmax':
+        try:
+            fmax = float(sys.argv[filestart+1])
+        except ValueError:
+            msg = 'ERROR: fmax is not a floating point number'
+            no_error = False
+        except IndexError:
+            msg = 'ERROR: -fmax used but no fmax value is given'
             no_error = False
         filestart += 2
     else:
@@ -121,14 +134,13 @@ for i in range(len(files)):
     if flat is not None:
         im1.hdu[0].data /= flat
     im1.zoomsize = subimsize
-    im1.display(fmax=10., mode='xy', title=im1.infile)
+    im1.display(fmax=fmax, mode='xy', title=im1.infile)
     im1.start_interactive()
     plt.show()
-    if im1.xmark is not None:
-        crpix1[i] = im1.xmark
-    if im1.ymark is not None:
-        crpix2[i] = im1.ymark
-    im1.close()
+    if im1.dispim.xmark is not None:
+        crpix1[i] = im1.dispim.xmark + 1
+    if im1.dispim.ymark is not None:
+        crpix2[i] = im1.dispim.ymark + 1
     del(im1)
 
 """ 
