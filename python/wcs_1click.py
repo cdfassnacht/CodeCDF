@@ -132,7 +132,7 @@ if flatfile is not None:
 for i in range(len(files)):
     im1 = imf.Image(files[i])
     if flat is not None:
-        im1.hdu[0].data /= flat
+        im1.data /= flat
     im1.zoomsize = subimsize
     im1.display(fmax=fmax, mode='xy', title=im1.infile)
     im1.start_interactive()
