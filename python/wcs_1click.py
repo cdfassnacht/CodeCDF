@@ -150,8 +150,8 @@ appropriate CRPIX, and setting the pixel scale if requested
 if pixscale is not None:
     pixscale /= 3600.
 print ''
-print 'File                        CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
-print '------------------------- ----------- ----------- -------- --------'
+print 'File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
+print '------------------------ ----------- ----------- -------- --------'
 for i in range(len(files)):
     hdu = pf.open(files[i], mode='update')
     hdr = hdu[0].header
