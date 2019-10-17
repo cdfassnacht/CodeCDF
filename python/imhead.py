@@ -1,15 +1,23 @@
-import sys, os
+import os
+import sys
+import glob
 try:
    from astropy.io import fits as pyfits
-except:
+except ImportError:
    import pyfits
 
-if len(sys.argv)>1:
+""" Get the list of requested files """
+if len(sys.argv) > 1:
    files = sys.argv[1:]
 else:
-   dir = os.curdir
-   files = os.listdir(dir)
+   files = glob.glob('*fits')
 
+""" Check the input file list """
+if len(files) == 0:
+   print('\nERROR: No files match requested wildcard pattern\n')
+   exit()
+
+""" Report information about each file """
 print('#   File            size           Object       t_exp    Instrument '
       'Filter  ')
 print('#---------------  ---------  ----------------- --------- ---------- '
@@ -20,10 +28,10 @@ for f in files:
    # Open the fits file
    try:
       hdulist = pyfits.open(f)
-   except:
+   except IOError:
       try:
          hdulist = pyfits.open(f,ignore_missing_end=True)
-      except:
+      except IOError:
          print "Unable to open file %s" % f
          continue
 
