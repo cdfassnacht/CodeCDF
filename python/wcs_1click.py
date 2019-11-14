@@ -26,21 +26,10 @@ Input parameters:
 
 import sys
 import numpy as np
-try:
-    from astropy.io import fits as pf
-except ImportError:
-    try:
-        import pyfits as pf
-    except ImportError:
-        print ''
-        print 'ERROR: Could not import pyfits or astropy.io.fits'
-        print ''
-        exit()
+from astropy import wcs
+from astropy.io import fits as pf
 from matplotlib import pyplot as plt
-try:
-    from specim import imfuncs as imf
-except ImportError:
-    import imfuncs as imf
+from specim import imfuncs as imf
 
 """ Check command line syntax """
 if len(sys.argv)<4:
@@ -129,45 +118,70 @@ if flatfile is not None:
     print('Using flat-field file: %s' % flatfile)
 
 """ Loop through the input files, marking the object in each one """
-for i in range(len(files)):
-    im1 = imf.Image(files[i])
+if pixscale is not None:
+    pixscale /= 3600.
+print('')
+print('File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 ')
+print('------------------------ ----------- ----------- -------- --------')
+for infile in files:
+    """ Open and display the image """
+    im1 = imf.Image(infile)
     if flat is not None:
         im1.data /= flat
     im1.zoomsize = subimsize
     im1.display(fmax=fmax, mode='xy', title=im1.infile)
+
+    """ Run the interactive zooming and marking """
     im1.start_interactive()
     plt.show()
+
+    """ Set the crpix values to the marked location """
     if im1.dispim.xmark is not None:
         crpix1[i] = im1.dispim.xmark + 1
     if im1.dispim.ymark is not None:
         crpix2[i] = im1.dispim.ymark + 1
+
+    """
+    If there is no WCS information in the input file, create a base version
+    to be filled in later
+    """
+    if im1.wcsinfo is None:
+        im1.wcsinfo = wcs.WCS(naxis=2)
+        im1.wcsinfo.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    im1['input'].update_crpix(crpix)
+    im1['input'].update_crval((ra, dec))
+    im1.save()
+    f = infile[:-5]
+    print('%-24s %11.7f %+11.7f %8.2f %8.2f' % (f, ra, dec, crpix1[i],
+                                                crpix2[i]))
     del(im1)
 
-""" 
-Second pass through the fits files, assigning the RA and Dec to the
-appropriate CRPIX, and setting the pixel scale if requested
-"""
-if pixscale is not None:
-    pixscale /= 3600.
-print ''
-print 'File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
-print '------------------------ ----------- ----------- -------- --------'
-for i in range(len(files)):
-    hdu = pf.open(files[i], mode='update')
-    hdr = hdu[0].header
-    hdr['crval1'] = ra
-    hdr['crval2'] = dec
-    hdr['crpix1'] = crpix1[i]
-    hdr['crpix2'] = crpix2[i]
-    try:
-        foo = hdr['ctype1']
-    except:
-        hdr['ctype1'] = 'RA---TAN'
-    try:
-        foo = hdr['ctype2']
-    except:
-        hdr['ctype2'] = 'DEC--TAN'
-    hdu.flush()
-    f = files[i][:-5]
-    print '%-24s %11.7f %+11.7f %8.2f %8.2f' % (f,ra,dec,crpix1[i],crpix2[i])
+# """ 
+# Second pass through the fits files, assigning the RA and Dec to the
+# appropriate CRPIX, and setting the pixel scale if requested (pix scale
+# not yet implemented)
+# """
+# if pixscale is not None:
+#     pixscale /= 3600.
+# print ''
+# print 'File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
+# print '------------------------ ----------- ----------- -------- --------'
+# for i in range(len(files)):
+#     hdu = pf.open(files[i], mode='update')
+#     hdr = hdu[0].header
+#     hdr['crval1'] = ra
+#     hdr['crval2'] = dec
+#     hdr['crpix1'] = crpix1[i]
+#     hdr['crpix2'] = crpix2[i]
+#     try:
+#         foo = hdr['ctype1']
+#     except KeyError:
+#         hdr['ctype1'] = 'RA---TAN'
+#     try:
+#         foo = hdr['ctype2']
+#     except KeyError:
+#         hdr['ctype2'] = 'DEC--TAN'
+#     hdu.flush()
+#     f = files[i][:-5]
+#     print '%-24s %11.7f %+11.7f %8.2f %8.2f' % (f,ra,dec,crpix1[i],crpix2[i])
 

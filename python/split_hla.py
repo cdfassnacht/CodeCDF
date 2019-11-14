@@ -53,7 +53,7 @@ prilist = ['telescop','instrume','targname','camera','focus','aperture',
            'exptime','date-obs','proposid'
            ]
 scilist = ['wcsaxes','ctype1','ctype2','crpix1','crpix2','crval1','crval2',
-           'cd1_1','cd2_2','cd1_2','cd2_1'
+           'cd1_1','cd2_2','cd1_2','cd2_1', 'radesys', 'bunit', 'ncombine'
            ]
 
 """ Populate the output file headers """
@@ -67,12 +67,12 @@ except:
 for i in prilist:
     try:
         scihdu.header[i] = prihdr[i]
-    except:
+    except KeyError:
         print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
 for i in scilist:
     try:
         scihdu.header[i] = scihdr[i]
-    except:
+    except KeyError:
         print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
 
 """ Create the output files """
@@ -80,14 +80,14 @@ print ''
 outok = True
 try:
     scihdu.writeto(outsci)
-except:
+except IOError:
     outok = False
     print 'ERROR: Could not write output file %s' % outsci
 if outok:
     print 'Wrote output science file: %s' % outsci
 try:
     whthdu.writeto(outwht)
-except:
+except IOError:
     outok = False
     print 'ERROR: Could not write output file %s' % outwht
 if outok:
