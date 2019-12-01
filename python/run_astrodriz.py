@@ -34,44 +34,149 @@ def driz_prep(infiles, indir, drizdir='finalDrz'):
         for f in ifiles:
             os.system('cp -v %s %s/.' % (f, drizdir))
 
-# ---------------------------------------------------------------------------
-
-def call_astrodriz(infiles, output, final_scale, build=False, updatewcs=False,
-                   static=True, skysub=True, driz_separate=True,
-                   driz_sep_kernel='turbo', driz_sep_scale=None,
-                   driz_sep_pixfrac=1., driz_sep_bits=0, median=True,
-                   blot=True, driz_cr=True,
-                   driz_cr_corr=False, driz_combine=True, final_wcs=True,
-                   final_bits=0, final_kernel='square',
-                   # final_kernel='lanczos3',
-                   final_pixfrac=1.,final_wt_scl='exptime',
-                   final_wht_type='EXP', clean=True, final_rot=0, 
-                   **kwargs):
-    """
-
-    Does the actual call to astrodrizzle
-
-    """
-
-    astd.AstroDrizzle(infiles, output=output, final_scale=final_scale,
-                      build=build, updatewcs=updatewcs, static=static,
-                      skysub=skysub, driz_separate=driz_separate,
-                      driz_sep_kernel=driz_sep_kernel,
-                      driz_sep_scale=driz_sep_scale,
-                      driz_sep_pixfrac=driz_sep_pixfrac,
-                      driz_sep_bits=driz_sep_bits, median=median,
-                      blot=blot, driz_cr=driz_cr,
-                      driz_cr_corr=driz_cr_corr, driz_combine=driz_combine,
-                      final_wcs=final_wcs, final_bits=final_bits,
-                      final_kernel=final_kernel, final_pixfrac=final_pixfrac,
-                      final_wt_scl=final_wt_scl, 
-                      final_wht_type=final_wht_type, clean=clean,
-                      final_rot=final_rot, **kwargs)
+    """ Return the number of input files """
+    n_exp = len(ifiles)
+    return n_exp
 
 # ---------------------------------------------------------------------------
 
-def run(infiles, indir, outroot, inst, outscale='default',
-        drizdir='finalDrz', **kwargs):
+def set_defaults(inst, n_exp):
+    """
+    Set the default astrodrizzle parameters, including some that are
+    instrument-dependent.
+
+    Note that astrodrizzle itself has default values for all of these
+     parameters.  The values below may match the astrodrizzle defaults or
+     they may overwrite them.
+    In turn, all of the parameters that are set here can be overwritten
+     via the keyword arguments (**kwargs) in the run method below.
+
+    The defaults are set in different blocks corresponding to the different
+     astrodrizzle steps, except for a few parameters that depend on the
+     instrument or number of exposures.  Those defaults are set after the
+     generic defaults.
+    """
+
+    """ Set the general / initialization defaults """
+    defpars = {}
+    defpars['build'] = False
+    defpars['updatewcs'] = False
+    defpars['clean'] = True
+
+    """ Static mask defaults """
+    defpars['static'] = True
+
+    """ Sky subtraction defaults """
+    defpars['skysub'] = True
+
+    """ Initial drizzling defaults """
+    defpars['driz_separate'] = True
+    defpars['driz_sep_kernel'] = 'turbo'
+    defpars['driz_sep_scale'] = None
+    defpars['driz_sep_pixfrac'] = 1.
+    defpars['driz_sep_bits'] = 0
+
+    """
+    Defaults for creating a median image
+    NOTE: the combine_type, combine_nhigh, and combine_nlow parameters are
+     set below depending on the number of exposures
+    """
+    defpars['median'] = True
+
+    """
+    Set default values for parameters that are sensitive to the number of
+    input images
+    """
+    if n_exp > 4:
+        defpars['combine_type'] = 'median'
+        if n_exp % 2 == 0:
+            defpars['combine_nhigh'] = 1
+        else:
+            defpars['combine_nhigh'] = 0
+        if n_exp > 7:
+            defpars['combine_nhigh'] += 2
+        if n_exp > 11:
+            defpars['combine_nhigh'] += 2
+    else:
+        defpars['combine_type'] = 'minmed'
+        defpars['combine_nhigh'] = 0
+
+    """ Blot defaults """
+    defpars['blot'] = True
+
+    """ Cosmic ray mask defaults """
+    defpars['driz_cr'] = True
+    defpars['driz_cr_corr'] = False
+
+    """
+    Defaults for final drizzle
+    NOTE: the default final scales and pixfrac values are instrument-dependent
+     and are set below
+    """
+    defpars['driz_combine'] = True
+    defpars['final_wht_type'] = 'EXP'
+    defpars['final_kernel'] = 'lanczos3'
+    defpars['final_wt_scl'] = 'exptime'
+    defpars['final_bits'] = 0
+    defpars['final_wcs'] = True
+    defpars['final_units'] = 'cps'
+    defpars['final_rot'] = 0
+
+    """ Set the instrument-specific defaults """
+    if inst.lower() == 'acs':
+        defpars['final_scale'] = 0.05
+        defpars['final_pixfrac'] = 1.
+    elif inst.lower() == 'wfc3uv' or inst.lower() == 'wfc3uvis':
+        defpars['final_scale'] = 0.04
+        defpars['final_pixfrac'] = 1.
+    elif inst.lower() == 'wfc3ir':
+        defpars['final_scale'] = 0.06
+        defpars['final_pixfrac'] = 0.7
+    else:
+        raise ValueError('Instrument parameters not yet implement for %s'
+                         % inst)
+
+    """ Return the default settings """
+    return defpars
+
+# ---------------------------------------------------------------------------
+
+def test(arg, **kwargs):
+    print(arg)
+    if len(kwargs) > 0:
+        print(kwargs)
+        for k in kwargs.keys():
+            print(k, kwargs[k])
+    else:
+        print('No kwargs')
+    # print(type(kwargs))
+    # print(kwargs)
+    # if 'hoo' in kwargs.keys():
+    #     print('Found hoo: %f' % kwargs['hoo'])
+    #     print('Setting hoo to 3.14')
+    #     kwargs['hoo'] = 3.14
+    # print(kwargs)
+
+# ---------------------------------------------------------------------------
+
+def call_astrodriz(infiles, output, drizdir, **kwargs):
+    """
+
+    Does the actual call to astrodrizzle in the desired directory
+
+    """
+
+    os.chdir(drizdir)
+    astd.AstroDrizzle(infiles, output=output, **kwargs)
+    os.system('cp %s_drc_sci.fits ../%s.fits' % (output, output))
+    os.system('cp %s_drc_ctx.fits ../%s_ctx.fits' % (output, output))
+    os.system('cp %s_drc_wht.fits ../%s_wht.fits' % (output, output))
+    os.chdir('..')
+
+# ---------------------------------------------------------------------------
+
+def run(infiles, indir, outroot, inst, drizdir='finalDrz', debug=False,
+        **kwargs):
     """
 
     Prepares for the astrodrizzle call and then calls astrodrizzle
@@ -79,33 +184,25 @@ def run(infiles, indir, outroot, inst, outscale='default',
     """
 
     """ Prepare for the call """
-    driz_prep(infiles, indir, drizdir)
+    n_exp = driz_prep(infiles, indir, drizdir)
 
-    """ Set up instrument-dependent default values """
-    if inst.lower() == 'acs':
-        final_scale = 0.05
-    elif inst.lower() == 'wfc3uv' or inst.lower() == 'wfc3uvis':
-        final_scale = 0.04
-    elif inst.lower() == 'wfc3ir':
-        final_scale = 0.1283
-    else:
-        raise ValueError('Instrument parameters not yet implement for %s'
-                         % inst)
+    """ Set up the default parameters """
+    adpars = set_defaults(inst, n_exp)
+    if debug:
+        print(adpars)
 
-    """ Override the defaults if requested """
-    if outscale.lower() != 'default':
-        if isinstance(outscale, float):
-            final_scale = outscale
-        else:
-            raise TypeError('outscale must be a float')
+    """ Now overwrite / append any additional parameters in kwargs """
+    if len(kwargs) > 0:
+        for k in kwargs.keys():
+            if debug:
+                print('kwargs: Setting %s to %s' % (k, str(kwargs[k])))
+            adpars[k] = kwargs[k]
+
+    if debug:
+        print(adpars)
 
     """ Call the astrodrizzle routine """
-    os.chdir(drizdir)
-    call_astrodriz(infiles, outroot, final_scale, **kwargs)
-
-    os.system('cp %s_drc_sci.fits ../%s.fits'%(outroot,outroot))
-    os.system('cp %s_drc_ctx.fits ../%s_ctx.fits'%(outroot,outroot))
-    os.system('cp %s_drc_wht.fits ../%s_wht.fits'%(outroot,outroot))
-    os.chdir('..')
+    call_astrodriz(infiles, outroot, drizdir, **adpars)
+    
 
 
