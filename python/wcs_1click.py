@@ -18,6 +18,8 @@ Input parameters:
     ra          - RA in decimal degrees
     dec         - Dec in decimal degrees
     pixscale    - [OPTIONAL] pixel scale in arcsec/pix
+    fmax        - [OPTIONAL] maximum display value, in sigma above mean
+                  Default value if this is not set is fmax=10
     flatfile    - [OPTIONAL] flat-field file to apply to the file(s) before
                    displaying it
     fitsfile(s) - Either a single filename or a wildcard expression
@@ -38,18 +40,19 @@ if len(sys.argv)<4:
     print(' python wcs_1click.py [ra] [dec] (flag1 flag1val'
           ' flag2 flag2val...) [fitsfile(s)]')
     print('')
-    print('Inputs:')
+    print('Required inputs:')
     print(' ra  - RA in decimal degrees')
     print(' dec - Dec in decimal degrees')
-    print(' OPTIONAL FLAGS and associated parameters')
-    print('   -p [pixscale]    - pixel scale in arcsec/pix')
-    print('   -flat [flatfile] - flat-field file to be applied to the input'
-          ' fits files')
-    print('   -fmax [fmax]     - maximum flux value, in sigma above mean,'
-          ' for display')
-    print('                      Default value: 10')
     print(' fitsfile(s) - Either a single filename or a wildcard expression')
     print('  e.g.,  m13*fits')
+    print('')
+    print('OPTIONAL FLAGS and associated parameters')
+    print('  -p [pixscale]    - pixel scale in arcsec/pix')
+    print('  -flat [flatfile] - flat-field file to be applied to the input'
+          ' fits files')
+    print('  -fmax [fmax]     - maximum flux value, in sigma above mean,'
+          ' for display')
+    print('                     Default value: 10')
     print('')
     exit()
 
@@ -120,10 +123,7 @@ if flatfile is not None:
 """ Loop through the input files, marking the object in each one """
 if pixscale is not None:
     pixscale /= 3600.
-print('')
-print('File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 ')
-print('------------------------ ----------- ----------- -------- --------')
-for infile in files:
+for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     """ Open and display the image """
     im1 = imf.Image(infile)
     if flat is not None:
@@ -137,24 +137,35 @@ for infile in files:
 
     """ Set the crpix values to the marked location """
     if im1.dispim.xmark is not None:
-        crpix1[i] = im1.dispim.xmark + 1
+        crp1 = im1.dispim.xmark + 1
     if im1.dispim.ymark is not None:
-        crpix2[i] = im1.dispim.ymark + 1
+        crp2 = im1.dispim.ymark + 1
 
     """
     If there is no WCS information in the input file, create a base version
     to be filled in later
     """
-    if im1.wcsinfo is None:
-        im1.wcsinfo = wcs.WCS(naxis=2)
-        im1.wcsinfo.wcs.ctype = ['RA---TAN', 'DEC--TAN']
-    im1['input'].update_crpix(crpix)
-    im1['input'].update_crval((ra, dec))
-    im1.save()
-    f = infile[:-5]
-    print('%-24s %11.7f %+11.7f %8.2f %8.2f' % (f, ra, dec, crpix1[i],
-                                                crpix2[i]))
+    if im1['input'].wcsinfo is None:
+        im1['input'].wcsinfo = wcs.WCS(naxis=2)
+        im1['input'].wcsinfo.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    im1['input'].update_crpix((crp1, crp2), verbose=False)
+    im1['input'].update_crval((ra, dec), verbose=False)
+    im1.wcsinfo = im1['input'].wcsinfo
+    im1.save(verbose=False)
     del(im1)
+
+"""
+Report on the updated values
+"""
+print('')
+print('File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 ')
+print('------------------------ ----------- ----------- -------- --------')
+for infile in files:
+    hdr = pf.getheader(infile)
+    f = infile[:-5]
+    print('%-24s %11.7f %+11.7f %8.2f %8.2f' % (f, ra, dec, hdr['crpix1'],
+                                                hdr['crpix2']))
+    del hdr
 
 # """ 
 # Second pass through the fits files, assigning the RA and Dec to the
