@@ -120,12 +120,20 @@ if flatfile is not None:
     print('')
     print('Using flat-field file: %s' % flatfile)
 
-""" Loop through the input files, marking the object in each one """
+"""
+Set up the pixel scale to use
+The default is to use the WCS information in the file header, but if
+ the pixscale parameter has been set then its value overrides any
+ pixel scale information in the header
+"""
 if pixscale is not None:
     pixscale /= 3600.
+
+""" Loop through the input files, marking the object in each one """
 for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     """ Open and display the image """
     im1 = imf.Image(infile)
+    origdat = im1.data.copy()
     if flat is not None:
         im1.data /= flat
     im1.zoomsize = subimsize
@@ -151,6 +159,7 @@ for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     im1['input'].update_crpix((crp1, crp2), verbose=False)
     im1['input'].update_crval((ra, dec), verbose=False)
     im1.wcsinfo = im1['input'].wcsinfo
+    im1.data = origdat.copy()
     im1.save(verbose=False)
     del(im1)
 
