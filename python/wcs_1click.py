@@ -133,7 +133,6 @@ if pixscale is not None:
 for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     """ Open and display the image """
     im1 = imf.Image(infile)
-    origdat = im1.data.copy()
     if flat is not None:
         im1.data /= flat
     im1.zoomsize = subimsize
@@ -159,7 +158,8 @@ for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     im1['input'].update_crpix((crp1, crp2), verbose=False)
     im1['input'].update_crval((ra, dec), verbose=False)
     im1.wcsinfo = im1['input'].wcsinfo
-    im1.data = origdat.copy()
+    if flat is not None:
+        im1.data *= flat
     im1.save(verbose=False)
     del(im1)
 
