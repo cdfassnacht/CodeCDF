@@ -25,7 +25,8 @@ def driz_prep(infiles, indir, drizdir='finalDrz'):
 
     """ Get the filenames """
     if isinstance(infiles, list):
-        ifiles = infiles.sort()
+        infiles.sort()
+        ifiles = infiles
         for f in ifiles:
             tmpfile = os.path.join(indir, f)
             os.system('cp -v %s %s/.' % (tmpfile, drizdir))
@@ -106,7 +107,7 @@ def set_defaults(inst, n_exp):
 
     """ Cosmic ray mask defaults """
     defpars['driz_cr'] = True
-    defpars['driz_cr_corr'] = False
+    defpars['driz_cr_corr'] = True
 
     """
     Defaults for final drizzle
@@ -185,6 +186,7 @@ def run(infiles, indir, outroot, inst, drizdir='finalDrz', debug=False,
 
     """ Prepare for the call """
     n_exp = driz_prep(infiles, indir, drizdir)
+    print(n_exp)
 
     """ Set up the default parameters """
     adpars = set_defaults(inst, n_exp)
