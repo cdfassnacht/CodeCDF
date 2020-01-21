@@ -244,18 +244,16 @@ case $OS in
 
   macintel-gcc) # Mac Pro running OSX with Intel chips, using the Gnu C compiler
     CC=gcc
-    # CC=/usr/local/bin/gcc
-    FC=/usr/local/bin/gfortran
+    FC=gcc
     CFLAGS="$CFLAGS -Dmacintel"
 #
 # Attempt to find libgcc.a in its default location.
 #
     CCLIB="`gcc -print-libgcc-file-name`"
-    # CCLIB="`/usr/local/bin/gcc -print-libgcc-file-name`"
     if test ! -f "$CCLIB"; then
       echo ' Error: libgcc.a is not in the default location, please edit'
       echo '        ./configure to assign the path of libgcc.a to CCLIB under'
-      echo '        macintel-gcc), Eg. if libgcc.a is in /usr/local/lib.'
+      echo '        apple-osx-gcc), Eg. if libgcc.a is in /usr/local/lib.'
       echo '        write:'
       echo ' ';echo ' CCLIB="/usr/local/lib/libgcc.a"';echo ' '
       exit 1

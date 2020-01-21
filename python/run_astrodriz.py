@@ -60,7 +60,6 @@ def set_defaults(inst, n_exp):
 
     """ Set the general / initialization defaults """
     defpars = {}
-    defpars['build'] = False
     defpars['updatewcs'] = False
     defpars['clean'] = True
 
@@ -75,7 +74,7 @@ def set_defaults(inst, n_exp):
     defpars['driz_sep_kernel'] = 'turbo'
     defpars['driz_sep_scale'] = None
     defpars['driz_sep_pixfrac'] = 1.
-    defpars['driz_sep_bits'] = 0
+    defpars['driz_sep_bits'] = '16, 64'
 
     """
     Defaults for creating a median image
@@ -115,10 +114,11 @@ def set_defaults(inst, n_exp):
      and are set below
     """
     defpars['driz_combine'] = True
+    defpars['build'] = False
     defpars['final_wht_type'] = 'EXP'
     defpars['final_kernel'] = 'lanczos3'
     defpars['final_wt_scl'] = 'exptime'
-    defpars['final_bits'] = 0
+    defpars['final_bits'] = '16, 64'
     defpars['final_wcs'] = True
     defpars['final_units'] = 'cps'
     defpars['final_rot'] = 0
@@ -139,24 +139,6 @@ def set_defaults(inst, n_exp):
 
     """ Return the default settings """
     return defpars
-
-# ---------------------------------------------------------------------------
-
-def test(arg, **kwargs):
-    print(arg)
-    if len(kwargs) > 0:
-        print(kwargs)
-        for k in kwargs.keys():
-            print(k, kwargs[k])
-    else:
-        print('No kwargs')
-    # print(type(kwargs))
-    # print(kwargs)
-    # if 'hoo' in kwargs.keys():
-    #     print('Found hoo: %f' % kwargs['hoo'])
-    #     print('Setting hoo to 3.14')
-    #     kwargs['hoo'] = 3.14
-    # print(kwargs)
 
 # ---------------------------------------------------------------------------
 
