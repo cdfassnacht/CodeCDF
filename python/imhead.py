@@ -32,7 +32,7 @@ for f in files:
       try:
          hdulist = pyfits.open(f,ignore_missing_end=True)
       except IOError:
-         print "Unable to open file %s" % f
+         print('Unable to open file %s' % f)
          continue
 
    if f[-5:] == ".fits":
@@ -183,6 +183,6 @@ for f in files:
 
    # Print out final info
    fonly = fname.split('/')[-1]
-   print "%-16s  %4dx%-4d  %-17s %-9s %-10s %s" % \
-          (fonly,n1,n2,obj,texp,inst,filt)
+   print('%-16s  %4dx%-4d  %-17s %-9s %-10s %s' % 
+         (fonly,n1,n2,obj,texp,inst,filt))
 
