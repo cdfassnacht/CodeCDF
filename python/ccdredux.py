@@ -233,9 +233,9 @@ def robust_sigma(data, refzero=False):
      uu = u*u
      q = uu<1.
      if q.sum()<3:
-          print ''
-          print 'robust_sigma: input distribution is just too weird.'
-          print 'returning value of -1.'
+          print('')
+          print('robust_sigma: input distribution is just too weird.')
+          print('returning value of -1.')
           return -1.
      ntot = data[np.isfinite(data)].sum()
      num = ((data[q] - dat0)**2 * (1.-uu[q])**4).sum()
@@ -300,23 +300,36 @@ def define_trimsec(hdu,x1,x2,y1,y2):
 
 # -----------------------------------------------------------------------
 
-def divide_images(a,b,output,preserve_header=0):
-    print "Dividing images: '%s' / '%s' = '%s'" % (a,b,output)
+def divide_images(a, b, output, preserve_header=0, divzeroval=np.nan):
+    print('Dividing images: %s / %s = %s' % (a, b, output))
     try:
         hdua = pf.open(a)[0]
-    except:
-        hdua = pf.open(a,ignore_missing_end=True)[0]
+    except IOError:
+        hdua = pf.open(a, ignore_missing_end=True)[0]
     try:
         hdub = pf.open(b)[0]
-    except:
-        hdub = pf.open(b,ignore_missing_end=True)[0]
+    except IOError:
+        hdub = pf.open(b, ignore_missing_end=True)[0]
+
+    """ Prepare for possible divide-by-zero errors """
+    mask = hdub.data == 0
+    hdub.data[mask] = 1.
+
+    """
+    Do the divisions, then set any divide-by-zero pixels to the value set
+    by the divzeroval parameter
+    """
+    ratio = hdua.data / hdub.data
+    ratio[mask] = divzeroval
+
+    """ Save the output """
     if preserve_header == 1:
-        hdu = pf.PrimaryHDU(hdua.data / hdub.data,header=hdua.header)
+        hdu = pf.PrimaryHDU(ratio, header=hdua.header)
     elif preserve_header == 2:
-        hdu = pf.PrimaryHDU(hdua.data / hdub.data,header=hdub.header)
+        hdu = pf.PrimaryHDU(ratio, header=hdub.header)
     else:
-        hdu = pf.PrimaryHDU(hdua.data/hdub.data)
-    hdu.writeto(output,output_verify='ignore')
+        hdu = pf.PrimaryHDU(ratio)
+    hdu.writeto(output, output_verify='ignore')
 
 # -----------------------------------------------------------------------
 
@@ -358,16 +371,16 @@ def add_images(a,b,output,preserve_header=0):
 # -----------------------------------------------------------------------
 
 def read_calfile(filename, file_description):
-    print 'Reading in %s file: %s' % (file_description, filename)
+    print('Reading in %s file: %s' % (file_description, filename))
     try:
         calhdulist = pf.open(filename)
-    except:
+    except IOError:
         try:
             calhdulist = pf.open(filename,ignore_missing_end=True)
-        except:
-            print " ERROR: Requested %s file %s does not exist" % \
-                 (file_description, filename)
-            print ""
+        except IOError:
+            print(' ERROR: Requested %s file %s does not exist' % 
+                  (file_description, filename))
+            print('')
             return -1
     return calhdulist
 
@@ -387,22 +400,22 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
         6. Write the output to a file.
     """
 
-    print "median_combine: Inputs:"
-    print "-----------------------"
+    print('median_combine: Inputs:')
+    print('-----------------------')
     if (biasfile != None):
         # NB: Should not need to trim the input bias frame, since it should
         #  have been created out of trimmed files.
         bias = pf.open(biasfile)
         bias.info()
     else:
-        print "  bias frame: [No bias file]"
+        print('  bias frame: [No bias file]')
 
-    print ""
-    print "median_combine: Loading files"
-    print "-----------------------------"
+    print('')
+    print('median_combine: Loading files')
+    print('-----------------------------')
     files = []
     for filename in input_files:
-        print " %s" % filename
+        print(' %s' % filename)
         try:
             f = pf.open(filename)
         except:
@@ -411,9 +424,9 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
 
     # Use first file to check for multiple HDUs, and set some variables
     #  depending on the result
-    print ""
-    print "median_combine: Getting info on first file"
-    print "------------------------------------------"
+    print('')
+    print('median_combine: Getting info on first file')
+    print('------------------------------------------')
     files[0].info()
     hdulen = len(files[0])
     if (hdulen == 1) or (hdu0only == True):
@@ -445,11 +458,11 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
         k = j-1
         xt1, xt2, yt1, yt2 = define_trimsec((files[0])[j], x1[k], x2[k], y1[k],
                                                         y2[k])
-        print ""
-        print "median_combine: setting up stack for images (HDU %d)" % j
-        print "----------------------------------------------------"
-        print "Stack will have dimensions (%d, %d, %d)" \
-             %(len(input_files), yt2 - yt1, xt2 - xt1)
+        print('')
+        print('median_combine: setting up stack for images (HDU %d)' % j0)
+        print('----------------------------------------------------')
+        print('Stack will have dimensions (%d, %d, %d)'
+              % (len(input_files), yt2 - yt1, xt2 - xt1))
         stack = np.zeros((len(input_files), yt2 - yt1, xt2 - xt1))
 
         # Inner loop is on the input files
@@ -457,7 +470,7 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
         count = 0
         for i in range(len(input_files)):
             
-            print " %s" % files[i].filename()
+            print(' %s' % files[i].filename())
 
             # Process the data (bias and gain only), if desired
             if (biasfile == None):
@@ -472,33 +485,39 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
             # Normalize or set to zero median, if desired
             if(normalize == True):
                 frame_med = np.median(tmpf,axis=None)
-                print "     Normalizing %s by %f" % (files[i].filename(),frame_med)
+                print('     Normalizing %s by %f' %
+                      (files[i].filename(),frame_med))
                 tmpf *= 1.
                 tmpf /= (1. * frame_med)
             if(zeromedian == True):
-                print "     Subtracting the median from %s" % files[i].filename()
+                print('     Subtracting the median from %s' %
+                      files[i].filename())
                 tmpf -= np.median(tmpf,axis=None)
             stack[count] = tmpf.copy()
             count += 1
         
-        print ""
+        print('')
 
         # Actually form the median (or sum, if that was requested)
         if method == 'sum':
             if(NaNmask == True):
-                print "median_combine: Computing summed frame using NaN masking"
-                print "    Can take a while..."
+                print('median_combine: Computing summed frame using NaN'
+                      ' masking')
+                print('    Can take a while...')
                 outdat = np.nansum(stack, axis=0)
             else:
-                print "median_combine: Computing summed frame (can take a while)..."
+                print('median_combine: Computing summed frame (can take '
+                      'a while)...')
                 outdat = np.sum(stack, axis=0)
         else:
             if(NaNmask == True):
-                print "median_combine: Computing median frame using NaN masking"
-                print "    Can take a while..."
+                print('median_combine: Computing median frame using NaN '
+                      'masking')
+                print('    Can take a while...')
                 outdat = np.nanmedian(stack, axis=0)
             else:
-                print "median_combine: Computing median frame (can take a while)..."
+                print('median_combine: Computing median frame (can take '
+                      'a while)...')
                 outdat = np.median(stack, axis=0)
         del stack
 
@@ -514,7 +533,7 @@ def median_combine(input_files, output_file, method='median', x1=0, x2=0,
     # Write the output median file
 
     hdulist.writeto(output_file, output_verify='ignore', clobber=True)
-    print "    ... Writing output to %s." % output_file
+    print('    ... Writing output to %s.' % output_file)
 
     # Clean up
 
@@ -570,9 +589,9 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
                 try:
                     ra  = wcsmwa.ra2deg(phdr[rakey].strip())
                 except:
-                    print 'ERROR. Attempts to read RA header card (%s) failed.' % \
-                         rakey.upper()
-                    print 'No wcs information'
+                    print('ERROR. Attempts to read RA header card (%s) '
+                          'failed.' % rakey.upper())
+                    print('No wcs information')
                     wcsread = False
 
         if wcsmwa.is_degree(hdr[deckey]):
@@ -584,8 +603,8 @@ def apply_rough_wcs(hdu, pixscale, rakey='ra', deckey='dec', phdu=None):
                 try:
                     dec = wcsmwa.dec2deg(phdr[deckey].strip())
                 except:
-                    print 'ERROR. Attempts to read Dec header card failed.'
-                    print 'No wcs information'
+                    print('ERROR. Attempts to read Dec header card failed.')
+                    print('No wcs information')
                     wcsread = False
 
         """ Clean out old WCS and mosaic info """
@@ -907,8 +926,8 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
         tmp.header['trim'] = \
              'Trim data section is [%d:%d,%d:%d] ([xrange,yrange])' % \
              (xt1,xt2,yt1,yt2)
-        print "    Trimmed data to section [xrange,yrange] [%d:%d,%d:%d]" \
-             % (xt1,xt2,yt1,yt2)
+        print('    Trimmed data to section [xrange,yrange] [%d:%d,%d:%d]'
+              % (xt1,xt2,yt1,yt2))
     
     # Set up a string for use in header keywords
     if hdunum==0:
@@ -927,7 +946,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
             keystr = 'biassub'+str(hdunum)
         tmp.header[keystr] = 'Bias frame for %s is %s with mean %f' % \
              (hdustr,bias.filename(),biasmean)
-        print "    Subtracted bias frame %s" % bias.filename()
+        print('    Subtracted bias frame %s' % bias.filename())
     
     # Convert to electrons if requested
     if gain>0:
@@ -948,7 +967,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
         tmp.header[keystrb1] = \
              'Units for %s changed from ADU to e- using gain=%6.3f e-/ADU' % \
              (hdustr,gain)
-        print "    Converted units to e- using gain = %f" % gain
+        print('    Converted units to e- using gain = %f' % gain)
     
     # Divide by the exposure time if requested
     if texp_key is not None:
@@ -978,8 +997,8 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
             tmp.header.set(keystr,
                                 'Units for %s changed from e- to e-/s using texp=%7.2f'
                                 % (hdustr,texp), after=keystrb1)
-            print "    Converted units from e- to e-/sec using exposure time %7.2f" \
-                 % texp
+            print('    Converted units from e- to e-/sec using exposure '
+                  'time %7.2f' % texp)
         else:
             tmp.header['bunit'] = \
                  ('Electrons', 'There was an ERROR in converting to e-/s')
@@ -1002,7 +1021,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
         tmp.header[keystr] = \
              'Flat field image for %s is %s with mean=%f' % \
              (hdustr,flat.filename(),flatmean)
-        print "    Divided by flat-field image: %s" % flat.filename()
+        print('    Divided by flat-field image: %s' % flat.filename())
     
     # Apply the fringe correction if requested
     if fringe is not None:
@@ -1014,7 +1033,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
         tmp.header[keystr] = \
              'Fringe image for %s is %s with mean=%f' % \
              (hdustr,fringe.filename(),fringemean)
-        print "    Subtracted fringe image: %s" % fringe.filename()
+        print('    Subtracted fringe image: %s' % fringe.filename())
     
     # Apply the dark sky flat-field correction if requested
     if darksky is not None:
@@ -1028,7 +1047,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
         tmp.header[keystr] = \
              'Dark-sky flat image for %s is %s with mean=%f' % \
              (hdustr,darksky.filename(),darkskymean)
-        print "    Divided by dark-sky flat: %s" % darksky.filename()
+        print('    Divided by dark-sky flat: %s' % darksky.filename())
 
     # Subtract the sky level if requested
     if skysub:
@@ -1040,7 +1059,7 @@ def process_data(hdulist, hdunum, bias=None, flat=None, fringe=None,
             keystr = 'skysub'+str(hdunum)
         tmp.header[keystr] = ('For %s, subtracted mean sky level of %f' % \
                                          (hdustr,m))
-        print '    Subtracted mean sky level of %f' % m
+        print('    Subtracted mean sky level of %f' % m)
     
     # Flip if requested
     if flip == 1:
@@ -1107,7 +1126,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
     """ Read in calibration frames if they have been selected """
 
-    print ''
+    print('')
     if biasfile is not None:
         bias = read_calfile(biasfile,'bias')
         if (bias == -1):
@@ -1116,7 +1135,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
         bias = None
 
     if flatfile is not None:
-        print 'Reading in flat-field file: %s' % flatfile
+        print('Reading in flat-field file: %s' % flatfile)
         flat = read_calfile(flatfile,'flat-field')
         if (flat == -1):
             return
@@ -1124,14 +1143,14 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
         flat = None
 
     if fringefile is not None:
-        print 'Reading in fringe file: %s' % fringefile
+        print('Reading in fringe file: %s' % fringefile)
         fringe = pf.getdata(fringefile)
         fringemean = fringe.mean()
     else:
         fringe = None
 
     if darkskyfile is not None:
-        print 'Reading in dark-sky flat file: %s' % darkskyfile
+        print('Reading in dark-sky flat file: %s' % darkskyfile)
         darksky = pf.getdata(darkskyfile)
         darkskymean = darksky.mean()
         """
@@ -1142,14 +1161,14 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
     else:
         darksky = None
 
-    print ""
-    print "Processing files..."
-    print "-------------------"
+    print('')
+    print('Processing files...')
+    print('-------------------')
 
     write_one_output_file = True
     for i in in_frames:
         filename = '%s/%s%s%s'%(rawdir,in_prefix,i,rawext)
-        print "%s:" % filename
+        print('%s:' % filename)
 
         """
         Open the input file.  
@@ -1195,7 +1214,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
 
             # Read in the data
             if hdulen>0:
-                print " Processing image extension %d" % j
+                print(' Processing image extension %d' % j)
 
             # Process the data
             k = j-1
@@ -1207,7 +1226,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
             if hdulen>1:
                 if(split):
                     write_one_output_file = False
-                    print " Splitting image extension %d to output file."
+                    print(' Splitting image extension %d to output file.')
                 else:
                     outhdu.append(hdu[j])
             else:
@@ -1228,7 +1247,7 @@ def apply_calib(in_frames, in_prefix, out_prefix, split=False,
             outname = '%s%s.fits'%(out_prefix,i)
             outname = outname.strip()
             outhdu.writeto(outname,output_verify='ignore',clobber=True)
-            print " Writing output file: %s" % outname
+            print(' Writing output file: %s' % outname)
 
         hdu.close()
 
@@ -1272,9 +1291,9 @@ def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
     try:
         indat = pf.getdata(infile,hdunum)
     except:
-        print ''
-        print 'ERROR: Could not open input file %s' % infile
-        print ''
+        print('')
+        print('ERROR: Could not open input file %s' % infile)
+        print('')
         return
 
     """ 
@@ -1286,9 +1305,9 @@ def make_wht_from_pixval(infile, maxgood, inwhtfile=None, outsuff='_wht',
             whthdu = pf.open(inwhtfile,mode='update')
         except:
             del indat
-            print ''
-            print 'ERROR. Could not open input weight file %s' % inwhtfile
-            print ''
+            print('')
+            print('ERROR. Could not open input weight file %s' % inwhtfile)
+            print('')
             return
         whtdat = whthdu[hdunum].data
     else:
@@ -1355,18 +1374,18 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
     """ Make sure that the input is either a list or a single file """
 
     if type(infiles) is str:
-        print ""
-        print "Single input file"
+        print('')
+        print('Single input file')
         tmplist = [infiles,]
     elif type(infiles) is list:
-        print ""
-        print "Input file list with %d members" % (len(infiles))
+        print('')
+        print('Input file list with %d members' % (len(infiles)))
         tmplist = infiles
     else:
-        print ""
-        print "Warning.  Input frames need to be either a list of files "
-        print " (python type==list) or a single input file name."
-        print ""
+        print('')
+        print('Warning.  Input frames need to be either a list of files ')
+        print(' (python type==list) or a single input file name.')
+        print('')
         return
 
     """ First loop through the input files to get information """
@@ -1377,9 +1396,11 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
     y1 = np.zeros(len(tmplist),dtype=int)
     rmssky = np.zeros(len(tmplist))
 
-    print ''
-    print ' Input file                        gain  <bkgd>    fscal  rms_sky rms_scal'
-    print '---------------------------- ---- -------- ------- ------- --------'
+    print('')
+    print(' Input file                        gain  <bkgd>    fscal  '
+          'rms_sky rms_scal')
+    print('---------------------------- ---- -------- ------- ------- '
+          '--------')
     for i in range(len(tmplist)):
 
         """ Load the header information """
@@ -1387,18 +1408,18 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         try:
             hdr = pf.getheader(f)
         except:
-            print ""
-            print "ERROR: Could not open %s" % f
-            print ""
+            print('')
+            print('ERROR: Could not open %s' % f)
+            print('')
             return
 
         origfile = f.replace('resamp.fits','fits')
         try:
             orighdr = pf.getheader(origfile)
         except:
-            print ""
-            print "ERROR: Could not open %s" % origfile
-            print ""
+            print('')
+            print('ERROR: Could not open %s' % origfile)
+            print('')
             return
 
         """ Set the relevant values """
@@ -1410,18 +1431,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         rmssky[i] = sqrt(bkgd[i] / gain[i])
 
         """ Print out the relevant information and clean up """
-        print '%-28s %4.2f %8.2f %7.5f %7.3f %8.3f' \
-             % (f[:-5],gain[i],bkgd[i],fscal[i],rmssky[i],rmssky[i]*fscal[i])
+        print('%-28s %4.2f %8.2f %7.5f %7.3f %8.3f' 
+              % (f[:-5], gain[i], bkgd[i], fscal[i], rmssky[i],
+                 rmssky[i]*fscal[i]))
         del hdr,orighdr
 
     gainmean = gain.mean()
-    print '-------------------------------------------------------------------'
-    print ' %3d input files                 gain  <bkgd>    fscal  rms_sky rms_scal'\
-         % (len(tmplist))
-    print '---------------------------- ---- -------- ------- ------- --------'
-    print '     Mean values                  %4.2f %8.2f %7.5f %7.3f %8.3f' % \
-         (gainmean,bkgd.mean(),fscal.mean(),rmssky.mean(), \
-              rmssky.mean()*fscal.mean())
+    print('-----------------------------------------------------------'
+          '--------')
+    print(' %3d input files                 gain  <bkgd>    fscal  rms_sky '
+          'rms_scal' % (len(tmplist)))
+    print('---------------------------- ---- -------- ------- ------- '
+          '--------')
+    print('     Mean values                  %4.2f %8.2f %7.5f %7.3f %8.3f' %
+          (gainmean, bkgd.mean(), fscal.mean(), rmssky.mean(), 
+           rmssky.mean()*fscal.mean()))
 
     """ Set up the weight file associated with the median-stacked image """
     if medwhtfile == 'default':
@@ -1434,9 +1458,10 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
     """ Loop through the input files """
     epsil = 1.e-20
     count = 1
-    print ''
-    print 'Updating weight files, using diff > %d sigma' % nsig
-    print '--------------------------------------------------------------------'
+    print('')
+    print('Updating weight files, using diff > %d sigma' % nsig)
+    print('-----------------------------------------------------'
+          '---------------')
     for i in range(len(tmplist)):
         """ Set up file names """
         f = tmplist[i]
@@ -1444,24 +1469,24 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         outwhtfile = f.replace('.fits',outwht_suff)
 
         """ Load input resamp.fits file """
-        print '%s -- File %d of %d' % (f[:-5],count,len(tmplist))
-        print '-----------------------------------------'
-        print 'Loading individual exposure: %s' % f
+        print('%s -- File %d of %d' % (f[:-5],count,len(tmplist)))
+        print('-----------------------------------------')
+        print('Loading individual exposure: %s' % f)
         try:
             indat,hdr = pf.getdata(f,header=True)
         except:
-            print ""
-            print "ERROR: Could not open %s" % f
-            print ""
+            print('')
+            print('ERROR: Could not open %s' % f)
+            print('')
             return
 
         """ Load the associated weight file data """
         try:
             inwht,whthdr = pf.getdata(inwhtfile,header=True)
         except:
-            print ""
-            print "ERROR: Could not open %s" % inwhtfile
-            print ""
+            print('')
+            print('ERROR: Could not open %s' % inwhtfile)
+            print('')
             return
 
 
@@ -1477,10 +1502,10 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
           #medwht = (pf.getdata(medwhtfile))[y1[i]:y2,x1[i]:x2]
           #meddat = medhdu[0].section[y1[i]:y2,x1[i]:x2]
           #medwht = medwhthdu[0].section[y1[i]:y2,x1[i]:x2]
-        print 'Selecting data from full stacked median file'
+        print('Selecting data from full stacked median file')
         meddat = medall[y1[i]:y2,x1[i]:x2]
         medwht = medwhtall[y1[i]:y2,x1[i]:x2]
-        print 'Calculating difference image'
+        print('Calculating difference image')
         diff = np.zeros(indat.shape)
         whtmask = inwht>0
         diff[whtmask] = indat[whtmask] * fscal[i] - meddat[whtmask]
@@ -1507,21 +1532,21 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
                   expects any input weight file to not include the Poisson noise.
 
         """
-        print 'Masking and then calculating variance from stacked median'
+        print('Masking and then calculating variance from stacked median')
         medvar = np.zeros(indat.shape)
         medmask = (inwht>0) & (np.absolute(medwht>epsil))
         medvar[medmask] = 1. / medwht[medmask]
         del medmask
-        print 'Masking and then adding Poisson noise from stacked median'
+        print('Masking and then adding Poisson noise from stacked median')
         medmask = meddat > np.sqrt(medvar)
         medvar[medmask] += meddat[medmask] / gainmean
         del medmask
         #del medwht,meddat
-        print 'Masking and then calculating variance in individual image'
+        print('Masking and then calculating variance in individual image')
         indvar = np.zeros(indat.shape)
         mask = (inwht>0) & ((indat + bkgd[i]) > 0.)
         indvar[mask] = fscal[i]**2 * (indat[mask]+bkgd[i])/gain[i]
-        print 'Calculating combined rms'
+        print('Calculating combined rms')
         rms = np.sqrt(medvar + indvar)
         del medvar,indvar,mask,indat
 
@@ -1529,14 +1554,13 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
         Flag pixels that deviate by more than nsig sigma from the 
         median-stacked image
         """
-        print 'Flagging pixels that differ by more than %d sigma from median'\
-             % nsig
+        print('Flagging pixels that differ by more than %d sigma from median'
+              % nsig)
         if flag_posonly:
             blotmask = diff > nsig*rms
         else:
             blotmask = np.absolute(diff) > nsig*rms
-        print '%-38s %9d' \
-             % (f[:-5],blotmask.sum())
+        print('%-38s %9d' % (f[:-5],blotmask.sum()))
 
         """ Debugging step(s) """
         #foodat = np.ones(diff.shape)
@@ -1557,10 +1581,10 @@ def make_wht_for_final(infiles, medfile, nsig, inwht_suff='.weight.fits',
 
         """ Write out a new weight file with the newly-flagged pixels """
         inwht[blotmask] = 0
-        print '%s -> %s' % (inwhtfile,outwhtfile)
+        print('%s -> %s' % (inwhtfile,outwhtfile))
         pf.PrimaryHDU(inwht,whthdr).writeto(outwhtfile,clobber=True)
         count += 1
-        print ''
+        print('')
 
         """ Close the files for this loop """
         del diff,blotmask,rms,inwht
@@ -1602,26 +1626,27 @@ def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
         try:
             hdr = pf.getheader(exptime)
         except:
-            print ''
-            print 'ERROR: Unable to open fits file %s' % exptime
-            print ''
+            print('')
+            print('ERROR: Unable to open fits file %s' % exptime)
+            print('')
             return
         try:
             texp = hdr[exptkey]
         except:
-            print 'ERROR: Unable to read %s keyword in %s fits file' % \
-                 (exptkey,exptime)
+            print('ERROR: Unable to read %s keyword in %s fits file' % 
+                  (exptkey,exptime))
             del hdr
-            print ''
+            print('')
             return
     elif type(exptime) is float:
         texp = exptime
     elif type(exptime) is int:
         texp = float(exptime)
     else:
-        print ''
-        print 'ERROR: exptime needs to be a number or name of a reference file'
-        print ''
+        print('')
+        print('ERROR: exptime needs to be a number or name of a reference '
+              'file')
+        print('')
         return
 
     """ Put the desired exposure time into the input files """
@@ -1631,7 +1656,7 @@ def add_exptime(inlist, exptime, exptkey='exptime', hext=0, verbose=True):
         hdr.update('exptime',texp)
         hdu.flush()
         if verbose:
-            print 'Updated %s with EXPTIME=%.2f' % (i,texp)
+            print('Updated %s with EXPTIME=%.2f' % (i,texp))
 
 # ---------------------------------------------------------------------------
 
@@ -1661,31 +1686,31 @@ def make_texp_map(infiles, texp, whtext='wht', outext='texp'):
     """ Make sure that the input is either a list or a single file """
 
     if type(infiles) is str:
-        print ""
-        print "Single input file"
+        print('')
+        print('Single input file')
         tmplist = [infiles,]
     elif type(infiles) is list:
-        print ""
+        print('')
         ncount = len(infiles)
-        print "Input file list with %d members" % ncount
+        print('Input file list with %d members' % ncount)
         tmplist = infiles
     else:
-        print ""
-        print "Warning.  Input frames need to be either a list of files "
-        print " (python type==list) or a single input file name."
-        print ""
+        print('')
+        print('Warning.  Input frames need to be either a list of files ')
+        print(' (python type==list) or a single input file name.')
+        print('')
         return
 
     """ Run through the list """
 
-    print ''
-    print 'Making individual exposure-time maps'
-    print '------------------------------------'
+    print('')
+    print('Making individual exposure-time maps')
+    print('------------------------------------')
     count = 1
     for f in tmplist:
         """ Get input file"""
-        print 'File %d of %d' % (count,ncount)
-        print 'Input file:  %s' % f
+        print('File %d of %d' % (count,ncount))
+        print('Input file:  %s' % f)
         data,hdr = pf.getdata(f,header=True)
 
         """ Create the exposure time data as integer """
@@ -1696,8 +1721,8 @@ def make_texp_map(infiles, texp, whtext='wht', outext='texp'):
         """ Write the output file """
         outfile = f.replace('%s.fits' % whtext,'%s.fits' % outext)
         pf.PrimaryHDU(data,hdr).writeto(outfile)
-        print 'Output file: %s' % outfile
-        print ''
+        print('Output file: %s' % outfile)
+        print('')
 
         """ Clean up """
         del data,hdr
@@ -1734,15 +1759,15 @@ def split_imext(infits, next, outroot=None):
 
     """ Open the input file and split it """
     hdu = pf.open(infits)
-    print ''
-    print 'Splitting input file: %s' % infits
-    print '-------------------------------------------------------------'
+    print('')
+    print('Splitting input file: %s' % infits)
+    print('-------------------------------------------------------------')
     for i in range(1,next+1):
         data = hdu[i].data.copy()
         outfile = '%s_%d.fits' % (outroot,i)
         pf.PrimaryHDU(data,hdu[i].header).writeto('%s' % outfile)
         del data
-        print ' Split %s' % outfile
+        print(' Split %s' % outfile)
 
     """ Close """
     hdu.close()
@@ -1808,18 +1833,18 @@ def read_wcsinfo(fitsfile, inhdu=0, verbose=True):
             """ Convert to CD matrix (on hold for now) """
 
     if not validwcs:
-        print ""
-        print "ERROR: read_wcsinfo.  No valid pixel scale header cards found"
-        print ""
+        print('')
+        print('ERROR: read_wcsinfo.  No valid pixel scale header cards found')
+        print('')
         return
 
     """ Print out the results, if desired """
     if(verbose and validwcs):
-        print ""
-        print "WCS information for %s" % fitsfile
-        print "----------------------------------------------------------"
+        print('')
+        print('WCS information for %s' % fitsfile)
+        print('----------------------------------------------------------')
         for i in range(hdr['naxis']):
-            print "%8s  %9.3f %13.9f " % (ctype[i],crpix[i],crval[i])
+            print('%8s  %9.3f %13.9f ' % (ctype[i],crpix[i],crval[i]))
 
     """ Make the structure for returning the info """
     
@@ -1857,59 +1882,59 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
                          HDU)
     """
 
-    print ""
+    print('')
     """ Open the input fits file """
     try:
         hdu = pf.open(infile,mode='update')
     except:
-        print 'ERROR: Could not open %s' % infile
-        print ''
+        print('ERROR: Could not open %s' % infile)
+        print('')
         exit()
-    print 'Opened input fits file: %s' % infile
+    print('Opened input fits file: %s' % infile)
     try:
         inhdr = hdu[hext].header
     except:
-        print ''
-        print 'ERROR: Could not open header for HDU %d in %s' % (infile,hext)
-        print ''
+        print('')
+        print('ERROR: Could not open header for HDU %d in %s' % (infile,hext))
+        print('')
         hdu.close()
         exit()
-    print ''
+    print('')
     hdr_error = False
 
     """ Read in the RA and Dec pointing values """
     try:
         ra_tel = inhdr[rakey]
     except:
-        print "RA designated by keyword %s was not found in header" % rakey
-        print ""
+        print('RA designated by keyword %s was not found in header' % rakey)
+        print('')
         hdr_error = True
     try:
         dec_tel = inhdr[deckey]
     except:
-        print "Dec designated by keyword %s was not found in header" % deckey
-        print ""
+        print('Dec designated by keyword %s was not found in header' % deckey)
+        print('')
         hdr_error = True
 
     """ Get size of image """
     try:
         xsize = inhdr['naxis1']
     except:
-        print "Problem reading x-axis size"
-        print ""
+        print('Problem reading x-axis size')
+        print('')
         hdr_error = True
     try:
         ysize = inhdr['naxis2']
     except:
-        print "Problem reading y-axis size"
-        print ""
+        print('Problem reading y-axis size')
+        print('')
         hdr_error = True
 
     """ Exit if any problems before this point """
     if hdr_error:
-        print ''
-        print 'ERROR: Not continuing'
-        print ''
+        print('')
+        print('ERROR: Not continuing')
+        print('')
         hdu.close()
         exit()
 
@@ -1917,8 +1942,8 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
     try:
         outhdr = wcsmwa.make_header(ra_tel,dec_tel,xsize,ysize,pixscale)
     except:
-        print "ERROR. Could not create output header"
-        print ""
+        print('ERROR. Could not create output header')
+        print('')
         hdu.close()
         exit()
 
@@ -1927,17 +1952,17 @@ def make_wcs_from_tel_pointing(infile, pixscale, rotatekey=None,
         try:
             rot = inhdr[rotatekey]
         except:
-            print "ERROR. Could not read rotation from header with keyword %s" %\
-                 rotatekey
-            print ""
+            print('ERROR. Could not read rotation from header with '
+                  'keyword %s' % rotatekey)
+            print('')
             return
-        print "Rotating header by %7.2f degrees" % rot
+        print('Rotating header by %7.2f degrees' % rot)
         rothdr = wcsmwa.rotate_header(outhdr,rot)
         outhdr = rothdr.copy()
 
-    print "Created header from telescope pointing info."
-    print outhdr
-    print 'Updating fits file header'
+    print('Created header from telescope pointing info.')
+    print(outhdr)
+    print('Updating fits file header')
     wcskeys = ['ctype1','ctype2','crval1','crval2','crpix1','crpix2',
                   'cd1_1','cd2_2']
     for k in wcskeys:
@@ -1973,13 +1998,13 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
                          from the default value of 'Dec'
     """
 
-    print ""
+    print('')
 
     """ Open the files """
     try:
         refhdu = imf.open_fits(reffile)
     except:
-        print "ERROR.  Could not read reference file %s" % reffile
+        print('ERROR.  Could not read reference file %s' % reffile)
         return
     refhdr = refhdu[hext].header
 
@@ -1994,7 +2019,7 @@ def make_wcs_from_ref_tel(reffile, infile, pixscale, rotatekey=None,
         refwcs = make_wcs_from_tel_pointing(refhdr,pixscale,rotatekey,
                                                         rakey,deckey)
     except:
-        print "Could not create WCS header from %s" % reffile
+        print('Could not create WCS header from %s' % reffile)
     refinfo = wcsmwa.parse_header(refwcs)
 
     """ Copy the information into the input file """
@@ -2057,11 +2082,11 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
 
     # Print out some header information
     if verbose:
-        print ""
-        print \
-             "    File                     RA         Dec      xpxscl ypxscl rotation"
-        print \
-             "------------------- --------- --------- ------ ------ --------"
+        print('')
+        print('    File                     RA         Dec      xpxscl '
+              'ypxscl rotation')
+        print('------------------- --------- --------- ------ ------ '
+              '--------')
     
 
     # Read in the WCS information and process it
@@ -2104,18 +2129,18 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
             try:
                 ra[count] = hdr[rakey]
             except:
-                print ""
-                print "ERROR: Could not read RA using keyword %s from file %s" % \
-                     (rakey,f)
+                print('')
+                print('ERROR: Could not read RA using keyword %s from file '
+                      '%s' % (rakey,f))
                 return None,None
 
         if deckey is not None:
             try:
                 dec[count] = hdr[deckey]
             except:
-                print ""
-                print "ERROR: Could not read DEC using keyword %s from file %s" % \
-                     (deckey,f)
+                print('')
+                print('ERROR: Could not read DEC using keyword %s from file '
+                      '%s' % (deckey,f))
                 return None,None
 
         # Set the CD matrix if pixscale is set to override. Default rotation = 0
@@ -2127,9 +2152,9 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
         # Print out information about the input files
         if verbose:
             cd1,cd2,cr2 = coords.cdmatrix_to_rscale(cd)
-            print "%-18s  %9.5f %+9.5f %+6.3f %+6.3f %+6.1f" \
-                 % (files[count],ra[count],dec[count],3600.*cd1,3600.*cd2,
-                     cr2*180./pi)
+            print('%-18s  %9.5f %+9.5f %+6.3f %+6.3f %+6.1f' 
+                  % (files[count], ra[count], dec[count], 3600.*cd1,
+                     3600.*cd2, cr2*180./pi))
 
         # Finally, save the constructed CD matrix
         cdmatx.append(cd)
@@ -2142,16 +2167,14 @@ def hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
     dalpha = 3600. * ((ra - ra[0]) * cos(pi * dec[0]/180.))
     ddelta = 3600. * (dec - dec[0])
     if verbose:
-        print ""
-        print \
-             "    File                  da(asec) dd(asec)  dx(pix) dy(pix)"
-        print \
-             "-------------------  -------- --------  ------- -------"
+        print('')
+        print('    File                  da(asec) dd(asec)  dx(pix) dy(pix)')
+        print('-------------------  -------- --------  ------- -------')
     for i in range(dx.size):
         dx[i],dy[i] = coords.darcsec_to_dpix(dalpha[i],ddelta[i],cdmatx[i])
         if verbose:
-            print "%-18s     %+7.3f  %+7.3f  %+7.2f %+7.2f" \
-                 % (files[i],dalpha[i],ddelta[i],dx[i],dy[i])
+            print('%-18s     %+7.3f  %+7.3f  %+7.2f %+7.2f' 
+                  % (files[i],dalpha[i],ddelta[i],dx[i],dy[i]))
 
     # Return the offsets
     if oformat == 'arcsec':
@@ -2194,7 +2217,7 @@ def plot_hdr_offsets(files, pixscale=0, rakey=None, deckey=None, rot=None,
     dx,dy = hdr_offsets(files,pixscale,rakey,deckey,rot,oformat,hext,verbose)
 
     if dx is None or dy is None:
-        print "ERROR. Failed to calculate offsets"
+        print('ERROR. Failed to calculate offsets')
         return
 
     # Plot the offsets
@@ -2450,29 +2473,30 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
     if (units == 'counts' or units == 'cps'):
         units_ok = True
         if gain is None:
-            print 'Error: Selected are counts or cps but the gain value is not set'
+            print('Error: Selected are counts or cps but the gain value '
+                  'is not set')
             raise TypeError
         if check_type(gain, validtypes) is not True:
-            print 'Error: gain must either be a single number or a 2-D array'
+            print('Error: gain must either be a single number or a 2-D array')
             raise TypeError
 
     if (units == 'cps' or units == 'eps'):
         units_ok = True
         if texp is None:
-            print 'Error: Selected units are cps or eps but texp is not set'
+            print('Error: Selected units are cps or eps but texp is not set')
             raise TypeError
         if check_type(texp, validtypes) is not True:
-            print 'Error: texp must either be a single number or a 2-D array'
+            print('Error: texp must either be a single number or a 2-D array')
             raise TypeError
 
     if units == 'e-':
         units_ok = True
 
     if units_ok is not True:
-        print 'Error: Invalid value for units parameter'
+        print('Error: Invalid value for units parameter')
         raise ValueError
     if verbose:
-        print 'Finished unit and type check'
+        print('Finished unit and type check')
 
     """
     Load the input image and the mask image
@@ -2531,9 +2555,9 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
       4. units == 'eps':      pixval / texp
     """
     if verbose:
-        print ''
-        print 'Adding the Poisson noise'
-        print '------------------------'
+        print('')
+        print('Adding the Poisson noise')
+        print('------------------------')
 
     if units == 'counts':
         var[snrmask] += gain * (data[snrmask] + origbkgd)
@@ -2544,7 +2568,7 @@ def make_var_with_poisson(infile, units, maskfile=None, gain=None, rdnoise=0.,
     elif units == 'eps':
         var[snrmask] += (data[snrmask] + origbkgd) / exptime[snrmask]
     if verbose:
-        print 'Done'
+        print('Done')
 
     """ Clean up """
     del im, mask, texp, gain
@@ -2570,33 +2594,33 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
     Coadds the input data files after first masking out discrepant pixels
     """
 
-    print ''
-    print 'Input files'
-    print '-------------------'
+    print('')
+    print('Input files')
+    print('-------------------')
     for i in infiles:
-        print i
+        print(i)
 
 
     """ Check that images are same size """
     hdr0 = pf.getheader(infiles[0])
-    x0 = hdr0["naxis1"]
-    y0 = hdr0["naxis2"]
-    print ''
-    print 'Check that images are all the same size: %dx%d' % (x0, y0)
-    print '-------------------------------------------------------'
+    x0 = hdr0['naxis1']
+    y0 = hdr0['naxis2']
+    print('')
+    print('Check that images are all the same size: %dx%d' % (x0, y0))
+    print('-------------------------------------------------------')
 
     for i in infiles:
         hdr = pf.getheader(i)
-        x = hdr["naxis1"]
-        y = hdr["naxis2"]
+        x = hdr['naxis1']
+        y = hdr['naxis2']
         if x != x0 or y != y0:
-            print ""
-            print "Error: shape of %s does not match shape of %s" \
-                 % (i, infiles[0])
-            print ""
+            print('')
+            print('Error: shape of %s does not match shape of %s' 
+                  % (i, infiles[0]))
+            print('')
             exit()
         else:
-            print "%s: Shape matches" % i
+            print('%s: Shape matches' % i)
 
 
     """ Get the median file data """
@@ -2611,11 +2635,11 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
     newwht = np.zeros((len(infiles), y0, x0))
 
     """ Find and mask the bad pixels, and the area around them """
-    print ''
-    print 'Masking the bad pixels...'
-    print '-------------------------'
+    print('')
+    print('Masking the bad pixels...')
+    print('-------------------------')
     for i in range(len(infiles)):
-        print '  %s' % infiles[i]
+        print('  %s' % infiles[i])
         '''Put data in arrays'''
         infile = infiles[i]
         whtfile = infile.replace('.fits', '_%s.fits', whtsuff)
@@ -2645,13 +2669,13 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
         ''' Grow the masked region around the bad pixels '''
         tmpwht[mask2] = 0
         tmp2 = filters.minimum_filter(tmpwht, size=3)
-        # outfile = "tmp%d.fits" %i
+        # outfile = 'tmp%d.fits' %i
         wht[i, :, :] *= tmp2
         # newwht[i,:,:] *= tmp2
 
         """ Do the weighted sum and also create the sum of the weights """
-        print ''
-        print 'Creating the weighted average image'
+        print('')
+        print('Creating the weighted average image')
         datasum = (insci * wht).sum(axis=0)  # 2d array
         whtsum = wht.sum(axis=0)  # 2d array
 
@@ -2661,13 +2685,13 @@ def coadd_clean(infiles, medfile, outfile, whtsuff='wht', medwhtsuff=None):
         tmpwht[mask] = 1
         datasum[mask] = 0
 
-        """' Finally, define the weighted average """
+        """ Finally, define the weighted average """
         whtedav = datasum / tmpwht
-        print '  ...Done'
+        print('  ...Done')
 
         """ Save the outputs """
-        print 'Writing output to %s' % outfile
+        print('Writing output to %s' % outfile)
         pf.PrimaryHDU(whtedav).writeto(outfile, clobber=True)
         outwht = outfile.replace('.fits', '_%s.fits', whtsuff)
         pf.PrimaryHDU(whtsum).writeto(outwht, clobber=True)
-        print ''
+        print('')
