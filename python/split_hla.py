@@ -20,10 +20,10 @@ from astropy.io import fits as pf
 
 """ Check command line """
 if len(sys.argv)<3:
-    print ''
-    print 'Usage:'
-    print 'python %s [infile] [outfile_root]' % sys.argv[0]
-    print ''
+    print('')
+    print('Usage:')
+    print('python %s [infile] [outfile_root]' % sys.argv[0])
+    print('')
     exit()
 
 """ Get the file names """
@@ -36,9 +36,9 @@ outwht = '%s_wht.fits' % outroot
 try:
     hdu = pf.open(infile)
 except:
-    print ''
-    print 'ERROR: Could not open %s' % infile
-    print ''
+    print('')
+    print('ERROR: Could not open %s' % infile)
+    print('')
     exit()
 
 """ Get the data and header """
@@ -62,36 +62,36 @@ whthdu = pf.PrimaryHDU(whtdat)
 try:
     scihdu.header['object'] = prihdr['targname']
 except:
-    print 'Warning: TARGNAME keyword not found in %s' % (infile)
+    print('Warning: TARGNAME keyword not found in %s' % (infile))
 
 for i in prilist:
     try:
         scihdu.header[i] = prihdr[i]
     except KeyError:
-        print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
+        print('Warning: %s keyword not found in %s' % (i.upper(),infile))
 for i in scilist:
     try:
         scihdu.header[i] = scihdr[i]
     except KeyError:
-        print 'Warning: %s keyword not found in %s' % (i.upper(),infile)
+        print('Warning: %s keyword not found in %s' % (i.upper(),infile))
 
 """ Create the output files """
-print ''
+print('')
 outok = True
 try:
     scihdu.writeto(outsci)
 except IOError:
     outok = False
-    print 'ERROR: Could not write output file %s' % outsci
+    print('ERROR: Could not write output file %s' % outsci)
 if outok:
-    print 'Wrote output science file: %s' % outsci
+    print('Wrote output science file: %s' % outsci)
 try:
     whthdu.writeto(outwht)
 except IOError:
     outok = False
-    print 'ERROR: Could not write output file %s' % outwht
+    print('ERROR: Could not write output file %s' % outwht)
 if outok:
-    print 'Wrote output weight file: %s' % outwht
+    print('Wrote output weight file: %s' % outwht)
 
 """ Clean up and close """
 hdu.close()
