@@ -48,6 +48,8 @@
  * v26Jan00 CDF, Fixed bug in output filename acquisition.
  * v04Jan01 CDF, Fixed bug in pair-wise calculation output labeling.
  * v29Jul03 CDF, Moved the print_offsets function to dataio.c
+ * v02Sep20 CDF, Made the comment character in calc_cent and calc_pair
+ *                a passed variable rather than hard-wired to be '!'
  */
 
 #include <stdio.h>
@@ -77,8 +79,8 @@ enum {
  */
 
 int calc_interactive();
-int calc_cent(char *inname, char *outname);
-int calc_pair(char *inname, char *outname);
+int calc_cent(char *inname, char *outname, char comchar);
+int calc_pair(char *inname, char *outname, char comchar);
 void distcalc_help();
 
 /*.......................................................................
@@ -115,11 +117,11 @@ int main(int argc, char *argv[])
 
     /* File-based input with NO designated output filename */
     if(strcmp(argv[1],"-c") == 0) {
-      if(calc_cent(argv[2],NULL))
+      if(calc_cent(argv[2],NULL,'#'))
 	no_error = 0;
     }
     else if(strcmp(argv[1],"-p") == 0) {
-      if(calc_pair(argv[2],NULL))
+      if(calc_pair(argv[2],NULL,'#'))
 	no_error = 0;
     }
     else if(strcmp(argv[1],"-i") == 0) {
@@ -133,11 +135,11 @@ int main(int argc, char *argv[])
   case 4:
     /* File-based input with a designated output filename */
     if(strcmp(argv[1],"-c") == 0) {
-      if(calc_cent(argv[2],argv[3]))
+      if(calc_cent(argv[2],argv[3],'#'))
 	no_error = 0;
     }
     else if(strcmp(argv[1],"-p") == 0) {
-      if(calc_pair(argv[2],argv[3]))
+      if(calc_pair(argv[2],argv[3],'#'))
 	no_error = 0;
     }
     else if(strcmp(argv[1],"-i") == 0) {
@@ -273,11 +275,12 @@ int calc_interactive()
  * Inputs: char *inname        input filename
  *         char *outname       output filename (NULL if none designated on
  *                              command line)
+ *         char comchar        comment character, e.g., '#'
  *
  * Output: int (0 or 1)        0 ==> success, 1 ==> error
  */
 
-int calc_cent(char *inname, char *outname)
+int calc_cent(char *inname, char *outname, char comchar)
 {
   int no_error = 1;     /* Flag set to 0 on error */
   int nlines;           /* Number of lines in the input file */
@@ -330,7 +333,7 @@ int calc_cent(char *inname, char *outname)
    */
 
   if(no_error) {
-    if((nlines = n_lines(ifp,'!')) == 0) {
+    if((nlines = n_lines(ifp,comchar)) == 0) {
       fprintf(stderr,"ERROR.  %s has no valid data lines.\n",inname);
       no_error = 0;
     }
@@ -345,7 +348,7 @@ int calc_cent(char *inname, char *outname)
    */
 
   while(fgets(line, MAXC, ifp) != NULL && no_error) {
-    if(line[0] != '!') {
+    if(line[0] != comchar) {
       if(sscanf(line,"%s %d %d %lf %d %d %lf",cent.label,&cent.hr,&cent.min,
 		&cent.sec,&cent.deg,&cent.amin,&cent.asec) != 7) {
 	fprintf(stderr,"ERROR.  Bad input file format.\n");
@@ -436,11 +439,12 @@ int calc_cent(char *inname, char *outname)
  * Inputs: char *inname        input filename
  *         char *outname       output filename (NULL if none designated on
  *                              command line)
+ *         char comchar        comment character, e.g., '#'
  *
  * Output: int (0 or 1)        0 ==> success, 1 ==> error
  */
 
-int calc_pair(char *inname, char *outname)
+int calc_pair(char *inname, char *outname, char comchar)
 {
   int no_error = 1;     /* Flag set to 0 on error */
   int nlines;           /* Number of lines in the input file */
@@ -492,7 +496,7 @@ int calc_pair(char *inname, char *outname)
    */
 
   if(no_error) {
-    if((nlines = n_lines(ifp,'!')) == 0) {
+    if((nlines = n_lines(ifp,comchar)) == 0) {
       fprintf(stderr,"ERROR.  %s has no valid data lines.\n",inname);
       no_error = 0;
     }
@@ -516,7 +520,7 @@ int calc_pair(char *inname, char *outname)
    */
 
   while(fgets(line, MAXC, ifp) != NULL && no_error) {
-    if(line[0] != '!') {
+    if(line[0] != comchar) {
       if(sscanf(line,"%s %d %d %lf %d %d %lf %d %d %lf %d %d %lf",
 		cent.label,&cent.hr,&cent.min,&cent.sec,
 		&cent.deg,&cent.amin,&cent.asec,
