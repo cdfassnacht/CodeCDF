@@ -1,0 +1,46 @@
+#
+# Includes funky color definitions from Maarten Zwaan
+#
+startup2	# Macro automatically loaded when SM is invoked.
+	coldef
+	#
+	#
+coldef 	# define new color set
+	# Redefined color set. Use listcol or showcol to list colors
+	echo
+	echo *** Loading funky colors ***
+	data "/Users/cdf/Code/SM/color.dat"
+	read {_r 1 _g 2 _b 3 _color 4.s}
+	ctype=(_r+256*_g+65536*_b)
+	ctype=_color
+	FOREACH v (_r _g _b ) { DELETE $v }
+	echo
+	#
+greydef # define new greyscale set
+	# Redefined greyscale set. 
+	data "/Users/cdf/Code/SM/grey.dat"
+	read {_r 1 _g 2 _b 3 _color 4.s}
+	ctype=(_r+256*_g+65536*_b)
+	ctype=_color
+	FOREACH v (_r _g _b ) { DELETE $v }
+	#
+listcol #list all available colors
+	print {_color}
+	#
+showcol # show all available colors on TV device
+	define n 0
+	define h 100
+	window 1 1 1 1
+	erase limits 0 100 0 100 
+	lweight 2 expand 1.4
+	relocate 0 $h 
+	do i=0,dimen(_color)-1{
+	  ctype $i label $(_color[$i]) 
+	  define n ($n+1)
+	  if ($n==4){
+	    define n 0 
+	    define h ($h-4.2)
+	    relocate 0 $h
+	  }
+	}
+	#

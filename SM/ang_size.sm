@@ -1,0 +1,31 @@
+prop	# Plots angle subtended by one proper Mpc with redshift
+	set z=0.1,10,0.01
+	set dphi1 = 0.43*(1+z)/(1-(1/sqrt(1+z)))
+	limits z dphi1 
+	expand 1.0001
+	xlabel z
+	ylabel d\phi (arcmin)
+	ctype blue
+	box
+	ltype 0
+	connect z dphi1
+	expand 1.5
+	toplabel ANGULAR SIZE OF ONE PROPER MPC
+	#
+comove	# Plots angle subtended by one comoving Mpc with redshift
+	set z=0.1,10,0.01
+	set dphi = 0*z+6 # A constant chosen at random
+	limits z dphi1 
+	expand 1.0001
+	xlabel z
+	ylabel d\phi (arcmin)
+	ctype blue
+	box
+	ltype 0
+	connect z dphi
+	expand 1.5
+	toplabel ANGULAR SIZE OF ONE COMOVING MPC
+	#
+null	#
+	ctype blue
+

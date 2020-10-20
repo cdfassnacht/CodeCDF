@@ -1,0 +1,16 @@
+circ	#
+	set t=0,6,0.02
+	set y=cos(5-t)
+	set z=-sin(5-t)
+	limits y z
+	box
+	points y z
+	define y0 (y[0])
+	define z0 (z[0])
+	relocate $y0 $z0
+	draw 0 0
+	#
+null	#
+	ctype blue
+
+	

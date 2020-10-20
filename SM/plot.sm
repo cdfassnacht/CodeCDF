@@ -1,0 +1,45 @@
+in	#
+	data cog.dat
+	read {gf 1 w  2 meas 3 lamb 4}
+	set w2 = lg( meas / (1000 * lamb))
+	#
+plot	#
+	ctype blue
+	#limits gf w
+	#limits gf w2
+	limits gf -5 3
+	ticksize 0 0 0 0
+	expand 1.001
+	xlabel log gf
+	ylabel log(w/\lambda)
+	box
+	#
+pts	#
+	sort {gf w w2}
+	ptype 4 3
+	expand 2
+	points gf w
+	connect gf w
+	relocate -1.8 -2
+	dot
+	expand 1.001
+	relocate -1.74 -2
+	label Calculated Values
+	expand 2.0
+	ctype red
+	ptype 3 3
+	points gf w2
+	connect gf w2
+	relocate -1.8 -2.3
+	dot
+	expand 1.001
+	relocate -1.74 -2.3
+	label Values from Moore, et al.
+	expand 2.0
+	ctype blue
+	expand 1.5
+	toplabel FeII Curves of Growth
+	expand 1.0
+	#
+null	#
+	ctype blue

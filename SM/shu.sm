@@ -1,0 +1,18 @@
+go	#
+	set x=0,3,0.02
+	set y= 1 / (x*x*x*x*x*(exp(1/x)-1))
+	#
+go2	#
+	set x=1e5,1e8,10000
+	set y = exp(-(7.6e10/x)**0.3333)
+	limits (lg(x)) y
+	ticksize -1 10 0 0
+	box
+	connect (lg(x)) y
+pl	#
+	limits x y
+	box
+	connect x y
+	#
+null	#
+	ctype blue

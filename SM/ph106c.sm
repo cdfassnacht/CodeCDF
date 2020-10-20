@@ -1,0 +1,26 @@
+setup	#
+	set theta = 0,(pi/2),0.02
+	set degs = theta * 180 / pi	# Angle in degrees
+	define beta 1.5			# beta = n2/n1
+	set alpha = sqrt(1-(sin(theta)/$beta)**2)/cos(theta)
+	set r = (alpha*$beta - 1) / (alpha*$beta + 1)	# r = E0R/E0I
+	set t = 2 /(1+alpha*$beta)			# t = E0T/E0I
+	#
+plt	#
+	limits degs 0 1
+	expand 1.0001
+	xlabel \theta_I
+	box
+	ctype blue
+	ltype 0
+	connect degs r
+	ctype red
+	ltype 2
+	connect degs t
+	ctype blue
+	expand 1.5
+	toplabel E_{0R}/E_{0I} (SOLID) AND E_{0T}/E_{0I} (DASHED)
+	#
+null	#
+	ctype blue
+

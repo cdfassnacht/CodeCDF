@@ -1,0 +1,7 @@
+defn	#
+	set x=0.01,3,0.01
+	set fac= 2*pi*x
+	set sincx = sin(fac)/fac
+	set hann = 0.5*sincx + 0.25*((sin(fac-pi)/(fac-pi)) + (sin(fac+pi)/(fac+pi)))
+	#
+null	#

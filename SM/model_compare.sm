@@ -1,0 +1,39 @@
+##############################################################################
+#
+# model_compare.sm
+#
+# A library of macros to create plots comparing two sets of coordinates,
+#  such as those from data and a model trying to reproduce those data.
+#
+##############################################################################
+	#
+plot_resid_2d 2	# Takes two sets of (x,y) coordinates and plots the residuals
+	#  on a 2d (x,y) plot.  The residuals are plotted as line segments
+	#  between the data (solid points) and the model.  The line segments
+	#  will be scaled by an input factor in order to improve visibility
+	# Inputs:
+	#  1. Name of file containing 4 columns: datax datay modx mody
+	#  2. Scale factor to multiply the length of the line segments
+	#
+	data $1
+	read {datax 1 datay 2 modx 3 mody 4}
+	set diffx = modx - datax
+	set diffy = mody - datay
+	set diff = sqrt(diffx*diffx + diffy*diffy)
+	set smodx = datax + $2 * diffx
+	set smody = datay + $2 * diffy
+	limits datax datay
+	expand 1.2
+	box
+	ptype 4 3
+	expand 2
+	points datax datay
+	do i=0,dimen(datax)-1 {
+	   relocate $(datax[$i]) $(datay[$i])
+	   draw $(smodx[$i]) $(smody[$i])
+	}
+	expand 1.5
+	toplabel Residuals (line segments multiplied by $2)
+	#
+junk1	#
+	ctype black

@@ -1,0 +1,12 @@
+circ	#
+	set x=-2,2,0.02
+	set xx=1.95-cos(x)
+	set y=acos(xx)
+	limits -2 2 -2 2
+	box
+	points x y
+	#
+null	#
+	ctype blue
+
+	

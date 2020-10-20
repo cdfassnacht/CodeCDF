@@ -1,0 +1,95 @@
+hanning	#
+	#define t0 ? {Enter value of tau_0:  }
+	define t0 (pi)
+	set omega= -5.1,5.1,0.05
+	define c1 0.5	#Constant in front of boxcar term
+	define c2 0.5	#Constant in front of cosine term
+	set y1= 2*$t0*sin(omega*$t0)/(omega*$t0)
+	set y2= $t0*sin((omega*$t0-pi))/(omega*$t0-pi)
+	set y3= $t0*sin((omega*$t0+pi))/(omega*$t0+pi)
+	set y= $c1*y1+$c2*y2+$c2*y3
+	define labtop {HANNING (\tau_0=$t0)}
+	plot
+	pts
+	#
+dhan	# Finds zeros of the derivative
+	set y4= 2*$t0*cos(omega*$t0)/(omega*$t0)
+	set y5= $t0*cos((omega*$t0-pi))/(omega*$t0-pi)
+	set y6= $t0*cos((omega*$t0+pi))/(omega*$t0+pi)
+	set y7= y1/(omega*$t0)
+	set y8= y2/(omega*$t0-pi)
+	set y9= y3/(omega*$t0+pi)
+	set dy= $t0*$t0*($c1*(y4-y7)+$c2*(y5-y8+y6-y9))
+	dplot
+	ltype 0
+	connect omega dy
+	ltype 3
+	relocate -4 0
+	draw -2 0
+	ltype 0 
+	expand 1.5
+	toplabel DERIVATIVE OF HANNING FUNCTION
+	expand 1.0
+	#
+hamming	#
+	#define t0 ? {Enter value of tau_0:  }
+	define t0 (pi)
+	set omega= -5.1,5.4,0.05
+	define c1 0.54	#Constant in front of boxcar term
+	define c2 0.46	#Constant in front of cosine term
+	set y1= 2*$t0*sin(omega*$t0)/(omega*$t0)
+	set y2= $t0*sin((omega*$t0-pi))/(omega*$t0-pi)
+	set y3= $t0*sin((omega*$t0+pi))/(omega*$t0+pi)
+	set y= $c1*y1+$c2*y2+$c2*y3
+	define labtop {HAMMING (\tau_0=$t0)}
+	plot
+	pts
+	#
+dham	# Finds zeros of the derivative
+	set y4= 2*$t0*cos(omega*$t0)/(omega*$t0)
+	set y5= $t0*cos((omega*$t0-pi))/(omega*$t0-pi)
+	set y6= $t0*cos((omega*$t0+pi))/(omega*$t0+pi)
+	set y7= y1/(omega*$t0)
+	set y8= y2/(omega*$t0-pi)
+	set y9= y3/(omega*$t0+pi)
+	set dy= $t0*$t0*($c1*(y4-y7)+$c2*(y5-y8+y6-y9))
+	dplot
+	ltype 0
+	connect omega dy
+	ltype 3
+	relocate -4 0
+	draw -2 0
+	ltype 0 
+	expand 1.5
+	toplabel DERIVATIVE OF HAMMING FUNCTION
+	expand 1.0
+	#
+plot	#
+	#limits -2 0 -1 0.5
+	#limits omega -1 3.5
+	expand 1.001
+	xlabel \omega
+	ylabel W(\omega )
+	box
+pts	#
+	ltype 0
+	connect omega y
+	ltype 3
+	connect omega ($c1*y1)
+	ltype 1
+	connect omega ($c2*y2)
+	ltype 2
+	connect omega ($c2*y3)
+	expand 1.5
+	toplabel $labtop
+	expand 1
+	#
+dplot	#
+	limits -4 -2 -0.6 0.6
+	expand 1.001
+	xlabel \omega
+	ylabel dW(\omega )/d\omega
+	box
+null	#
+	ctype white
+	ctype blue

@@ -1,0 +1,47 @@
+defn	# Define the vectors
+	set p=0.01,2,0.01	# The period of the binary in hours
+	set mms=0.11*p		# Mass-period relationship for lower main seq.
+	set mdeg=0.075/p	# Mass-period relationship for degenerate stars
+	#
+plot	#
+	limits p mms
+	expand 1.001
+	ctype blue
+	xlabel Binary Period (hours)
+	ylabel Mass of Secondary (M_{\odot})
+	ticksize 0 0 0 0
+	box
+	ltype 0
+	connect p mms
+	ctype red
+	ltype 2
+	connect p mdeg
+	ctype blue
+	expand 1.5
+	toplabel COMPARISON OF MASS-PERIOD RELATIONS
+	expand 1
+labs	# Place labels
+	define hloc2 (1.4)
+	define vloc (0.02)
+	define hlocline1 ($hloc2 - 0.4)
+	define hlocline2 ($hloc2 - 0.1)
+	ltype 0
+	relocate $hlocline1 $vloc
+	draw $hlocline2 $vloc
+	expand 1.001
+	relocate $hloc2 $vloc
+	label Main Sequence Stars
+	ltype 2
+	ctype red
+	define vloc ($vloc - 0.01)
+	relocate $hlocline1 $vloc
+	draw $hlocline2 $vloc
+	relocate $hloc2 $vloc
+	label Degenerate Stars
+	#
+	#
+run	#
+	defn
+	plot
+	labs
+null	#

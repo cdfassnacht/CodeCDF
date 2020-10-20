@@ -1,0 +1,35 @@
+in	#
+	data gmod.tot.list
+	read {comp 2 shift 13}
+	set dimen(x) = dimen(comp)
+	#
+calc	#
+	define count 0
+	do i=0,dimen(comp)-1 {
+		define compno (comp[$i])
+		if ($compno == 1) {
+			set x[$count] = shift[$i]
+			define count($count + 1)
+		}
+	}
+	set dimen(shift1) = $count
+	set shift1 = x
+	set r = 5,95,10
+	set shifthist = histogram(shift1:r)
+	#
+plot	#
+	expand 1.1
+	xlabel Position Shift (arcsec)
+	ylabel Number of Occurances
+	ctype blue
+	ticksize 0 0 0 0
+	limits r shifthist
+	box
+	barhist 100 r shifthist
+	expand 1.5
+	toplabel POSITION SHIFTS OF BRIGHTEST COMPONENTS
+	#
+null	#
+	ctype blue
+
+	

@@ -1,0 +1,21 @@
+calc	#
+	set r=0.01,10,0.01
+	set dimen(v)=dimen(r)
+	do i=0,300 {
+		set v[$i]=-2
+	}
+	set veff = v + (5 / (r * r))
+	#
+plot	#
+	limits r -3 5
+	expand 1.001
+	xlabel r
+	ylabel V_{eff}(r)
+	box
+	connect r veff
+	expand 1.5
+	toplabel Effective Potential
+	expand 1
+	#
+null	#
+	ctype blue

@@ -1,0 +1,62 @@
+samp	# Generates and samples a sinusoid
+	define f0 ? {Enter the frequency of the sine wave in Hz:  }
+	set k = 0,63			# time series index
+	set t = k - 31			# to center the time series at t=0
+	set x = sin(2*pi*$f0*t)		# x(k) is the sampled function
+	#
+addhan	# Add Hanning weighting
+	set han = (cos(pi*t/(2*32)) * cos(pi*t/(2*32)))
+	set x = x * han
+	#
+pltsin	# Makes a plot of the time series
+	ctype blue
+	expand 1.0001
+	xlabel time (sec)
+	ylabel x
+	limits t x
+	ticksize 0 0 0 0
+	box
+	expand 2
+	ptype 4 3
+	points t x
+	connect t x
+	expand 1.5
+	toplabel TIME SERIES FOR f_0 = $f0 Hz
+	expand 1
+	#
+ft	# Use SM's FFT routine
+	#  You need a real part and an imaginary part for the inputs
+	#  We will use z(k) = x(k) + iy(k) where x(k) is defined as
+	#   above and y(k)=0
+	set dimen(y)=64		# Set the dimension of y(k) and make
+				#  all elements = 0
+	fft 1 x y Zr Zi		# Here Zr and Zi are the real and imaginary
+				#  parts of Z(l), ie. Z = Zr + i*Zi
+				#  The "1" indicates a forward transform
+	set pow = (Zr*Zr) + (Zi*Zi)	# If we have defined Z(l) as above,
+				# then the power (Z times its complex conjugate)
+				# is just the square of the real part added
+				# to the square of the imaginary part.
+	#
+pltpow	# Plot the power spectrum
+	set l=0,63		# Frequency series index
+	set delf = l / 64	# Frequency series spacing, in Hz.
+				#  Usually in a FFT del_t * del_f = 1/N
+				#  and here N=64 and del_t=1 sec
+	limits delf pow
+	expand 1.001
+	xlabel Frequency (Hz)
+	ylabel Power
+	ticksize 0.05 0.1 0 0
+	box
+	expand 2
+	points delf pow
+	connect delf pow
+	expand 1.5
+	toplabel POWER SPECTRUM FOR f_0 = $f0 Hz
+	expand 1
+	#
+null	#
+	ctype blue
+
+		
