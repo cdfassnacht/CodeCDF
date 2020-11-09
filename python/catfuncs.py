@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 import astropy
 from astropy import units as u
 from astropy.io import ascii
-from astropy.table import Table
+from astropy.table import Table, vstack
 try:
    from astropy.io import fits as pf
 except:
@@ -23,10 +23,7 @@ if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
-try:
-   from SpecIm import imfuncs as imf
-except ImportError:
-   import imfuncs as imf
+from specim.imfuncs import image as imf
 from astrom_simple import select_good_ast
 
 # ===========================================================================
@@ -64,6 +61,7 @@ class Secat:
                       ascii    - 
                       asciitab -
                       ldac     - 
+                      csv      -
                       sdssfits - 
                       secat    -
                      NOTE: this parameter is not used if incat is a Table
@@ -114,11 +112,11 @@ class Secat:
                       usecols=False):
 
       if verbose:
-         print ""
-         print "Loading data from catalog file %s" % incat
-         print "-----------------------------------------------"
-         print "Expected catalog format: %s" % catformat
-         print ""
+         print('')
+         print("Loading data from catalog file %s" % incat)
+         print("-----------------------------------------------")
+         print("Expected catalog format: %s" % catformat)
+         print('')
 
       """
       Define a flag for successful reading of input catalog
@@ -135,12 +133,12 @@ class Secat:
             self.rafield  = 'ALPHA_J2000'
             self.decfield = 'DELTA_J2000'
          except:
-            print "  ERROR. Problem in loading file %s" % incat
-            print "  Check to make sure filename matches an existing file."
-            print ""
-            print "  This also may have failed if the input file is in the"
-            print "   SExtractor FITS LDAC format.  Checking that..."
-            print ""
+            print("  ERROR. Problem in loading file %s" % incat)
+            print("  Check to make sure filename matches an existing file.")
+            print('')
+            print("  This also may have failed if the input file is in the")
+            print("   SExtractor FITS LDAC format.  Checking that...")
+            print('')
             read_success = False
 
       elif catformat == 'asciitab':
@@ -162,11 +160,11 @@ class Secat:
             try:
                self.data = ascii.read(incat)
             except:
-               print ''
-               print 'ERROR: Could not properly read data from %s' % incat
-               print 'Tried using the automatic formatting but failed'
-               print ' Please check input file.'
-               print ''
+               print('')
+               print('ERROR: Could not properly read data from %s' % incat)
+               print('Tried using the automatic formatting but failed')
+               print(' Please check input file.')
+               print('')
                raise IOError
          ncols = len(self.data.colnames)
          nrows = len(self.data)
@@ -186,7 +184,7 @@ class Secat:
             coltypes = np.ones(ncols,dtype='S3')
             coltypes[:] = 'f8'
             if namecol is not None:
-               print "Object name column: %d" % namecol
+               print("Object name column: %d" % namecol)
                coltypes[namecol] = 'S30'
             colstr = ''
             for i in range(ncols):
@@ -214,27 +212,27 @@ class Secat:
                self.namefield = None
 
          except:
-            print "  ERROR. Problem in loading file %s" % incat
-            print "  Check to make sure filename matches an existing file."
-            print "  "
-            print "  This may have failed if there is a string column in"
-            print "   the input catalog (e.g., for an object name).  "
-            print "  If this is the case, use the namecol to indicate which "
-            print "   column contains the string values (column numbers are "
-            print "   zero-indexed)"
-            print ""
-            print "  This also may have failed if the input file is in the"
-            print "   SExtractor FITS LDAC format.  Checking that..."
-            print ""
+            print("  ERROR. Problem in loading file %s" % incat)
+            print("  Check to make sure filename matches an existing file.")
+            print("  ")
+            print("  This may have failed if there is a string column in")
+            print("   the input catalog (e.g., for an object name).  ")
+            print("  If this is the case, use the namecol to indicate which ")
+            print("   column contains the string values (column numbers are ")
+            print("   zero-indexed)")
+            print('')
+            print("  This also may have failed if the input file is in the")
+            print("   SExtractor FITS LDAC format.  Checking that...")
+            print('')
             read_success = False
 
       elif catformat.lower()=='ldac' or read_success==False:
          try:
             self.data = Table.read(incat, format='fits', hdu=2)
          except:
-            print "  ERROR. Problem in loading file %s" % incat
-            print "  Check to make sure filename matches an existing file."
-            print "  "
+            print("  ERROR. Problem in loading file %s" % incat)
+            print("  Check to make sure filename matches an existing file.")
+            print('')
             return
          self.informat = 'ldac'
          nrows = len(self.data)
@@ -244,13 +242,29 @@ class Secat:
          self.rafield = 'ALPHA_J2000'
          self.decfield = 'DELTA_J2000'
 
+      elif catformat.lower()=='csv' or read_success==False:
+         try:
+            self.data = Table.read(incat)
+         except:
+            print("  ERROR. Problem in loading file %s" % incat)
+            print("  Check to make sure filename matches an existing file.")
+            print('')
+            return
+         self.informat = 'csv'
+         nrows = len(self.data)
+         ncols = len(self.data.columns)
+
+         """ Set the field names """
+         self.rafield = 'raStack'
+         self.decfield = 'decStack'
+
       elif catformat.lower()=='sdssfits' or read_success==False:
          try:
             self.data = Table.read(incat, format='fits', hdu=1)
          except:
-            print "  ERROR. Problem in loading file %s" % incat
-            print "  Check to make sure filename matches an existing file."
-            print "  "
+            print("  ERROR. Problem in loading file %s" % incat)
+            print("  Check to make sure filename matches an existing file.")
+            print('')
             return
          self.informat = 'sdss'
          nrows = len(self.data)
@@ -284,18 +298,18 @@ class Secat:
             print('Number of stars:    %5d' % self.starmask.sum())
 
       else:
-         print ''
-         print 'Unrecognized format.  Must be one of:'
-         print '  ascii, secat, ldac, sdssfits'
+         print('')
+         print('Unrecognized format.  Must be one of:')
+         print('  ascii, secat, ldac, sdssfits')
          sys.exit()
 
       if verbose:
-         print "Number of rows:    %d" % nrows
-         print "Number of columns: %d" % ncols
+         print("Number of rows:    %d" % nrows)
+         print("Number of columns: %d" % ncols)
          if self.rafield is not None:
-            print 'RA field name:  %s' % self.rafield
+            print('RA field name:  %s' % self.rafield)
          if self.decfield is not None:
-            print 'Dec field name: %s' % self.decfield
+            print('Dec field name: %s' % self.decfield)
 
       self.infile = incat
       self.catformat = catformat
@@ -315,13 +329,13 @@ class Secat:
       if self.informat == 'ldac':
          if self.modified:
             self.hdu.flush()
-            print 'Updating input fits LDAC file: %s' % self.infile
+            print('Updating input fits LDAC file: %s' % self.infile)
          else:
             self.hdu.close()
       else:
-         print ''
-         print 'WARNING. Calling close_ldac but file is not in ldac format'
-         print ''
+         print('')
+         print('WARNING. Calling close_ldac but file is not in ldac format')
+         print('')
 
    #----------------------------------------------------------------------
 
@@ -400,10 +414,10 @@ class Secat:
       (consider raising an exception in future versions of the code)
       """
       if self.radec is None:
-         print ''
-         print 'WARNING: get_radec was called but RA and Dec information was'
-         print '         not found.  Please check the format of your catalog.'
-         print ''
+         print('')
+         print('WARNING: get_radec was called but RA and Dec information was')
+         print('         not found.  Please check the format of your catalog.')
+         print('')
 
    #----------------------------------------------------------------------
 
@@ -457,28 +471,28 @@ class Secat:
 
       """ First check to see that we actual have WCS information  """
       if self.radec is None:
-         print ''
-         print 'ERROR: sort_by_pos.  No WCS information in catalog'
-         print ''
+         print('')
+         print('ERROR: sort_by_pos.  No WCS information in catalog')
+         print('')
          return
 
       """ Otherwise, use the SkyCoords functionality to easily sort """
       sep   = self.radec.separation(centpos)
       try:
-         offsets = self.radec.spherical_offsets_to(centpos)
+         offsets = centpos.spherical_offsets_to(self.radec)
       except:
          offsets = None
       ind   = np.argsort(sep.arcsec)
       if self.catformat == 'ascii':
          self.data = self.data[ind,:]
       else:
-         print self.catformat
+         print(self.catformat)
          self.data = self.data[ind]
 
       """ Also sort things that are outside the data table """
       self.radec   = self.radec[ind]
       self.ra      = self.ra[ind]
-      self.dec     = self.ra[ind]
+      self.dec     = self.dec[ind]
       self.sep     = sep[ind]
       if offsets is None:
          self.dx = None
@@ -506,8 +520,8 @@ class Secat:
 
       self.get_radec()
       if self.radec is None:
-         print ""
-         print "ERROR: Could not read RA and Dec information from input file"
+         print('')
+         print("ERROR: Could not read RA and Dec information from input file")
          return
 
       """ 
@@ -548,7 +562,7 @@ class Secat:
          selsnrmask = (selmask) & (snrmask)
          radecgood = self.radec[selsnrmask]
          ngood = len(radecgood)
-         print 'Of those, objects with SNR>%.1f: %d' % (snrgood,ngood)
+         print('Of those, objects with SNR>%.1f: %d' % (snrgood,ngood))
          gradeg  = radecgood.ra.degree
          gdecdeg = radecgood.dec.degree
          
@@ -576,10 +590,186 @@ class Secat:
                        (xx[i],yy[i],str(lab[i])))
 
       """ Wrap up """
-      print "Wrote region file %s" % outfile
+      print("Wrote region file %s" % outfile)
       f.close()
 
+   #-----------------------------------------------------------------------
 
+   def _print_autoslit_infile(self, filename, galmask, starmask,
+                              maskcent, magcol, smagcol, objroot=None,
+                              add_lens=False, ndigits=4):
+      """
+
+      This method is called by lrismask_prep.  It prints out a file that
+      is used as input for the autoslit3 code.
+
+      """
+
+      """ Set up the object name column """
+      ind = np.arange(len(self.data)) + 1
+      objname = np.zeros(len(self.data), dtype='U16')
+      if objroot is not None:
+         for i, obj in enumerate(ind):
+            objname[i] = '%s_%04d' % (objroot, obj)
+      else:
+         for i, obj in enumerate(ind):
+            objname[i] = '%04d' % obj
+
+      """ Set up the output table """
+      outnames = ['name', 'priority', 'mag', 'rahr', 'ramin', 'rasec', 'decdeg',
+                  'decamin', 'decasec', 'epoch', 'equinox', 'pm_ra', 'pm_dec']
+      tmpgal = self.data[galmask]
+      radec = self.radec[galmask]
+      pri = np.ones(len(tmpgal)) * 100
+      tmpgal[magcol][tmpgal[magcol]<0.] = 99.
+      epoch = np.ones(len(tmpgal)) * 2000.
+      pm = np.zeros(len(tmpgal))
+      galtab = Table([objname[galmask], pri, tmpgal[magcol], radec.ra.hms.h,
+                      radec.ra.hms.m, radec.ra.hms.s, radec.dec.dms.d,
+                      radec.dec.dms.m, radec.dec.dms.s, epoch, epoch, pm, pm],
+                     names=outnames)
+
+      """ Set up the guidestar table """
+      tmpstar = self.data[starmask]
+      radec = self.radec[starmask]
+      pri = np.ones(len(tmpstar)) * -1
+      epoch = np.ones(len(tmpstar)) * 2000.
+      pm = np.zeros(len(tmpstar))
+      starname = np.zeros(len(tmpstar), dtype='U16')
+      starind = ind[starmask]
+      for i, si in enumerate(starind):
+         starname[i] = 'S%04d' % si
+      startab = Table([starname, pri, tmpstar[smagcol], radec.ra.hms.h,
+                       radec.ra.hms.m, radec.ra.hms.s, radec.dec.dms.d,
+                       radec.dec.dms.m, radec.dec.dms.s, epoch, epoch, pm, pm],
+                      names=outnames)
+
+      """
+      Make a mini-table containing the mask center and, optionally, the lens.
+      These one or two lines will be at the top of the output file
+      """
+      if add_lens:
+         hdrrows = 2
+      else:
+         hdrrows = 1
+      hdrtab = Table(np.zeros((hdrrows, (len(outnames)-1))),
+                     names=outnames[1:])
+      hdrtab.add_column(galtab['name'][:hdrrows], index=0)
+      ra = maskcent.ra
+      dec = maskcent.dec
+      hdrtab[0] = ['CENTER', 9999, 0., ra.hms.h, ra.hms.m, ra.hms.s,
+                   dec.dms.d, dec.dms.m, dec.dms.s, 2000., 2000., 0., 0.]
+
+      """ Combine the two tables """
+      outtab = vstack([hdrtab, galtab, startab])
+      
+      """ Set up the formatting """
+      outtab['priority'].format = '%4d'
+      outtab['mag'].format = '%5.2f'
+      outtab['rahr'].format = '%02d'
+      outtab['ramin'].format = '%02d'
+      outtab['rasec'].format = '%06.3f'
+      outtab['decdeg'].format = '%+03d'
+      outtab['decamin'].format = '%02d'
+      outtab['decasec'].format = '%05.2f'
+      outtab['epoch'].format = '%6.1f'
+      outtab['equinox'].format = '%6.1f'
+      outtab['pm_ra'].format = '%3.1f'
+      outtab['pm_dec'].format = '%3.1f'
+      print('')
+      print(outtab)
+
+      """ Save the table to the output file """
+      print('')
+      print('Writing selected objects to %s' % filename)
+      outtab.write(filename, format='ascii.no_header', overwrite=True)
+      
+   #-----------------------------------------------------------------------
+
+   def lrismask_prep(self, maskcent, PA, mask_w=3., mask_h=7., galmagcol='r',
+                     galmagrange=None, galmask='default', starmask='default',
+                     smagcol='g', smaglim=[17.5, 19], galreg='maskobj.reg',
+                     objcolor='green', rcirc=1., starreg='maskstar.reg',
+                     outfile=None, objroot=None):
+      """
+
+      Code to select objects for a LRIS slitmask
+
+      """
+
+      """
+      Make sure that the catalog has been sorted, since this code needs to
+      use the self.dx and self.dy arrays
+      """
+      if self.dx is None:
+         print('')
+         print('Position offsets are missing.  You must run sort_by_pos first')
+         print('')
+         return
+
+      """ Get the offset of the mask center from the origin of (dx,dy) """
+      maskcoord = SkyCoord(maskcent[0], maskcent[1], unit=(u.deg, u.deg))
+      maskxy = self.centpos.spherical_offsets_to(maskcoord)
+      print('Requested mask center has (dx,dy) = (%+7.2f, %+7.2f)' %
+            (maskxy[0].arcsec, maskxy[1].arcsec))
+
+      """ 
+      Translate and rotate the object (dx,dy) to a masked-centered frame in
+      which the mask is rectilinear.  That is, first make the mask center
+      the origin and then rotate by the NEGATIVE of the mask PA.
+      """
+      rot_ang = -1. * PA * pi / 180.
+      xtmp = (self.dx - maskxy[0].arcsec)
+      ytmp = (self.dy - maskxy[1].arcsec)
+      xx = xtmp * np.cos(rot_ang) + ytmp * np.sin(rot_ang)
+      yy = -xtmp * np.sin(rot_ang) + ytmp * np.cos(rot_ang)
+
+      """ Select only the objects that lie within the mask """
+      star_extra = 20.
+      xbound = 0.5 * mask_w * 60.
+      ybound = 0.5 * mask_h * 60.
+      objmask = (xx >= -xbound) & (xx <= xbound) & (yy >= -ybound) \
+         & (yy <= ybound)
+      starsonmask = (xx >= -xbound-star_extra) & (xx <= xbound+star_extra) & \
+         (yy >= -ybound) & (yy <= ybound)
+
+      """ Choose the galaxies and stars that fall within the mask """
+      if galmask == 'default':
+         if self.galmask is not None:
+            totgalmask = np.logical_and(self.galmask, objmask)
+         else:
+            totgalmask = objmask
+      elif galmask is not None:
+         totgalmask = np.logical_and(galmask, objmask)
+      else:
+         totgalmask = objmask
+         
+      if starmask == 'default':
+         if self.starmask is not None:
+            totstarmask = np.logical_and(self.starmask, starsonmask)
+         else:
+            totstarmask = starsonmask
+      elif starmask is not None:
+         totstarmask = np.logical_and(starmask, starsonmask)
+      else:
+         totstarmask = starsonmask
+      guidestarmask = totstarmask & (self.data[smagcol] >= smaglim[0]) & \
+         (self.data[smagcol] <= smaglim[1])
+
+      """ Make ds9 region files for diagnostic checks """
+      print('')
+      print('Making ds9 region file for possible targets for slitmask')
+      self.make_reg_file(galreg, rcirc, color=objcolor, mask=totgalmask)
+      print('')
+      print('Making ds9 region file for possible guide stars for slitmask')
+      self.make_reg_file(starreg, rcirc*1.5, color='red', mask=guidestarmask)
+
+      """ Write out the autoslit3 input file """
+      if outfile is not None:
+         self._print_autoslit_infile(outfile, totgalmask, guidestarmask,
+                                     maskcoord, galmagcol, smagcol,
+                                     objroot=objroot)
+                     
    #-----------------------------------------------------------------------
 
    #def plot_radec(self, symb='bo'):
@@ -601,16 +791,16 @@ class Secat:
       try:
          fwhm = self.data[fwhmcol]
       except KeyError:
-         print ''
-         print 'Catalog does not contain a %d column' % fwhmcol
-         print ''
+         print('')
+         print('Catalog does not contain a %d column' % fwhmcol)
+         print('')
          return
       try:
          mag = self.data[magcol]
       except KeyError:
-         print ''
-         print 'Catalog does not contain a %d column' % magcol
-         print ''
+         print('')
+         print('Catalog does not contain a %d column' % magcol)
+         print('')
          return
       plt.plot(fwhm,mag,'bo')
       plt.xlim(xlim)
@@ -687,11 +877,11 @@ class Secat:
                    known offset between the catalogs (default=0.0)
       """
 
-      print ""
-      print "Matching catalogs: basic info"
-      print "--------------------------------------------"
-      print " Catalog 1: %d coordinates" % self.ra.size
-      print " Catalog 2: %d coordinates" % ra2.size
+      print('')
+      print("Matching catalogs: basic info")
+      print("--------------------------------------------")
+      print(" Catalog 1: %d coordinates" % self.ra.size)
+      print(" Catalog 2: %d coordinates" % ra2.size)
 
       """ Initialize containers for output information """
       ramatch  = np.zeros(self.ra.size)
@@ -706,9 +896,9 @@ class Secat:
       dec2 = dec2.copy() + ddec2/3600.
 
       """ Loop over catalog """
-      print ""
-      print "Searching for matches..."
-      print "------------------------------"
+      print('')
+      print("Searching for matches...")
+      print("------------------------------")
       for i in range(self.ra.size):
          dx,dy = coords.sky_to_darcsec(self.ra[i],self.dec[i],ra2,dec2)
          dpos = np.sqrt(dx**2 + dy**2)
@@ -721,16 +911,16 @@ class Secat:
             self.nmatch[i]   = dpos[dpos<=rmatch].size
             self.indmatch[i] = isort[0]
          del dx,dy,dpos
-      print " Number of matches between the catalogs:  %d" % \
-          (self.nmatch>0).sum()
+      print(" Number of matches between the catalogs:  %d" % 
+          (self.nmatch>0).sum())
       mra  = ramatch[self.nmatch>0]
       mdec = decmatch[self.nmatch>0]
       mdx  = self.matchdx[self.nmatch>0]
       mdy  = self.matchdy[self.nmatch>0]
       mdx0 = np.median(mdx)
       mdy0 = np.median(mdy)
-      print " Median offset for matches (RA):  %+6.2f arcsec" % mdx0
-      print " Median offset for matches (Dec): %+6.2f arcsec" % mdy0
+      print(" Median offset for matches (RA):  %+6.2f arcsec" % mdx0)
+      print(" Median offset for matches (Dec): %+6.2f arcsec" % mdy0)
 
       """ Plot up some offsets, if desired """
       if doplot:
@@ -790,9 +980,9 @@ class Secat:
          verbose   -  print task info
       """
       if verbose:
-         print ""
-         print "Printing to file for use in ccmap:  %s" % outfile
-         print ""
+         print('')
+         print("Printing to file for use in ccmap:  %s" % outfile)
+         print('')
       f = open(outfile,'w')
       f.write('# (x,y) catalog: %s\n' % self.infile)
       f.write('# Astrometric catalog: %s\n' % self.matchcat)
@@ -841,9 +1031,9 @@ class Secat:
       dymed = 0
       for i in range(2):
          if verbose:
-            print ''
-            print 'Pass %d' % (i+1)
-            print '------------------------'
+            print('')
+            print('Pass %d' % (i+1))
+            print('------------------------')
          xa0 = xa - dxmed
          ya0 = ya - dymed
          self.find_closest_xy(xa0,ya0,xcol,ycol)
@@ -853,8 +1043,10 @@ class Secat:
             dpos = np.sqrt(self.matchdx**2 + self.matchdy**2)
             goodmask = dpos<max_offset
             if verbose:
-               print "Applying a maximum offset cut of %7.1f pixels" % max_offset
-               print "Median shifts before clipping: %7.2f %7.2f" % (dxmed,dymed)
+               print("Applying a maximum offset cut of %7.1f pixels"
+                     % max_offset)
+               print("Median shifts before clipping: %7.2f %7.2f"
+                     % (dxmed,dymed))
          else:
             goodmask = np.ones(xa.size,dtype=bool)
          dxm  = self.matchdx[goodmask]
@@ -862,15 +1054,15 @@ class Secat:
          dxmed = np.median(dxm)
          dymed = np.median(dym)
          if verbose:
-            print "Median shifts after pass:   %7.2f %7.2f" % (dxmed,dymed)
+            print("Median shifts after pass:   %7.2f %7.2f" % (dxmed,dymed))
 
       """
       Transfer information into object and clean up
       """
       if verbose:
-         print ''
-         print 'Found %d astrometric objects within FOV of image' % xa.size
-         print 'Matched %d objects to astrometric catalog.' % dxm.size
+         print('')
+         print('Found %d astrometric objects within FOV of image' % xa.size)
+         print('Matched %d objects to astrometric catalog.' % dxm.size)
       self.nmatch = dxm.size
       self.goodmask = goodmask.copy()
       self.matchind = self.matchind[goodmask]
@@ -890,9 +1082,9 @@ class Secat:
       """
 
       if(verbose):
-         print "Running match_fits_to_ast with:"
-         print "   fitsfile = %s" % fitsfile
-         print "   astcat   = %s" % astcat
+         print("Running match_fits_to_ast with:")
+         print("   fitsfile = %s" % fitsfile)
+         print("   astcat   = %s" % astcat)
       self.infits = fitsfile
       self.matchcat = astcat
 
@@ -903,7 +1095,7 @@ class Secat:
       hdulist = imf.open_fits(fitsfile)
       hdr = hdulist[imhdu].header
       if verbose:
-         print ""
+         print('')
          hdulist.info()
 
       """
@@ -912,7 +1104,7 @@ class Secat:
       """
       raa,deca,xa,ya,astmask = select_good_ast(astcat,hdr,racol,deccol,edgedist)
       if verbose:
-         print 'Found %d astrometric objects within FOV of image' % raa.size
+         print('Found %d astrometric objects within FOV of image' % raa.size)
          
       """
       Find the closest match to each astrometric catalog object
@@ -942,10 +1134,10 @@ class Secat:
          plt.axvline(color='k')
          plt.axvline(dxmed,color='r')
          plt.axhline(dymed,color='r')
-         print ""
-         print "Black lines represent x=0 and y=0 axes"
-         print "Red lines show median offsets of dx_med=%7.2f and dy_med=%7.2f" \
-             % (dxmed,dymed)
+         print('')
+         print("Black lines represent x=0 and y=0 axes")
+         print("Red lines show median offsets of dx_med=%7.2f and "
+               "dy_med=%7.2f" % (dxmed,dymed))
          #plt.show()
 
       """ Write the output file, in a format appropriate for input to ccmap """
@@ -971,6 +1163,11 @@ class Secat:
       """
 
       self.starmask = mask
+
+   # -----------------------------------------------------------------------
+
+   def set_galmask(self, mask):
+      self.galmask = mask
 
 #------------------------------------------------------------------------------
 

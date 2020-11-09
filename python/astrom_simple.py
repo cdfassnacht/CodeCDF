@@ -17,23 +17,20 @@ Generic functions
 import numpy as n
 from math import pi
 from matplotlib import pyplot as plt
-try:
-   from SpecIm import imfuncs as imf
-except ImportError:
-   import imfuncs as imf
+from specim.imfuncs import image as imf
 try:
    from astropy.io import fits as pf
 except ImportError:
    import pyfits as pf
 import wcs as wcsmwa
-from CDFutils import coords 
+from cdfutils import coords 
 from ccdredux import sigma_clip
 
 #------------------------------------------------------------------------------
 
 def on_click(event):
-   print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
-      event.button, event.x, event.y, event.xdata, event.ydata)
+   print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+         (event.button, event.x, event.y, event.xdata, event.ydata))
 
 #------------------------------------------------------------------------------
 
@@ -153,10 +150,10 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
    """
 
    if(verbose):
-      print "Running match_fits_to_ast with:"
-      print "   fitsfile = %s" % fitsfile
-      print "   fitscat  = %s" % fitscat
-      print "   astcat   = %s" % astcat
+      print("Running match_fits_to_ast with:")
+      print("   fitsfile = %s" % fitsfile)
+      print("   fitscat  = %s" % fitscat)
+      print("   astcat   = %s" % astcat)
 
    """
    Start by opening the fits file and reading the appropriate columns from
@@ -164,7 +161,7 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
    """
    hdulist = imf.open_fits(fitsfile)
    if verbose:
-      print ""
+      print('')
    hdulist.info()
    hdr         = hdulist[imhdu].header
    xfits,yfits = n.loadtxt(fitscat,unpack=True,usecols=(xcol_fits,ycol_fits))
@@ -184,14 +181,14 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
    dymed = 0
    for i in range(2):
       if verbose:
-         print ''
-         print 'Pass %d' % (i+1)
-         print '------------------------'
+         print('')
+         print('Pass %d' % (i+1))
+         print('------------------------')
       xa0 = xa - dxmed
       ya0 = ya - dymed
       xm0,ym0 = match_xy(xa0,ya0,xfits,yfits)
       if verbose:
-         print 'Found %d matched objects' % xm0.size
+         print('Found %d matched objects' % xm0.size)
       dx = xa - xm0
       dy = ya - ym0
       dxmed = n.median(dx)
@@ -200,8 +197,8 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
          dpos = n.sqrt(dx**2 + dy**2)
          goodmask = dpos<max_offset
          if verbose:
-            print "Applying a maximum offset cut of %7.1f pixels" % max_offset
-            print "Median shifts before clipping: %7.2f %7.2f" % (dxmed,dymed)
+            print("Applying a maximum offset cut of %7.1f pixels" % max_offset)
+            print("Median shifts before clipping: %7.2f %7.2f" % (dxmed,dymed))
       else:
          goodmask = n.ones(xa.size,dtype=bool)
       dxm  = dx[goodmask]
@@ -213,7 +210,7 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
       dxmed = n.median(dxm)
       dymed = n.median(dym)
       if verbose:
-         print "Median shifts after pass:   %7.2f %7.2f" % (dxmed,dymed)
+         print("Median shifts after pass:   %7.2f %7.2f" % (dxmed,dymed))
 
    """
    Plot the offsets if desired
@@ -229,17 +226,17 @@ def match_fits_to_ast(fitsfile, fitscat, astcat, outfile=None, max_offset=None,
       plt.axvline(color='k')
       plt.axvline(n.median(dxm),color='r')
       plt.axhline(n.median(dym),color='r')
-      print ""
-      print "Black lines represent x=0 and y=0 axes"
-      print "Red lines show median offsets of dx_med=%7.2f and dy_med=%7.2f" \
-          % (dxmed,dymed)
+      print('')
+      print("Black lines represent x=0 and y=0 axes")
+      print("Red lines show median offsets of dx_med=%7.2f and dy_med=%7.2f" 
+            % (dxmed,dymed))
       #plt.show()
 
    if outfile is not None:
       if verbose:
-         print ""
-         print "Printing to output file %s" % outfile
-         print ""
+         print('')
+         print("Printing to output file %s" % outfile)
+         print('')
       f = open(outfile,'w')
       f.write('# (x,y) catalog: %s\n' % fitscat)
       f.write('# Astrometric catalog: %s\n' % astcat)
@@ -284,7 +281,7 @@ def fit_trans(update_wcs, fitsfile, fitscat, astcat, racol_ast=1, deccol_ast=2,
       hdulist = imf.open_fits(fitsfile,'update')
    else:
       hdulist = imf.open_fits(fitsfile)
-   print ""
+   print('')
    hdulist.info()
    hdr         = hdulist[imhdu].header
    xfits,yfits = n.loadtxt(fitscat,unpack=True,usecols=(xcol_fits,ycol_fits))
@@ -296,13 +293,13 @@ def fit_trans(update_wcs, fitsfile, fitscat, astcat, racol_ast=1, deccol_ast=2,
                         deccol_ast,edgedist)
    dx_crpix = n.median(dx)
    dy_crpix = n.median(dy)
-   print ""
-   print "Median offsets are: %+7.2f %+7.2f" % (dx_crpix,dy_crpix)
+   print('')
+   print("Median offsets are: %+7.2f %+7.2f" % (dx_crpix,dy_crpix))
 
    """
    Apply the correction to the WCS, for now only in memory
    """
-   print "Applying median offsets to the WCS CRPIX values"
+   print("Applying median offsets to the WCS CRPIX values")
    hdr['crpix1'] -= dx_crpix
    hdr['crpix2'] -= dy_crpix
 
@@ -370,56 +367,57 @@ def init_shifts(fitsim, astcat, xycat, rmarker=10., racol=0, deccol=1,
    hdr = fitsim.hdulist[hext].header.copy()
    wcsinfo = wcsmwa.parse_header(hdr)
    cdelt1,cdelt2,crota1,crota2 = coords.cdmatrix_to_rscale(wcsinfo[2])
-   print ""
-   print "Current parameters of image"
-   print "---------------------------"
-   print " Pixel scales (arcsec/pix): %6.3f %6.3f" % (-cdelt1*3600.,cdelt2*3600.)
-   print " Image rotation (deg N->E): %+7.2f" % (crota2 * 180./pi)
+   print('')
+   print("Current parameters of image")
+   print("---------------------------")
+   print(" Pixel scales (arcsec/pix): %6.3f %6.3f" %
+         (-cdelt1*3600.,cdelt2*3600.))
+   print(" Image rotation (deg N->E): %+7.2f" % (crota2 * 180./pi))
 
    """ Select astrometric objects within the FOV of the detector """
    mra,mdec,mx,my,astmask = select_good_ast(astcat,hdr,racol,deccol)
 
    """ Select astrometric object used to determine the shift """
-   print ""
-   print "Determining initial shifts"
-   print "----------------------------------------------------------"
-   print "Choose a green circle that can clearly matched to an object in the"
-   print " image."
+   print('')
+   print("Determining initial shifts")
+   print("----------------------------------------------------------")
+   print("Choose a green circle that can clearly matched to an object in the")
+   print(" image.")
    foo = raw_input(
        'Enter position for the chosen circle (just need to be close) [x y]: ')
    while len(foo.split()) != 2:
-      print "ERROR.  Need to enter as two space-separated numbers."
+      print("ERROR.  Need to enter as two space-separated numbers.")
       foo = raw_input('Enter position again: ')
    xast0,yast0 = foo.split()
    dist = n.sqrt((mx - float(xast0))**2 + (my - float(yast0))**2)
    astind = n.argsort(dist)[0]
-   print "Closest match in astrometric catalog found at %8.2f %8.2f" % \
-       (mx[astind],my[astind])
+   print("Closest match in astrometric catalog found at %8.2f %8.2f" % 
+         (mx[astind],my[astind]))
 
    """ Select the matching object in the xy catalog """
-   print ""
-   print "Now hoose the matching object seen in the fits image."
+   print('')
+   print("Now hoose the matching object seen in the fits image.")
    foo = raw_input(
        'Enter position for the chosen object (just need to be close) [x y]: ')
    while len(foo.split()) != 2:
-      print "ERROR.  Need to enter as two space-separated numbers."
+      print("ERROR.  Need to enter as two space-separated numbers.")
       foo = raw_input('Enter position again: ')
    xcat0,ycat0 = foo.split()
    dist = n.sqrt((xfits - float(xcat0))**2 + (yfits - float(ycat0))**2)
    catind = n.argsort(dist)[0]
-   print "Closest match in image catalog found at %8.2f %8.2f" % \
-       (xfits[catind],yfits[catind])
+   print("Closest match in image catalog found at %8.2f %8.2f" % 
+         (xfits[catind],yfits[catind]))
 
    """ Calculate the offets in arcsec """
    dxpix = xfits[catind] - mx[astind]
    dypix = yfits[catind] - my[astind]
    da = dxpix * cdelt1
    dd = dypix * cdelt2
-   print ""
-   print "Calculated Offsets (image - astrometric)"
-   print "----------------------------------------"
-   print "x:  %+7.2f pix  %+7.2f arcsec" % (dxpix,da*3600.)
-   print "y:  %+7.2f pix  %+7.2f arcsec" % (dypix,dd*3600.)
+   print('')
+   print("Calculated Offsets (image - astrometric)")
+   print("----------------------------------------")
+   print("x:  %+7.2f pix  %+7.2f arcsec" % (dxpix,da*3600.))
+   print("y:  %+7.2f pix  %+7.2f arcsec" % (dypix,dd*3600.))
 
 
    #fig = plt.figure(1)
