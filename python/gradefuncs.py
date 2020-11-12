@@ -35,8 +35,8 @@ def read_table(infile, colname):
    try:
       tot = tab[colname].copy()
    except KeyError:
-      print ''
-      print 'Could not find a column matching %s in %s' % (colname,infile)
+      print('')
+      print('Could not find a column matching %s in %s' % (colname,infile))
       tot = None
    return tot
 
@@ -84,15 +84,15 @@ def plot_tothist(infile, tot, maxy, binsize=3):
    mm = tot.mean() - tot.std()
 
    """ Report on the properties of the distibution """
-   print ""
-   print "Statistics for %s" % infile
-   print "---------------------------------"
-   print "  Mean:         %5.1f" % mn
-   print "  Median:       %5.1f" % med
-   print "  Sigma:        %5.1f" % tot.std()
-   print "  Mean - 1 sig: %5.1f" % mm
-   print "  Mean + 1 sig: %5.1f" % mp
-   print ""
+   print('')
+   print("Statistics for %s" % infile)
+   print("---------------------------------")
+   print("  Mean:         %5.1f" % mn)
+   print("  Median:       %5.1f" % med)
+   print("  Sigma:        %5.1f" % tot.std())
+   print("  Mean - 1 sig: %5.1f" % mm)
+   print("  Mean + 1 sig: %5.1f" % mp)
+   print('')
 
    """ Plot the distribution """
    binhist = range(int(tot.min())-1,int(tot.max())+3,binsize)

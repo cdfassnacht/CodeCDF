@@ -1,7 +1,7 @@
 """ 
 A python program to plot a grade histogram 
 
-Usage: python plot_grade_hist.py [filename] [nscorecols] [maxy]
+Usage: python plot_grade_hist.py [filename] [colname] [maxy] ([nscorecols])
 
 Required inputs:
  filename   - text file containing either two columns (name total) or
@@ -30,24 +30,24 @@ import sys
 import gradefuncs as gf
 
 if len(sys.argv) < 4:
-   print ''
-   print 'ERROR: This program requires at least 3 input parameters:'
-   print '   1. infile   - name of the input file containing scores'
-   print '   2. colname  - name of column containing the relevant score if the'
-   print '       input file is in csv format produced by smartsite or canvas or'
-   print '       if it is in old-school text format with one total-score column'
-   print '       In the second case (text format with one column of scores) the'
-   print '       colname parameter should be set to "col2"'
-   print '   3. maxy     - maximum y value for plot'
-   print 'It may also take an optional fourth parameter, which should ONLY BE'
-   print ' USED if the file is BOTH in the old-school text format and has'
-   print ' two columns with scores (one for multiple-choice and one for short'
-   print ' answer), in which case, this parameter should be used and set to 2.'
-   print ''
-   print 'Format: python plot_grade_hist.py infile colname maxy'
-   print '               --- or ---'
-   print 'Format: python plot_grade_hist.py infile colname maxy 2'
-   print ''
+   print('')
+   print('ERROR: This program requires at least 3 input parameters:')
+   print('   1. infile   - name of the input file containing scores')
+   print('   2. colname  - name of column containing the relevant score if the')
+   print('       input file is in csv format produced by smartsite or canvas or')
+   print('       if it is in old-school text format with one total-score column')
+   print('       In the second case (text format with one column of scores) the')
+   print('       colname parameter should be set to "col2"')
+   print('   3. maxy     - maximum y value for plot')
+   print('It may also take an optional fourth parameter, which should ONLY BE')
+   print(' USED if the file is BOTH in the old-school text format and has')
+   print(' two columns with scores (one for multiple-choice and one for short')
+   print(' answer), in which case, this parameter should be used and set to 2.')
+   print('')
+   print('Format: python plot_grade_hist.py infile colname maxy')
+   print('               --- or ---')
+   print('Format: python plot_grade_hist.py infile colname maxy 2')
+   print('')
    sys.exit()
 
 if len(sys.argv) == 5:
@@ -65,8 +65,8 @@ else:
    tot = gf.read_table(infile, colname)
 
 if tot is None:
-   print 'Could not plot histogram'
-   print ''
+   print('Could not plot histogram')
+   print('')
    sys.exit()
 
 binsize = 3
