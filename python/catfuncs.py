@@ -9,7 +9,7 @@ necessarily have to be.
 
 import os, sys
 import numpy as np
-from math import pi
+from math import pi, fabs
 from matplotlib import pyplot as plt
 import astropy
 from astropy import units as u
@@ -280,15 +280,15 @@ class Secat:
          In the SDSS scheme, type=3 is a galaxy and type=6 is a star
          """
          if 'type' in self.data.colnames:
-            oclass = self.data['type']
+            objclass = self.data['type']
          elif 'type_r' in self.data.colnames:
-            oclass = self.data['type_r']
+            objclass = self.data['type_r']
          else:
-            oclass = None
+            objclass = None
    
-         if oclass is not None:
-            self.galmask = oclass == 3
-            self.starmask = oclass == 6
+         if objclass is not None:
+            self.galmask = objclass == 3
+            self.starmask = objclass == 6
          else:
             self.galmask = np.ones(dtype=bool)
             self.starmask = None
@@ -353,7 +353,7 @@ class Secat:
                   or 'MAG_AUTO'
       """
 
-      mag = self.data[magname]
+      mag = self.data[magname].astype(float)
       if mfaint is None and mbright is None:
          self.magmask = np.ones(self.nrows,dtype=bool)
       elif mfaint is None:
@@ -393,6 +393,18 @@ class Secat:
             except:
                self.dec = None
 
+      """ Make sure that values are in the correct range """
+      self.ra = self.ra.astype(float)
+      self.dec = self.dec.astype(float)
+      print(self.ra)
+      print(type(self.ra))
+      ramask = (self.ra >= 0.) & (self.ra < 360.)
+      decmask = (self.dec >= -90.) & (self.dec <= 90.)
+      mask = (ramask) & (decmask)
+      self.ra = self.ra[mask]
+      self.dec = self.dec[mask]
+      self.data = self.data[mask]
+      
       """ 
       Put data into a SkyCoords container for easy coordinate-based calculations
       """
@@ -626,8 +638,8 @@ class Secat:
       pm = np.zeros(len(tmpgal))
       galtab = Table([objname[galmask], pri, tmpgal[magcol], radec.ra.hms.h,
                       radec.ra.hms.m, radec.ra.hms.s, radec.dec.dms.d,
-                      radec.dec.dms.m, radec.dec.dms.s, epoch, epoch, pm, pm],
-                     names=outnames)
+                      np.fabs(radec.dec.dms.m), np.fabs(radec.dec.dms.s),
+                      epoch, epoch, pm, pm], names=outnames)
 
       """ Set up the guidestar table """
       tmpstar = self.data[starmask]
@@ -641,8 +653,8 @@ class Secat:
          starname[i] = 'S%04d' % si
       startab = Table([starname, pri, tmpstar[smagcol], radec.ra.hms.h,
                        radec.ra.hms.m, radec.ra.hms.s, radec.dec.dms.d,
-                       radec.dec.dms.m, radec.dec.dms.s, epoch, epoch, pm, pm],
-                      names=outnames)
+                       np.fabs(radec.dec.dms.m), np.fabs(radec.dec.dms.s),
+                       epoch, epoch, pm, pm], names=outnames)
 
       """
       Make a mini-table containing the mask center and, optionally, the lens.
@@ -658,7 +670,13 @@ class Secat:
       ra = maskcent.ra
       dec = maskcent.dec
       hdrtab[0] = ['CENTER', 9999, 0., ra.hms.h, ra.hms.m, ra.hms.s,
-                   dec.dms.d, dec.dms.m, dec.dms.s, 2000., 2000., 0., 0.]
+                   dec.dms.d, fabs(dec.dms.m), fabs(dec.dms.s),
+                   2000., 2000., 0., 0.]
+      if add_lens:
+         cra = self.centpos.ra.hms
+         cdec = self.centpos.dec.dms
+         hdrtab[1] = ['Lens', 900, 20., cra.h, cra.m, cra.s, cdec.d,
+                      fabs(cdec.m), fabs(cdec.s), 2000., 2000., 0., 0.]
 
       """ Combine the two tables """
       outtab = vstack([hdrtab, galtab, startab])
@@ -688,9 +706,9 @@ class Secat:
 
    def lrismask_prep(self, maskcent, PA, mask_w=3., mask_h=7., galmagcol='r',
                      galmagrange=None, galmask='default', starmask='default',
-                     smagcol='g', smaglim=[17.5, 19], galreg='maskobj.reg',
+                     smagcol='g', smaglim=[17., 19.], galreg='maskobj.reg',
                      objcolor='green', rcirc=1., starreg='maskstar.reg',
-                     outfile=None, objroot=None):
+                     add_lens=True, outfile=None, objroot=None):
       """
 
       Code to select objects for a LRIS slitmask
@@ -725,7 +743,7 @@ class Secat:
       yy = -xtmp * np.sin(rot_ang) + ytmp * np.cos(rot_ang)
 
       """ Select only the objects that lie within the mask """
-      star_extra = 20.
+      star_extra = 75.
       xbound = 0.5 * mask_w * 60.
       ybound = 0.5 * mask_h * 60.
       objmask = (xx >= -xbound) & (xx <= xbound) & (yy >= -ybound) \
@@ -753,8 +771,9 @@ class Secat:
          totstarmask = np.logical_and(starmask, starsonmask)
       else:
          totstarmask = starsonmask
-      guidestarmask = totstarmask & (self.data[smagcol] >= smaglim[0]) & \
-         (self.data[smagcol] <= smaglim[1])
+      stardata = self.data[smagcol].astype(float)
+      guidestarmask = totstarmask & (stardata >= smaglim[0]) & \
+         (stardata <= smaglim[1])
 
       """ Make ds9 region files for diagnostic checks """
       print('')
@@ -768,7 +787,7 @@ class Secat:
       if outfile is not None:
          self._print_autoslit_infile(outfile, totgalmask, guidestarmask,
                                      maskcoord, galmagcol, smagcol,
-                                     objroot=objroot)
+                                     objroot=objroot, add_lens=add_lens)
                      
    #-----------------------------------------------------------------------
 
