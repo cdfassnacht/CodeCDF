@@ -94,7 +94,7 @@ for f in files:
          usecoadd = True
          texpname = 'itime'
          tscale = 1000.0
-         filtname = 'sfilter'
+         filtname = 'filter'
       elif inst == 'NIRC2' or inst == 'NIRES':
          usecoadd = True
          texpname = 'itime'
