@@ -241,7 +241,7 @@ class DrizSet():
         if self.inst.lower() == 'acs':
             defpars['final_scale'] = 0.05
             defpars['final_pixfrac'] = 1.
-        elif self.inst.lower() == 'wfc3uv' or inst.lower() == 'wfc3uvis':
+        elif self.inst.lower() == 'wfc3uv' or self.inst.lower() == 'wfc3uvis':
             defpars['final_scale'] = 0.04
             defpars['final_pixfrac'] = 1.
         elif self.inst.lower() == 'wfc3ir':

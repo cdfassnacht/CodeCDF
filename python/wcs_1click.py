@@ -134,6 +134,7 @@ for infile, crp1, crp2 in zip(files, crpix1, crpix2):
     """ Open and display the image """
     im1 = imf.Image(infile)
     if flat is not None:
+        im1.data = im1.data.astype(float)
         im1.data /= flat
     im1.zoomsize = subimsize
     im1.display(fmax=fmax, mode='xy', title=im1.infile)
