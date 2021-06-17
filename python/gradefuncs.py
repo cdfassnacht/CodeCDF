@@ -82,16 +82,23 @@ def plot_tothist(infile, tot, maxy, binsize=3):
    med = np.median(tot)
    mp = tot.mean() + tot.std()
    mm = tot.mean() - tot.std()
+   tot.sort()
+   m25 = tot[int(0.25*tot.size)]
+   m75 = tot[int(0.75*tot.size)]
 
    """ Report on the properties of the distibution """
    print('')
    print("Statistics for %s" % infile)
    print("---------------------------------")
-   print("  Mean:         %5.1f" % mn)
-   print("  Median:       %5.1f" % med)
-   print("  Sigma:        %5.1f" % tot.std())
-   print("  Mean - 1 sig: %5.1f" % mm)
-   print("  Mean + 1 sig: %5.1f" % mp)
+   print("  Mean:             %5.1f" % mn)
+   print("  Median:           %5.1f" % med)
+   print("  Sigma:            %5.1f" % tot.std())
+   print("  Mean - 1 sig:     %5.1f" % mm)
+   print("  Mean + 1 sig:     %5.1f" % mp)
+   print('  Lowest quartile:  %5.1f' % m25)
+   print('  Highest quartile: %5.1f' % m75)
+   print('  Maximum:          %5.1f' % tot.max())
+   print('  Minimum:          %5.1f' % tot.min())
    print('')
 
    """ Plot the distribution """
