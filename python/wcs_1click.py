@@ -28,10 +28,13 @@ Input parameters:
 
 import sys
 import numpy as np
+
 from astropy import wcs
 from astropy.io import fits as pf
 from matplotlib import pyplot as plt
+
 from specim import imfuncs as imf
+from ccdredux.ccdset import CCDSet
 
 """ Check command line syntax """
 if len(sys.argv)<4:
@@ -60,7 +63,6 @@ if len(sys.argv)<4:
 filestart = 3
 pixscale = None
 fmax = 10.
-flat = None
 flatfile = None
 start_files = False
 subimsize = 21
@@ -111,14 +113,6 @@ if len(sys.argv) > filestart + 1:
    files = sys.argv[filestart:]
 else:
     files = [sys.argv[filestart],]
-crpix1 = np.zeros(len(files))
-crpix2 = np.zeros(len(files))
-
-""" Read in the flat-field data """
-if flatfile is not None:
-    flat = pf.getdata(flatfile)
-    print('')
-    print('Using flat-field file: %s' % flatfile)
 
 """
 Set up the pixel scale to use
@@ -129,80 +123,24 @@ The default is to use the WCS information in the file header, but if
 if pixscale is not None:
     pixscale /= 3600.
 
+""" Load the data into a CCDSet object """
+imdat = CCDSet(files)
+
 """ Loop through the input files, marking the object in each one """
-for infile, crp1, crp2 in zip(files, crpix1, crpix2):
-    """ Open and display the image """
-    im1 = imf.Image(infile)
-    if flat is not None:
-        im1.data = im1.data.astype(float)
-        im1.data /= flat
-    im1.zoomsize = subimsize
-    im1.display(fmax=fmax, mode='xy', title=im1.infile)
+crpix = imdat.mark_crpix(flatfile=flatfile)
 
-    """ Run the interactive zooming and marking """
-    im1.start_interactive()
-    plt.show()
+""" Update the CRPIX and CRVAL values """
+print('Updating CRPIX and CRVAL values')
+imdat.update_refvals(crpix, (ra, dec))
 
-    """ Set the crpix values to the marked location """
-    if im1.dispim.xmark is not None:
-        crp1 = im1.dispim.xmark + 1
-    if im1.dispim.ymark is not None:
-        crp2 = im1.dispim.ymark + 1
+""" Report on the updated values """
+imdat.update_wcshdr()
+imdat.print_cr_summary()
 
-    """
-    If there is no WCS information in the input file, create a base version
-    to be filled in later
-    """
-    if im1['input'].wcsinfo is None:
-        im1['input'].wcsinfo = wcs.WCS(naxis=2)
-        im1['input'].wcsinfo.wcs.ctype = ['RA---TAN', 'DEC--TAN']
-    im1['input'].update_crpix((crp1, crp2), verbose=False)
-    im1['input'].update_crval((ra, dec), verbose=False)
-    im1.wcsinfo = im1['input'].wcsinfo
-    if flat is not None:
-        im1.data *= flat
-    im1.save(verbose=False)
-    del(im1)
-
-"""
-Report on the updated values
-"""
+""" Save the updated files """
 print('')
-print('File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 ')
-print('------------------------ ----------- ----------- -------- --------')
-for infile in files:
-    hdr = pf.getheader(infile)
-    f = infile[:-5]
-    print('%-24s %11.7f %+11.7f %8.2f %8.2f' % (f, ra, dec, hdr['crpix1'],
-                                                hdr['crpix2']))
-    del hdr
-
-# """ 
-# Second pass through the fits files, assigning the RA and Dec to the
-# appropriate CRPIX, and setting the pixel scale if requested (pix scale
-# not yet implemented)
-# """
-# if pixscale is not None:
-#     pixscale /= 3600.
-# print ''
-# print 'File                       CRVAL1      CRVAL2     CRPIX1   CRPIX2 '
-# print '------------------------ ----------- ----------- -------- --------'
-# for i in range(len(files)):
-#     hdu = pf.open(files[i], mode='update')
-#     hdr = hdu[0].header
-#     hdr['crval1'] = ra
-#     hdr['crval2'] = dec
-#     hdr['crpix1'] = crpix1[i]
-#     hdr['crpix2'] = crpix2[i]
-#     try:
-#         foo = hdr['ctype1']
-#     except KeyError:
-#         hdr['ctype1'] = 'RA---TAN'
-#     try:
-#         foo = hdr['ctype2']
-#     except KeyError:
-#         hdr['ctype2'] = 'DEC--TAN'
-#     hdu.flush()
-#     f = files[i][:-5]
-#     print '%-24s %11.7f %+11.7f %8.2f %8.2f' % (f,ra,dec,crpix1[i],crpix2[i])
-
+print('Saving updated information')
+print('--------------------------')
+for hdu, name in zip(imdat, files):
+    hdu.writeto(name)
+    print('Wrote updates to %s' % name)
