@@ -382,12 +382,13 @@ int calc_batch(char *inname, char *outname)
 void calc_params(double zl, double zs, double dzl, double dzs, double theta, 
 		 double dtheta, Cosmo cosmo, FILE *ofp)
 {
-  double d;            /* D = D_l D_s / D_ls */
-  double theta2;       /* 0.5 * theta (estimate of Einstein ring radius) */
-  double me;           /* Mass enclosed in Einstein ring */
-  double r_phys;       /* Physical radius of Einstein ring */
-  double v_circ;       /* Implied circular velocity, given M_E */
+  double d;              /* D = D_l D_s / D_ls */
+  double theta2;         /* 0.5 * theta (estimate of Einstein ring radius) */
+  double me;             /* Mass enclosed in Einstein ring */
+  double r_phys;         /* Physical radius of Einstein ring */
+  double v_circ;         /* Implied circular velocity, given M_E */
   double sigbn;          /* Velocity dispersion from Blandford & Narayan eqn. */
+  double sigmav_sis;     /* Velocity dispersion for a SIS */
   double sigma_crit;     /* Sigma_critical */
   Cosdist cdl,cds,cdls;  /* Distance measures */
 
@@ -425,6 +426,7 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
   r_phys = theta2 * cdl.d_a / RAD2ASEC;
   v_circ = sqrt(2 * G * me * MSUN / (PI * r_phys))/KM2CM;
   sigbn = 300.0 * sqrt(theta2 * cds.d_a / (2.6 * cdls.d_a));
+  sigmav_sis = sqrt(theta2 * C * C * cds.d_a / (4. * PI * cdls.d_a));
 
   /*
    * Print out results
@@ -456,15 +458,16 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
     fprintf(stdout,
 	    "\nFor this system with (Omega_M = %5.3f, Omega_Lambda = %5.3f)\n",
 	    cosmo.omega_m,cosmo.omega_de);
-    fprintf(stdout,"   D_l     = %4.0f h^{-1} Mpc\n",cdl.d_a/MPC2CM);
-    fprintf(stdout,"   D_s     = %4.0f h^{-1} Mpc\n",cds.d_a/MPC2CM);
-    fprintf(stdout,"   D_ls    = %4.0f h^{-1} Mpc\n",cdls.d_a/MPC2CM);
-    fprintf(stdout,"   D       = %7.4f h^{-1} Gpc\n",d);
-    fprintf(stdout,"   Sigma_c = %5.2f h g/cm^2\n",sigma_crit);
-    fprintf(stdout,"   M_E     = %9.3e h^{-1} M_sun\n",me);
-    fprintf(stdout,"   R_E     = %8.3f h^{-1} kpc\n",r_phys*1000.0/MPC2CM);
-    fprintf(stdout,"   v_circ  = %5.0f km/sec\n",v_circ);
-    fprintf(stdout,"   sigma   = %5.0f km/sec\n\n",sigbn);
+    fprintf(stdout,"   D_l       = %4.0f h^{-1} Mpc\n",cdl.d_a/MPC2CM);
+    fprintf(stdout,"   D_s       = %4.0f h^{-1} Mpc\n",cds.d_a/MPC2CM);
+    fprintf(stdout,"   D_ls      = %4.0f h^{-1} Mpc\n",cdls.d_a/MPC2CM);
+    fprintf(stdout,"   D         = %7.4f h^{-1} Gpc\n",d);
+    fprintf(stdout,"   Sigma_c   = %5.2f h g/cm^2\n",sigma_crit);
+    fprintf(stdout,"   M_E       = %9.3e h^{-1} M_sun\n",me);
+    fprintf(stdout,"   R_E       = %8.3f h^{-1} kpc\n",r_phys*1000.0/MPC2CM);
+    fprintf(stdout,"   v_circ    = %5.0f km/sec\n",v_circ);
+    fprintf(stdout,"   sigma     = %5.0f km/sec\n\n",sigbn);
+    fprintf(stdout,"   sigmavSIS = %5.0f km/sec\n\n",sigmav_sis);
   }
 
   /*
