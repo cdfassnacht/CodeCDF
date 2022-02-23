@@ -127,7 +127,7 @@ if pixscale is not None:
 imdat = CCDSet(files)
 
 """ Loop through the input files, marking the object in each one """
-crpix = imdat.mark_crpix(flatfile=flatfile)
+crpix = imdat.mark_crpix(flatfile=flatfile, fmax=fmax)
 
 """ Update the CRPIX and CRVAL values """
 print('Updating CRPIX and CRVAL values')
