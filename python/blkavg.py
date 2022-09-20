@@ -19,17 +19,6 @@ Usage: python blkavg.py [input_fits] [output_fits] [blkavg_factor]
 
 import sys
 from specim import imfuncs as imf
-import numpy as n
-try:
-    from astropy.io import fits as pf
-except:
-    try:
-        import pyfits
-    except:
-        print ''
-        print 'ERROR. Neither astropy.io.fits nor pyfits found'
-        print ''
-        exit()
 
 #-----------------------------------------------------------------------
 
@@ -52,9 +41,9 @@ outfits = sys.argv[2]
 try:
     blkfact = int(sys.argv[3])
 except ValueError:
-    print ''
-    print 'ERROR. Third command-line input cannot be converted to an integer'
-    print ''
+    print('')
+    print('ERROR. Third command-line input cannot be converted to an integer')
+    print('')
     exit()
 
 """ 
@@ -67,5 +56,4 @@ indat.blkavg(blkfact, outfile=outfits)
 
 
 """ Clean up, and exit """
-# indat.close()
 del indat

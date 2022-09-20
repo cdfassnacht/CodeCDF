@@ -15,7 +15,7 @@
 #-----------------------------------------------------------------------
 
 # Compile time flags.
-CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+CFLAGC = -c $(CFLAGS) -I$(INCDIR) -I/usr/include
 
 FFLAGC = -c $(FFLAGS)
 
