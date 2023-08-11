@@ -1,0 +1,70 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the locnr makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the library for a local version of the nr
+#               library.
+#
+# Chris Fassnacht (fassnacht@physics.ucd.edu).  
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR)
+
+# Specify the path of the local NR library.
+
+LOCNRLIB = $(LIBDIR)/liblocnr.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+#-----------------------------------------------------------------------
+# Default to making liblocnr.a
+
+default: $(LOCNRLIB)
+
+#-----------------------------------------------------------------------
+# The following rules make the local NR library.
+#-----------------------------------------------------------------------
+#
+# List all the objects that are to be placed in the library.
+#
+LNR_OBS = correl.o four1.o gammln.o gasdev.o hpsort.o pythag.o ran1.o realft.o svbksb.o svdcmp.o svdfit.o sort.o twofft.o nrutil.o 
+
+$(INCDIR)/nr.h: nr.h
+	cp nr.h $(INCDIR)/nr.h
+	chmod ugo+r $(INCDIR)/nr.h
+
+$(INCDIR)/nrutil.h: nrutil.h
+	cp nrutil.h $(INCDIR)/nrutil.h
+	chmod ugo+r $(INCDIR)/nrutil.h
+
+$(LOCNRLIB): $(LNR_OBS)
+	ar ru $(LOCNRLIB) $(LNR_OBS)
+	ranlib $(LOCNRLIB)
+
+nrutil.o: $(INCDIR)/nrutil.h
+
+correl.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+four1.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+gammln.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+gasdev.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+hpsort.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+pythag.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+ran1.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+realft.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+svbksb.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+svdcmp.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+svdfit.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+sort.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+twofft.o: $(INCDIR)/nr.h $(INCDIR)/nrutil.h
+
+#-----------------------------------------------------------------------

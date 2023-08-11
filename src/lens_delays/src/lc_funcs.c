@@ -343,9 +343,12 @@ Fluxrec **load_light_curves(Setup *setup, int *fresult)
       printf("--------------------------------------------------\n");
       if(!(lc[i] = read_fluxrec_1curve(setup->infile[i],'#',
 				       &setup->npoints[i]))) {
+	printf("--- load failed ---\n\n");
 	no_error = 0;
 	lc[i] = NULL;
       }
+      else
+	printf("Start day: %f\n", lc[i]->day);
     }
     break;
   default:
@@ -366,13 +369,16 @@ Fluxrec **load_light_curves(Setup *setup, int *fresult)
     setup->endday[i] = (lc[i]+setup->npoints[i]-1)->day;
     setup->index[i] = i;
   }
+  printf("\nno_error from light-curve load: %d\n",no_error);
 
   /*
    * Return array of Fluxrec arrays
    */
 
-  if(no_error)
+  if(no_error) {
+    *fresult = SUCCESS;
     return lc;
+  }
   else {
     *fresult = ERROR;
     for(i=0; i<setup->ncurves; i++)

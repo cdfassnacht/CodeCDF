@@ -213,7 +213,7 @@ case $OS in
 ;;
 
   macintel-gcc) # Mac Pro running OSX with Intel chips, using the Gnu C compiler
-    CC=/sw/bin/gcc-4
+    CC=/usr/local/bin/gcc
     #CC=gcc
     FC="gfortran"
     CFLAGS="$CFLAGS -Dmacintel"

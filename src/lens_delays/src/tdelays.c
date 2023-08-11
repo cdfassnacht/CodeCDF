@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
   lc = load_light_curves(setup,&fresult);
   if(fresult == ERROR)
     no_error = 0;
+  printf("no_error = %d\n",no_error);
 
   /*
    * Temporary check - print out input light curves
