@@ -71,10 +71,10 @@ def read_text(infile, nscorecols=1):
 
 #---------------------------------------------------------------------------
 
-def plot_tothist(infile, tot, maxy, binsize=3):
+def plot_tothist(infile, tot, maxy, binsize=3, colname=None):
    """
    Plot the total-score histogram, where the total score (tot) has been
-   previous calculated or read-in by the input functions
+   previously calculated or read-in by the input functions
    """
 
    """ Calculate moments of the distribution """
@@ -85,20 +85,26 @@ def plot_tothist(infile, tot, maxy, binsize=3):
    tot.sort()
    m25 = tot[int(0.25*tot.size)]
    m75 = tot[int(0.75*tot.size)]
+   m16 = tot[int(0.16*tot.size)]
+   m84 = tot[int(0.84*tot.size)]
+   m80 = tot[int(0.80*tot.size)]
 
    """ Report on the properties of the distibution """
    print('')
    print("Statistics for %s" % infile)
    print("---------------------------------")
-   print("  Mean:             %5.1f" % mn)
-   print("  Median:           %5.1f" % med)
-   print("  Sigma:            %5.1f" % tot.std())
-   print("  Mean - 1 sig:     %5.1f" % mm)
-   print("  Mean + 1 sig:     %5.1f" % mp)
-   print('  Lowest quartile:  %5.1f' % m25)
-   print('  Highest quartile: %5.1f' % m75)
-   print('  Maximum:          %5.1f' % tot.max())
-   print('  Minimum:          %5.1f' % tot.min())
+   print("  Mean:                 %5.1f" % mn)
+   print("  Sigma:                %5.1f" % tot.std())
+   print("  Mean - 1 sig:         %5.1f" % mm)
+   print("  Mean + 1 sig:         %5.1f" % mp)
+   print("  Median:               %5.1f" % med)
+   print('  Lowest quartile:      %5.1f' % m25)
+   print('  Highest quartile:     %5.1f' % m75)
+   print('  Low end of 68%% range: %5.1f' % m16)
+   print('  Top end of 68%% range: %5.1f' % m84)
+   print('  Top 20%%:              %5.1f' % m80)
+   print('  Maximum:              %5.1f' % tot.max())
+   print('  Minimum:              %5.1f' % tot.min())
    print('')
 
    """ Plot the distribution """
@@ -108,7 +114,10 @@ def plot_tothist(infile, tot, maxy, binsize=3):
    plt.axvline(x=mn, ymin=0, ymax=maxy, c='r', lw=3)
    plt.axvline(x=mm, ymin=0, ymax=maxy, c='b', lw=3)
    plt.axvline(x=mp, ymin=0, ymax=maxy, c='b', lw=3)
-   plt.title("Distribution of scores for %s" % infile)
+   if colname is not None:
+      plt.title("Distribution of scores for %s" % colname)
+   else:
+      plt.title("Distribution of scores for %s" % infile)
    plt.xlabel("Scores")
    plt.ylabel("N")
    plt.show()

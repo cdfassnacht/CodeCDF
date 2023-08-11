@@ -60,7 +60,7 @@ colname = sys.argv[2]
 maxy = float(sys.argv[3])
 
 if old_3col:
-   tot = gf.read_text(infile,2)
+   tot = gf.read_text(infile, 2)
 else:
    tot = gf.read_table(infile, colname)
 
@@ -70,5 +70,5 @@ if tot is None:
    sys.exit()
 
 binsize = 3
-gf.plot_tothist(infile,tot,maxy,binsize)
+gf.plot_tothist(infile, tot, maxy, binsize, colname=colname)
 
