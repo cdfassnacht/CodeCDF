@@ -317,7 +317,8 @@ int calc_batch(char *inname, char *outname)
       fprintf(stderr,"ERROR: calc_batch\n");
       return 1;
     }
-    fprintf(ofp,"# z_l    z_s  theta  O_m   O_de   w    D_l  D_s D_ls   D\n");
+    fprintf(ofp,"# z_l    z_s  theta  O_m   O_de   w    D_l  D_s D_ls     D");
+    fprintf(ofp,"    M_E(M_sun/h) sigv_SIS\n");
   }
 
   /*
@@ -452,9 +453,12 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
       fprintf(ofp,"%4.0f ",cds.d_a/MPC2CM);
 
     if(cdls.d_a < 0.)
-      fprintf(ofp," -99 -99\n");
-    else
-      fprintf(ofp,"%4.0f %7.4f\n",cdls.d_a/MPC2CM,d);
+      fprintf(ofp," -99 -99 -99 -99\n");
+    else {
+      fprintf(ofp,"%4.0f %7.4f   %9.3e %6.0f",cdls.d_a/MPC2CM,d,me,sigmav_sis);
+      fprintf(ofp,"\n");
+    }
+
   }
   else {
     fprintf(stdout,
