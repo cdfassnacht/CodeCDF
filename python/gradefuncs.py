@@ -111,9 +111,9 @@ def plot_tothist(infile, tot, maxy, binsize=3, colname=None):
    binhist = range(int(tot.min())-1,int(tot.max())+3,binsize)
    plt.hist(tot,binhist,histtype='step',ec='k')
    plt.ylim(0,maxy)
-   plt.axvline(x=mn, ymin=0, ymax=maxy, c='r', lw=3)
-   plt.axvline(x=mm, ymin=0, ymax=maxy, c='b', lw=3)
-   plt.axvline(x=mp, ymin=0, ymax=maxy, c='b', lw=3)
+   plt.axvline(x=med, ymin=0, ymax=maxy, c='r', lw=3)
+   plt.axvline(x=m16, ymin=0, ymax=maxy, c='b', lw=3)
+   plt.axvline(x=m84, ymin=0, ymax=maxy, c='b', lw=3)
    if colname is not None:
       plt.title("Distribution of scores for %s" % colname)
    else:
