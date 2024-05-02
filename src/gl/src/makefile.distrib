@@ -1,0 +1,45 @@
+#-----------------------------------------------------------------------
+# This is the (hopefully) site independent part of the general programs
+#  makefile.
+# The site-specific part should be appended to this makefile and named
+# makefile by the configure script present in the parent directory. You
+# should not have to modify this file - changes should only be made to
+# the configure script.
+# The configure script must define CC, CFLAGS, INCDIR, LIBDIR and
+# RANLIB.
+#-----------------------------------------------------------------------
+# Description: Makefile for the general programs directory
+#
+# Chris Fassnacht (fassnacht@physics.ucdavis.edu). 
+#  Based on Martin Shepherd's difmap makefiles.
+#-----------------------------------------------------------------------
+
+# Compile time flags.
+CFLAGC = -c $(CFLAGS) -I$(INCDIR) -I/usr/include
+
+FFLAGC = -c $(FFLAGS)
+
+# Specify how the general utilities library is to be specified
+
+CDFUTIL = $(LIBDIR)/libutil.a
+
+# This tells make how to compile a C file - don't touch.
+
+.c.o:
+	$(CC) $(CFLAGC) $<
+
+.f.o:
+	 $(FC) $(FFLAGC) $<
+
+default: phys_units
+
+phys_units: phys_units.o $(CDFUTIL) 
+	$(CC) -o $(BINDIR)/phys_units phys_units.o $(CDFUTIL) -lm $(CCLIB)
+
+# Add other programs later
+
+
+clean:
+	rm *.o
+
+

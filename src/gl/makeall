@@ -1,0 +1,11 @@
+#!/bin/sh
+#-----------------------------------------------------------------------
+# Create and install fitsplt suite and its libraries.
+#-----------------------------------------------------------------------
+
+echo ' '; echo 'Compiling the general utility library libutil.a'; echo ' '
+(cd $CDFUTIL; pwd; make)
+
+echo ' '; echo 'Compiling the general programs'; echo ' '
+(cd src; pwd; make)
+

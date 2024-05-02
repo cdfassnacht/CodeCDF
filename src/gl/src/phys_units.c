@@ -384,6 +384,7 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
 {
   double d;              /* D = D_l D_s / D_ls */
   double theta2;         /* 0.5 * theta (estimate of Einstein ring radius) */
+  double th_rad;         /* theta2 in radians */
   double me;             /* Mass enclosed in Einstein ring */
   double r_phys;         /* Physical radius of Einstein ring */
   double v_circ;         /* Implied circular velocity, given M_E */
@@ -406,7 +407,8 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
 
   d = cdl.d_a * cds.d_a / (cdls.d_a * 1000.0 * MPC2CM);
   theta2 = theta / 2.0;
-  me = C*C*MPC2CM*1000.0*d*theta2*theta2 / (4.0*G*RAD2ASEC*RAD2ASEC*MSUN);
+  th_rad = theta2 / RAD2ASEC;
+  me = C*C*MPC2CM*1000.0*d*th_rad*th_rad / (4.0*G*MSUN);
 
   /*
    * Compute Sigma_crit
@@ -426,7 +428,7 @@ void calc_params(double zl, double zs, double dzl, double dzs, double theta,
   r_phys = theta2 * cdl.d_a / RAD2ASEC;
   v_circ = sqrt(2 * G * me * MSUN / (PI * r_phys))/KM2CM;
   sigbn = 300.0 * sqrt(theta2 * cds.d_a / (2.6 * cdls.d_a));
-  sigmav_sis = sqrt(theta2 * C * C * cds.d_a / (4. * PI * cdls.d_a));
+  sigmav_sis = sqrt(th_rad * C * C * cds.d_a / (4. * PI * cdls.d_a)) / KM2CM;
 
   /*
    * Print out results
